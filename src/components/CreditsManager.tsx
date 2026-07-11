@@ -36,6 +36,7 @@ interface PaymentMethodConfig {
   method_id: string;
   name: string;
   is_active: boolean;
+  status: 'active' | 'hidden' | 'inactive';
 }
 
 const PAYMENT_METHOD_META: Record<string, { icon: string; description: string; fees: string; processing_time: string; min_amount: number; max_amount: number }> = {
@@ -142,8 +143,8 @@ export function CreditsManager() {
     try {
       const { data, error } = await supabase
         .from('payment_methods_config')
-        .select('method_id, name, is_active')
-        .eq('is_active', true)
+        .select('method_id, name, is_active, status, display_order')
+        .eq('status', 'active')
         .order('display_order', { ascending: true });
       if (error) throw error;
       setActiveMethods(data || []);

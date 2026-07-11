@@ -31,6 +31,7 @@ interface PaymentMethodConfig {
   method_id: string;
   name: string;
   is_active: boolean;
+  status: 'active' | 'hidden' | 'inactive';
   display_order: number;
 }
 
@@ -59,6 +60,13 @@ export default function AdminPaymentManager() {
   const [filter, setFilter] = useState<string>('all');
   const [methodConfigs, setMethodConfigs] = useState<PaymentMethodConfig[]>([]);
   const [togglingMethod, setTogglingMethod] = useState<string | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; dot: string }> = {
+    active: { label: 'Ativo', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-green-300 dark:border-green-700', dot: 'bg-green-500' },
+    hidden: { label: 'Oculto', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-300 dark:border-amber-700', dot: 'bg-amber-500' },
+    inactive: { label: 'Desativado', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-300 dark:border-red-700', dot: 'bg-red-500' },
+  };
 
   useEffect(() => {
     fetchStripePayments();
@@ -82,19 +90,39 @@ export default function AdminPaymentManager() {
   async function toggleMethod(methodId: string, currentActive: boolean) {
     setTogglingMethod(methodId);
     try {
+      const newStatus = currentActive ? 'inactive' : 'active';
       const { error } = await supabase
         .from('payment_methods_config')
-        .update({ is_active: !currentActive, updated_at: new Date().toISOString() })
+        .update({ is_active: !currentActive, status: newStatus, updated_at: new Date().toISOString() })
         .eq('method_id', methodId);
       if (error) throw error;
       setMethodConfigs(prev =>
-        prev.map(m => m.method_id === methodId ? { ...m, is_active: !currentActive } : m)
+        prev.map(m => m.method_id === methodId ? { ...m, is_active: !currentActive, status: newStatus } : m)
       );
     } catch (error) {
       console.error('Error toggling payment method:', error);
       alert('Erro ao alterar status do método de pagamento');
     } finally {
       setTogglingMethod(null);
+    }
+  }
+
+  async function updateMethodStatus(methodId: string, newStatus: 'active' | 'hidden' | 'inactive') {
+    setUpdatingStatus(methodId);
+    try {
+      const { error } = await supabase
+        .from('payment_methods_config')
+        .update({ status: newStatus, is_active: newStatus === 'active', updated_at: new Date().toISOString() })
+        .eq('method_id', methodId);
+      if (error) throw error;
+      setMethodConfigs(prev =>
+        prev.map(m => m.method_id === methodId ? { ...m, status: newStatus, is_active: newStatus === 'active' } : m)
+      );
+    } catch (error) {
+      console.error('Error updating payment method status:', error);
+      alert('Erro ao alterar status do método de pagamento');
+    } finally {
+      setUpdatingStatus(null);
     }
   }
 
@@ -270,51 +298,60 @@ export default function AdminPaymentManager() {
 
       {/* Payment Methods Toggle */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <Power className="h-5 w-5 text-blue-600" />
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
             Métodos de Pagamento
           </h3>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            — Ative ou desative os métodos visíveis aos clientes
-          </span>
         </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Controle o status de cada método: <span className="font-medium text-green-600 dark:text-green-400">Ativo</span> (visível e usável), <span className="font-medium text-amber-600 dark:text-amber-400">Oculto</span> (não exibido aos clientes) ou <span className="font-medium text-red-600 dark:text-red-400">Desativado</span> (exibido mas bloqueado).
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {methodConfigs.map((method) => (
+          {methodConfigs.map((method) => {
+            const statusInfo = STATUS_CONFIG[method.status] || STATUS_CONFIG.inactive;
+            return (
             <div
               key={method.method_id}
-              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                method.is_active
-                  ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20'
-                  : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50'
-              }`}
+              className={`flex flex-col p-3 rounded-lg border transition-colors ${statusInfo.border} ${statusInfo.bg}`}
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center p-1 flex-shrink-0">
-                  <img src={METHOD_ICONS[method.method_id] || ''} alt={method.name} className="w-full h-full object-contain rounded-md" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{method.name}</p>
-                  <p className={`text-xs ${method.is_active ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
-                    {method.is_active ? 'Ativo' : 'Desativado'}
-                  </p>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center p-1 flex-shrink-0">
+                    <img src={METHOD_ICONS[method.method_id] || ''} alt={method.name} className="w-full h-full object-contain rounded-md" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{method.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`inline-block w-2 h-2 rounded-full ${statusInfo.dot}`} />
+                      <p className={`text-xs font-medium ${statusInfo.color}`}>{statusInfo.label}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <button
-                onClick={() => toggleMethod(method.method_id, method.is_active)}
-                disabled={togglingMethod === method.method_id}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
-                  method.is_active ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    method.is_active ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+              <div className="flex items-center gap-1.5">
+                {(['active', 'hidden', 'inactive'] as const).map((s) => {
+                  const cfg = STATUS_CONFIG[s];
+                  const isSelected = method.status === s;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => updateMethodStatus(method.method_id, s)}
+                      disabled={updatingStatus === method.method_id || isSelected}
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                        isSelected
+                          ? `${cfg.border} ${cfg.bg} ${cfg.color} cursor-default`
+                          : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
