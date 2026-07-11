@@ -246,16 +246,16 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
           {step === 'qr' && (
             <div className="space-y-4">
               {/* QR Code */}
-              <div className="border-2 border-yellow-400 dark:border-yellow-600 rounded-xl p-4 flex flex-col items-center gap-3 bg-white dark:bg-gray-700">
-                {qrCode && <img src={qrCode} alt="QR Code Binance Pay" className="w-48 h-48" />}
+              <div className="border-2 border-yellow-400 dark:border-yellow-600 rounded-xl p-3 sm:p-4 flex flex-col items-center gap-2 bg-white dark:bg-gray-700">
+                {qrCode && <img src={qrCode} alt="QR Code Binance Pay" className="w-36 h-36 sm:w-44 sm:h-44" />}
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
                   Escaneie com o app <strong>Binance</strong>
                 </p>
               </div>
 
               {/* Binance ID for manual deposits */}
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
-                <label className="block text-xs font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-300 dark:border-yellow-600 rounded-lg p-4 shadow-sm">
+                <label className="block text-xs font-semibold text-yellow-800 dark:text-yellow-300 mb-2 uppercase tracking-wide">
                   Binance ID para depósito
                 </label>
                 <div className="flex gap-2">
@@ -263,11 +263,11 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                     type="text"
                     value={binanceId}
                     readOnly
-                    className="flex-1 px-3 py-2 border border-yellow-300 dark:border-yellow-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono font-bold"
+                    className="flex-1 px-3 py-2.5 border border-yellow-400 dark:border-yellow-500 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base sm:text-sm font-mono font-bold tracking-wider"
                   />
                   <button
                     onClick={copyBinanceId}
-                    className="px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex-shrink-0 flex items-center gap-1"
+                    className="px-3 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex-shrink-0 flex items-center gap-1 font-medium text-sm"
                   >
                     {copiedBinanceId ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     {copiedBinanceId ? 'Copiado!' : 'Copiar'}
