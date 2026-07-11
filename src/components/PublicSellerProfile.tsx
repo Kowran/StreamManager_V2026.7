@@ -80,12 +80,13 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
       setError(null);
 
       if (!sellerId) {
-        const { data: adminData, error: adminError } = await supabase
+        const { data: adminData } = await supabase
           .from('profiles')
           .select('*')
           .eq('role', 'admin')
+          .order('created_at', { ascending: true })
+          .limit(1)
           .maybeSingle();
-        if (adminError) { setError('Erro ao carregar perfil'); return; }
         if (adminData) {
           setProfile({ ...adminData, full_name: adminData.full_name || 'Admin' });
           await loadAdminStats();

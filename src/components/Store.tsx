@@ -150,17 +150,26 @@ export function Store({ onNavigate }: StoreProps = {}) {
             };
           }
 
-          const { count } = await supabase
-            .from('store_orders')
-            .select('*', { count: 'exact', head: true })
-            .is('seller_id', null)
-            .eq('status', 'completed');
+          const [{ count }, { data: adminProfile }] = await Promise.all([
+            supabase
+              .from('store_orders')
+              .select('*', { count: 'exact', head: true })
+              .is('seller_id', null)
+              .eq('status', 'completed'),
+            supabase
+              .from('profiles')
+              .select('id, full_name, seller_slug')
+              .eq('role', 'admin')
+              .maybeSingle(),
+          ]);
 
           return {
             ...product,
+            seller_id: adminProfile?.id ?? null,
             seller_info: {
-              business_name: 'Admin',
-              sales_count: count || 0
+              business_name: adminProfile?.full_name || 'Admin',
+              sales_count: count || 0,
+              seller_slug: adminProfile?.seller_slug,
             }
           };
         })
