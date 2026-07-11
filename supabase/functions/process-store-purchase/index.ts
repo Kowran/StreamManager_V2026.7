@@ -368,6 +368,7 @@ Deno.serve(async (req: Request) => {
         customer_name: user.user_metadata?.full_name || user.email || 'Usuario',
         coupon_id: couponId,
         discount_amount: discountAmount,
+        cashback_used: cashbackUsed,
         recharge_data: isAccountRecharge ? recharge_data : null
       })
       .select()

@@ -28,6 +28,9 @@ interface Sale {
     cancellation_reason?: string;
     recharge_data?: { email: string; password: string; extra_data?: string } | null;
     delivery_confirmed?: boolean;
+    discount_amount?: number;
+    cashback_used?: number;
+    coupon_id?: string | null;
   };
 }
 
@@ -1076,6 +1079,26 @@ export function AdminSalesManager() {
                       ${selectedSale.purchase_price.toFixed(2)}
                     </p>
                   </div>
+                  {selectedSale.store_orders?.discount_amount && selectedSale.store_orders.discount_amount > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 dark:text-blue-400">
+                        Desconto (Cupom)
+                      </label>
+                      <p className="mt-1 text-sm font-semibold text-green-600 dark:text-green-400">
+                        -$${selectedSale.store_orders.discount_amount.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                  {selectedSale.store_orders?.cashback_used && selectedSale.store_orders.cashback_used > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-blue-700 dark:text-blue-400">
+                        Cashback Utilizado
+                      </label>
+                      <p className="mt-1 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                        -$${selectedSale.store_orders.cashback_used.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-blue-700 dark:text-blue-400">
                       Data da Compra

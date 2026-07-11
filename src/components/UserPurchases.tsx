@@ -26,6 +26,9 @@ interface UserPurchase {
     status: string;
     cancelled_at?: string;
     cancellation_reason?: string;
+    discount_amount?: number;
+    cashback_used?: number;
+    coupon_id?: string | null;
   };
 }
 
@@ -138,7 +141,10 @@ export function UserPurchases() {
           store_orders!user_purchases_order_id_fkey (
             status,
             cancelled_at,
-            cancellation_reason
+            cancellation_reason,
+            discount_amount,
+            cashback_used,
+            coupon_id
           )
         `)
         .eq('user_id', user.id)
@@ -601,6 +607,26 @@ export function UserPurchases() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t.amountPaid}</label>
                     <p className="mt-1 text-sm font-bold text-gray-900 dark:text-white">${selectedPurchase.purchase_price.toFixed(2)}</p>
                   </div>
+                  {selectedPurchase.store_orders?.discount_amount && selectedPurchase.store_orders.discount_amount > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {t.language === 'pt' ? 'Desconto (Cupom)' : t.language === 'en' ? 'Discount (Coupon)' : 'Descuento (Cupón)'}
+                      </label>
+                      <p className="mt-1 text-sm font-semibold text-green-600 dark:text-green-400">
+                        -$${selectedPurchase.store_orders.discount_amount.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+                  {selectedPurchase.store_orders?.cashback_used && selectedPurchase.store_orders.cashback_used > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {t.language === 'pt' ? 'Cashback Utilizado' : t.language === 'en' ? 'Cashback Used' : 'Cashback Utilizado'}
+                      </label>
+                      <p className="mt-1 text-sm font-semibold text-amber-600 dark:text-amber-400">
+                        -$${selectedPurchase.store_orders.cashback_used.toFixed(2)}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t.purchaseDate}</label>
                     <p className="mt-1 text-sm text-gray-900 dark:text-white">
