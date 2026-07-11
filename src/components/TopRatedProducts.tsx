@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, TrendingUp, Award, Package } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 
 interface TopRatedProduct {
   product_id: string;
@@ -19,6 +19,7 @@ interface TopRatedProductsProps {
 
 export function TopRatedProducts({ limit = 5, showTitle = true }: TopRatedProductsProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [topProducts, setTopProducts] = useState<TopRatedProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -128,7 +129,7 @@ export function TopRatedProducts({ limit = 5, showTitle = true }: TopRatedProduc
                       {product.category}
                     </span>
                     <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                      ${product.price_usdt.toFixed(2)}
+                      {formatPrice(product.price_usdt)}
                     </span>
                   </div>
                 </div>

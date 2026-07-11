@@ -3,6 +3,7 @@ import { Plus, CreditCard as Edit, Trash2, Package, Search, Save, X, DollarSign,
 import { supabase, StoreProduct } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { SellerSales } from './SellerSales';
 
@@ -29,6 +30,7 @@ interface InventoryItem {
 export function SellerStore() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [activeSubTab, setActiveSubTab] = useState<'products' | 'sales'>('products');
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [inventory, setInventory] = useState<Record<string, InventoryItem[]>>({});
@@ -535,7 +537,7 @@ export function SellerStore() {
 
                   <div className="flex items-center space-x-4 mt-2">
                     <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                      ${product.price_usdt.toFixed(2)}
+                      {formatPrice(product.price_usdt)}
                     </span>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       product.active

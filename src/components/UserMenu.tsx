@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { LogOut, User, ChevronDown, Wallet, DollarSign, Coins } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 
 interface UserMenuProps {
   onNavigate?: (tab: string) => void;
@@ -72,6 +73,7 @@ function UserAvatar() {
 export function UserMenu({ onNavigate }: UserMenuProps) {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [isOpen, setIsOpen] = useState(false);
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [creditBalance, setCreditBalance] = useState(0);
@@ -155,7 +157,7 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
                   </span>
                 </div>
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                  ${creditBalance.toFixed(2)}
+                  {formatPrice(creditBalance)}
                 </span>
               </div>
               {cashbackBalance > 0 && (
@@ -169,7 +171,7 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
                     </span>
                   </div>
                   <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-                    ${cashbackBalance.toFixed(2)}
+                    {formatPrice(cashbackBalance)}
                   </span>
                 </div>
               )}
