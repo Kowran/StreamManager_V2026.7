@@ -238,12 +238,10 @@ function AppContent() {
     { id: 'smm', name: t.language === 'pt' ? 'Redes Sociais' : t.language === 'en' ? 'Social Medial' : 'Redes Sociales', icon: TrendingUp },
     { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
     { id: 'notifications', name: t.language === 'pt' ? 'Notificações' : t.language === 'en' ? 'Notifications' : 'Notificaciones', icon: Bell },
-    { id: 'credits', name: t.myCredits, icon: DollarSign },
     { id: 'purchases', name: t.myPurchases, icon: Package },
     { id: 'support', name: t.language === 'pt' ? 'Suporte' : t.language === 'en' ? 'Support' : 'Soporte', icon: MessageCircle },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Gerenciador Streaming' : t.language === 'en' ? 'Streaming Manager' : 'Gestor Streaming', icon: Play },
-    { id: 'profile', name: t.language === 'pt' ? 'Meu Perfil' : t.language === 'en' ? 'My Profile' : 'Mi Perfil', icon: User },
   ];
 
   // Add seller-only navigation items
@@ -640,7 +638,7 @@ function AppContent() {
               <div className="hidden lg:block">
                 <LanguageSelector />
               </div>
-              <UserMenu />
+              <UserMenu onNavigate={setActiveTab} />
             </div>
           </div>
         </div>
