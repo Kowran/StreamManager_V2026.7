@@ -1,0 +1,853 @@
+import React, { useState, useEffect } from 'react';
+import { BarChart3, CreditCard, Users, UserCheck, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
+import { supabase } from './lib/supabase';
+import { AuthProvider, useAuth } from './components/AuthProvider';
+import { LanguageProvider, useLanguage } from './components/LanguageProvider';
+import { ThemeProvider, useTheme } from './components/ThemeProvider';
+import { LanguageSelector } from './components/LanguageSelector';
+import { UserMenu } from './components/UserMenu';
+import { NotificationCenter } from './components/NotificationCenter';
+import { NotificationProvider, useNotificationContext } from './components/NotificationProvider';
+import { LoginForm } from './components/LoginForm';
+import { AccountsManager } from './components/AccountsManager';
+import { ClientsManager } from './components/ClientsManager';
+import { SellersManager } from './components/SellersManager';
+import { ServicesManager } from './components/ServicesManager';
+import { Store } from './components/Store';
+import { AdminProductsManager } from './components/AdminProductsManager';
+import { UserPurchases } from './components/UserPurchases';
+import { Package } from 'lucide-react';
+import { AccountsAccessGuard } from './components/AccountsAccessGuard';
+import AdminUsersManager from './components/AdminUsersManager';
+import AdminSettingsManager from './components/AdminSettingsManager';
+import { LandingPage } from './components/LandingPage';
+import { AccountsAccessManager } from './components/AccountsAccessManager';
+import { MessageCircle } from 'lucide-react';
+import { SupportSystem } from './components/SupportSystem';
+import { AdminSupportManager } from './components/AdminSupportManager';
+import { UserProfile } from './components/UserProfile';
+import { CreditsManager } from './components/CreditsManager';
+import { DollarSign } from 'lucide-react';
+import AdminPaymentManager from './components/AdminPaymentManager';
+import { AdminCreditManager } from './components/AdminCreditManager';
+import { AffiliateSystem } from './components/AffiliateSystem';
+import { AdminSalesManager } from './components/AdminSalesManager';
+import { AdminEmailVerifier } from './components/AdminEmailVerifier';
+import { NetflixEmailFinder } from './components/NetflixEmailFinder';
+import { Footer } from './components/Footer';
+import { Dashboard } from './components/Dashboard';
+import { AdminDashboard } from './components/AdminDashboard';
+import { SMMPanel } from './components/SMMPanel';
+import { AdminSMMManager } from './components/AdminSMMManager';
+import { AdminSMMProviders } from './components/AdminSMMProviders';
+import { AdminSMMOrders } from './components/AdminSMMOrders';
+import Community from './components/Community';
+import AdminCommunityManager from './components/AdminCommunityManager';
+import { AdminSellerRequests } from './components/AdminSellerRequests';
+import { ExpiringItemsChat } from './components/ExpiringItemsChat';
+import { AdminNetflixAccounts } from './components/AdminNetflixAccounts';
+import { AdminNotificationsManager } from './components/AdminNotificationsManager';
+import AdminPopupManager from './components/AdminPopupManager';
+import { NotificationsPage } from './components/NotificationsPage';
+import { SellerStore } from './components/SellerStore';
+import { PublicSellerProfilePage } from './components/PublicSellerProfilePage';
+import { AdminGuard } from './components/AdminGuard';
+import { PopupDisplay } from './components/PopupDisplay';
+import { AnnouncementBar } from './components/AnnouncementBar';
+import { AdminAnnouncementManager } from './components/AdminAnnouncementManager';
+import { AdminBannerManager } from './components/AdminBannerManager';
+import { AdminCouponsManager } from './components/AdminCouponsManager';
+
+type ActiveTab = 'dashboard' | 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'notifications' | 'seller-store' | 'seller-profile';
+
+interface StoreConfig {
+  store_name?: string;
+  store_logo_url?: string;
+}
+
+function AppContent() {
+  const { user, loading, isPasswordRecovery } = useAuth();
+  const { t } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
+  const [activeTab, setActiveTab] = useState<ActiveTab>('store');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
+  const [subdomain, setSubdomain] = useState<'main' | 'login' | 'home'>('main');
+  const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
+  const [sellerSlug, setSellerSlug] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('sidebarOpen');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const communityUnreadCount = useCommunityUnreadCount(user?.id);
+  const { unreadCount: notificationsUnreadCount } = useNotificationContext();
+
+  useEffect(() => {
+    detectSubdomain();
+    loadStoreConfig();
+  }, []);
+
+  function detectSubdomain() {
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+
+    if (parts.length > 2 || hostname.includes('localhost')) {
+      const sub = parts[0];
+      if (sub === 'login' || sub === 'painel' || sub === 'panel' || sub === 'dashboard') {
+        setSubdomain('login');
+        setShowLanding(false);
+      } else if (sub === 'home' || sub === 'www' || hostname.includes('localhost')) {
+        setSubdomain('home');
+        setShowLanding(true);
+      }
+    }
+  }
+
+  useEffect(() => {
+    checkAdminStatus();
+
+    if (user) {
+      const channel = supabase
+        .channel(`profile-changes:${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('Profile updated:', payload);
+            checkAdminStatus();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    localStorage.setItem('sidebarOpen', JSON.stringify(isSidebarOpen));
+  }, [isSidebarOpen]);
+
+  // Handle URL hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1) || 'store';
+
+      // Check if it's a seller profile route
+      if (hash.startsWith('seller/')) {
+        const slug = hash.replace('seller/', '');
+        setSellerSlug(slug);
+        setActiveTab('seller-profile');
+      } else if (hash && hash !== activeTab) {
+        setSellerSlug(null);
+        setActiveTab(hash as ActiveTab);
+      }
+    };
+
+    // Set initial tab from URL
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Update URL when tab changes
+  useEffect(() => {
+    if (user && !loading) {
+      const currentHash = window.location.hash.slice(1);
+      if (currentHash !== activeTab) {
+        window.history.pushState(null, '', `#${activeTab}`);
+      }
+    }
+  }, [activeTab, user, loading]);
+
+  async function loadStoreConfig() {
+    try {
+      const { data, error } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'store_config')
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      setStoreConfig(data?.value || null);
+    } catch (error) {
+      console.error('Error loading store config:', error);
+    }
+  }
+
+  async function checkAdminStatus() {
+    if (!user) return;
+
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+        setIsSeller(false);
+        return;
+      }
+
+      console.log('User profile role:', profile?.role);
+      const isAdminUser = profile?.role === 'admin';
+      const isSellerUser = profile?.role === 'seller' || profile?.role === 'admin';
+
+      console.log('Setting isAdmin:', isAdminUser, 'isSeller:', isSellerUser);
+      setIsAdmin(isAdminUser);
+      setIsSeller(isSellerUser);
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+      setIsSeller(false);
+    }
+  }
+
+  const navigation = [
+    { id: 'store', name: t.store, icon: CreditCard },
+    { id: 'smm', name: t.language === 'pt' ? 'Redes Sociais' : t.language === 'en' ? 'Social Medial' : 'Redes Sociales', icon: TrendingUp },
+    { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
+    { id: 'notifications', name: t.language === 'pt' ? 'Notificações' : t.language === 'en' ? 'Notifications' : 'Notificaciones', icon: Bell },
+    { id: 'credits', name: t.myCredits, icon: DollarSign },
+    { id: 'purchases', name: t.myPurchases, icon: Package },
+    { id: 'support', name: t.language === 'pt' ? 'Suporte' : t.language === 'en' ? 'Support' : 'Soporte', icon: MessageCircle },
+    { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
+    { id: 'accounts', name: t.language === 'pt' ? 'Gerenciador Streaming' : t.language === 'en' ? 'Streaming Manager' : 'Gestor Streaming', icon: Play },
+    { id: 'profile', name: t.language === 'pt' ? 'Meu Perfil' : t.language === 'en' ? 'My Profile' : 'Mi Perfil', icon: User },
+  ];
+
+  // Add seller-only navigation items
+  if (isSeller) {
+    navigation.push({
+      id: 'seller-store',
+      name: t.language === 'pt' ? 'Minha Loja' : t.language === 'en' ? 'My Store' : 'Mi Tienda',
+      icon: ShoppingBag
+    });
+  }
+
+  // Add admin-only navigation items
+  if (isAdmin) {
+    navigation.push({
+      id: 'netflix-finder',
+      name: t.language === 'pt' ? 'Código Netflix' : t.language === 'en' ? 'Netflix Code' : 'Código Netflix',
+      icon: Mail
+    });
+    navigation.push({
+      id: 'admin-dashboard',
+      name: t.language === 'pt' ? 'Admin' : t.language === 'en' ? 'Admin' : 'Admin',
+      icon: Shield
+    });
+  }
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard onTabChange={setActiveTab} isAdmin={isAdmin} />;
+      case 'admin-dashboard':
+        return (
+          <AdminGuard>
+            <AdminDashboard onNavigate={setActiveTab} />
+          </AdminGuard>
+        );
+      case 'accounts':
+        return (
+          <AccountsAccessGuard>
+            <AccountsManager />
+          </AccountsAccessGuard>
+        );
+      case 'sellers':
+        return (
+          <AdminGuard page="sellers">
+            <SellersManager />
+          </AdminGuard>
+        );
+      case 'services':
+        return (
+          <AdminGuard page="services">
+            <ServicesManager />
+          </AdminGuard>
+        );
+      case 'store':
+        return <Store />;
+      case 'smm':
+        return <SMMPanel />;
+      case 'admin-smm-providers':
+        return (
+          <AdminGuard page="admin-smm-providers">
+            <AdminSMMProviders />
+          </AdminGuard>
+        );
+      case 'admin-smm':
+        return (
+          <AdminGuard page="admin-smm">
+            <AdminSMMManager />
+          </AdminGuard>
+        );
+      case 'admin-smm-orders':
+        return (
+          <AdminGuard page="admin-smm-orders">
+            <AdminSMMOrders />
+          </AdminGuard>
+        );
+      case 'admin-products':
+        return (
+          <AdminGuard page="admin-products">
+            <AdminProductsManager />
+          </AdminGuard>
+        );
+      case 'credits':
+        return <CreditsManager />;
+      case 'purchases':
+        return <UserPurchases />;
+      case 'admin-users':
+        return (
+          <AdminGuard page="admin-users">
+            <AdminUsersManager />
+          </AdminGuard>
+        );
+      case 'admin-settings':
+        return (
+          <AdminGuard page="admin-settings">
+            <AdminSettingsManager />
+          </AdminGuard>
+        );
+      case 'accounts-access':
+        return (
+          <AdminGuard page="accounts-access">
+            <AccountsAccessManager />
+          </AdminGuard>
+        );
+      case 'support':
+        return <SupportSystem />;
+      case 'admin-support':
+        return (
+          <AdminGuard page="admin-support">
+            <AdminSupportManager />
+          </AdminGuard>
+        );
+      case 'profile':
+        return <UserProfile />;
+      case 'admin-payments':
+        return (
+          <AdminGuard page="admin-payments">
+            <AdminPaymentManager />
+          </AdminGuard>
+        );
+      case 'admin-credits':
+        return (
+          <AdminGuard page="admin-credits">
+            <AdminCreditManager />
+          </AdminGuard>
+        );
+      case 'affiliates':
+        return <AffiliateSystem />;
+      case 'admin-sales':
+        return (
+          <AdminGuard page="admin-sales">
+            <AdminSalesManager />
+          </AdminGuard>
+        );
+      case 'admin-coupons':
+        return (
+          <AdminGuard page="admin-coupons">
+            <AdminCouponsManager />
+          </AdminGuard>
+        );
+      case 'community':
+        return <Community />;
+      case 'admin-community':
+        return (
+          <AdminGuard page="admin-community">
+            <AdminCommunityManager />
+          </AdminGuard>
+        );
+      case 'admin-notifications':
+        return (
+          <AdminGuard page="admin-notifications">
+            <AdminNotificationsManager />
+          </AdminGuard>
+        );
+      case 'admin-popups':
+        return (
+          <AdminGuard page="admin-popups">
+            <AdminPopupManager />
+          </AdminGuard>
+        );
+      case 'admin-announcements':
+        return (
+          <AdminGuard page="admin-announcements">
+            <AdminAnnouncementManager />
+          </AdminGuard>
+        );
+      case 'admin-banners':
+        return (
+          <AdminGuard page="admin-banners">
+            <AdminBannerManager />
+          </AdminGuard>
+        );
+      case 'notifications':
+        return <NotificationsPage />;
+      case 'seller-requests':
+        return (
+          <AdminGuard page="seller-requests">
+            <AdminSellerRequests />
+          </AdminGuard>
+        );
+      case 'admin-netflix-accounts':
+        return (
+          <AdminGuard page="admin-netflix-accounts">
+            <AdminNetflixAccounts />
+          </AdminGuard>
+        );
+      case 'seller-store':
+        return <SellerStore />;
+      case 'seller-profile':
+        if (!sellerSlug) return <Store />;
+        return (
+          <PublicSellerProfilePage
+            sellerSlug={sellerSlug}
+            onBack={() => {
+              setActiveTab('store');
+              setSellerSlug(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onProductClick={(product: any) => {
+              console.log('Product clicked:', product);
+            }}
+          />
+        );
+      case 'email-verifier':
+        // Redirect to external URL
+        window.open('https://streammanager.online/', '_blank');
+        return <Store />;
+      case 'netflix-finder':
+        return (
+          <AdminGuard>
+            <NetflixEmailFinder />
+          </AdminGuard>
+        );
+      default:
+        return <Dashboard onTabChange={setActiveTab} isAdmin={isAdmin} />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
+        <AnnouncementBar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show password reset form if in recovery mode
+  if (isPasswordRecovery) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <AnnouncementBar />
+        <LoginForm />
+      </div>
+    );
+  }
+
+  if (!user) {
+    if (subdomain === 'home' || (subdomain === 'main' && showLanding)) {
+      return (
+        <div className="min-h-screen flex flex-col">
+          <AnnouncementBar />
+          <LandingPage onGetStarted={() => {
+        if (subdomain === 'home') {
+          const currentUrl = new URL(window.location.href);
+          const hostname = currentUrl.hostname;
+          const parts = hostname.split('.');
+          if (parts.length > 2 || hostname.includes('localhost')) {
+            const mainDomain = parts.slice(-2).join('.');
+            const loginUrl = hostname.includes('localhost')
+              ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
+              : `${currentUrl.protocol}//login.${mainDomain}`;
+            window.location.href = loginUrl;
+          } else {
+            setShowLanding(false);
+          }
+        } else {
+          setShowLanding(false);
+        }
+          }} />
+        </div>
+      );
+    }
+    return (
+      <div className="min-h-screen flex flex-col">
+        <AnnouncementBar />
+        <LoginForm onBack={() => {
+      if (subdomain === 'login') {
+        const currentUrl = new URL(window.location.href);
+        const hostname = currentUrl.hostname;
+        const parts = hostname.split('.');
+        if (parts.length > 2 || hostname.includes('localhost')) {
+          const mainDomain = parts.slice(-2).join('.');
+          const homeUrl = hostname.includes('localhost')
+            ? `${currentUrl.protocol}//localhost:${currentUrl.port}/`
+            : `${currentUrl.protocol}//home.${mainDomain}`;
+          window.location.href = homeUrl;
+        } else {
+          setShowLanding(true);
+        }
+      } else {
+        setShowLanding(true);
+      }
+    }} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
+      {/* Announcement Bar */}
+      <AnnouncementBar />
+
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-3 sm:py-4 lg:py-6">
+            <div className="flex items-center">
+              {/* Mobile menu button */}
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(!isMobileMenuOpen);
+                }}
+                className="lg:hidden p-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors mr-3 touch-manipulation"
+                aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+              
+              {/* Mobile Logo/Text */}
+              <button
+                onClick={() => {
+                  setActiveTab('store');
+                  window.history.pushState(null, '', '#store');
+                }}
+                className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
+              >
+                {storeConfig?.store_logo_url ? (
+                  <img
+                    src={storeConfig.store_logo_url}
+                    alt="Logo"
+                    className="h-6 w-6 object-cover rounded-lg mr-2"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
+                    <CreditCard className="h-3 w-3 text-white" />
+                  </div>
+                )}
+                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                  {storeConfig?.store_name || 'StreamManager'}
+                </span>
+              </button>
+
+              {/* Desktop Logo */}
+              <button
+                onClick={() => {
+                  setActiveTab('store');
+                  window.history.pushState(null, '', '#store');
+                }}
+                className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
+              >
+                {storeConfig?.store_logo_url ? (
+                  <img
+                    src={storeConfig.store_logo_url}
+                    alt="Logo"
+                    className="h-8 w-8 object-cover rounded-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+                </div>
+                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                  {storeConfig?.store_name || 'StreamManager'}
+                </span>
+              </button>
+            </div>
+            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+              {/* Theme Toggle - Hidden on mobile */}
+              <button
+                onClick={toggleTheme}
+                className="hidden lg:block p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                title={theme === 'light' ? 'Modo escuro' : 'Modo claro'}
+              >
+                {theme === 'light' ? (
+                  <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
+                ) : (
+                  <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
+                )}
+              </button>
+              <NotificationCenter />
+              {/* Language Selector - Hidden on mobile */}
+              <div className="hidden lg:block">
+                <LanguageSelector />
+              </div>
+              <UserMenu />
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Navigation Overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-gray-600 bg-opacity-50 backdrop-blur-sm"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsMobileMenuOpen(false);
+          }}
+        >
+          <div
+            className="fixed inset-y-0 left-0 w-72 sm:w-80 bg-white dark:bg-gray-800 shadow-xl transform transition-transform duration-300 ease-in-out"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => {
+                  setActiveTab('store');
+                  window.history.pushState(null, '', '#store');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center hover:opacity-80 transition-opacity"
+              >
+                {storeConfig?.store_logo_url ? (
+                  <img
+                    src={storeConfig.store_logo_url}
+                    alt="Logo"
+                    className="h-8 w-8 object-cover rounded-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-5 w-5 text-white" />
+                </div>
+                <span className="ml-3 text-lg font-bold text-gray-900 dark:text-white">
+                  {storeConfig?.store_name || 'StreamManager'}
+                </span>
+              </button>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+                aria-label="Fechar menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <nav className="mt-4 px-4">
+              <div className="space-y-1 max-h-[calc(100vh-280px)] overflow-y-auto scrollbar-hide">
+                {navigation.map((item) => {
+                  const IconComponent = item.icon;
+                  const isActive = activeTab === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id as ActiveTab);
+                        window.history.pushState(null, '', `#${item.id}`);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <IconComponent className={`mr-3 h-4 w-4 ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                        {item.name}
+                      </div>
+                      {item.id === 'community' && communityUnreadCount > 0 && (
+                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                          {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
+                        </span>
+                      )}
+                      {item.id === 'notifications' && notificationsUnreadCount > 0 && (
+                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                          {notificationsUnreadCount > 99 ? '99+' : notificationsUnreadCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Theme and Language Controls */}
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                {/* Theme Toggle */}
+                <button
+                  onClick={toggleTheme}
+                  className="w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  {theme === 'light' ? (
+                    <>
+                      <Moon className="mr-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                      <span>{t.language === 'pt' ? 'Modo Escuro' : t.language === 'en' ? 'Dark Mode' : 'Modo Oscuro'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sun className="mr-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                      <span>{t.language === 'pt' ? 'Modo Claro' : t.language === 'en' ? 'Light Mode' : 'Modo Claro'}</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Language Selector */}
+                <LanguageSelector />
+              </div>
+            </nav>
+
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8">
+          {/* Sidebar Navigation */}
+          <aside className={`hidden lg:flex flex-col transition-all duration-300 ${isSidebarOpen ? 'lg:w-64 xl:w-72' : 'lg:w-20 xl:w-20'}`}>
+            <div className="flex items-center justify-end mb-4">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                title={isSidebarOpen ? 'Ocultar menu' : 'Abrir menu'}
+              >
+                {isSidebarOpen ? (
+                  <ChevronLeft className="h-5 w-5" />
+                ) : (
+                  <ChevronRight className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+
+            <nav className="space-y-1">
+              {navigation.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = activeTab === item.id;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id as ActiveTab);
+                      window.history.pushState(null, '', `#${item.id}`);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 lg:px-4 py-2.5 lg:py-3 text-sm font-medium rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                    title={!isSidebarOpen ? item.name : ''}
+                  >
+                    <div className="flex items-center min-w-0">
+                      <IconComponent className={`mr-2 lg:mr-3 h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0 ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                      {isSidebarOpen && <span className="truncate">{item.name}</span>}
+                    </div>
+                    {isSidebarOpen && item.id === 'community' && communityUnreadCount > 0 && (
+                      <span className="flex items-center justify-center min-w-[22px] h-6 px-2 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                        {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1 min-w-0">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 lg:p-6 transition-colors">
+              {renderContent()}
+            </div>
+          </main>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <Footer />
+
+      {/* Expiring Items Chat */}
+      <ExpiringItemsChat />
+
+      {/* Admin Popups */}
+      <PopupDisplay />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <AppContent />
+          </NotificationProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </ThemeProvider>
+  );
+}
