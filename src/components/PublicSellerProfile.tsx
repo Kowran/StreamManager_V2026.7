@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle } from 'lucide-react';
+import {
+  X, Star, Package, ShoppingBag, TrendingUp,
+  Award, CheckCircle, User, MessageCircle, Calendar
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
+import { useAuth } from './AuthProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
+import { OnlineBadge } from './OnlineBadge';
+import { ChatModal } from './ChatModal';
 
 interface PublicSellerProfileProps {
   sellerId: string | null;
@@ -13,9 +19,14 @@ interface PublicSellerProfileProps {
 interface SellerProfile {
   id: string;
   full_name: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
+  cover_url?: string | null;
+  bio?: string | null;
+  theme_color?: string | null;
+  profile_badge?: string | null;
   created_at: string;
   role: string;
+  last_seen_at?: string | null;
 }
 
 interface SellerStats {
@@ -48,7 +59,8 @@ interface ProductRating {
 }
 
 export function PublicSellerProfile({ sellerId, onClose, onProductClick }: PublicSellerProfileProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [products, setProducts] = useState<SellerProduct[]>([]);
@@ -56,6 +68,7 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'products' | 'reviews'>('products');
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     loadSellerData();
@@ -65,59 +78,38 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
     try {
       setLoading(true);
       setError(null);
-      console.log('Loading seller data for:', sellerId);
 
       if (!sellerId) {
-        console.log('Loading admin profile');
         const { data: adminData, error: adminError } = await supabase
           .from('profiles')
           .select('*')
           .eq('role', 'admin')
           .maybeSingle();
-
-        if (adminError) {
-          console.error('Error loading admin profile:', adminError);
-          setError('Erro ao carregar perfil do admin');
-          return;
-        }
-
+        if (adminError) { setError('Erro ao carregar perfil'); return; }
         if (adminData) {
-          setProfile({
-            ...adminData,
-            full_name: adminData.full_name || 'Admin'
-          });
+          setProfile({ ...adminData, full_name: adminData.full_name || 'Admin' });
           await loadAdminStats();
         } else {
-          setError('Perfil do admin não encontrado');
+          setError('Perfil não encontrado');
         }
       } else {
-        console.log('Loading seller profile:', sellerId);
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', sellerId)
           .maybeSingle();
-
-        if (profileError) {
-          console.error('Error loading seller profile:', profileError);
-          setError('Erro ao carregar perfil do vendedor');
-          return;
-        }
-
+        if (profileError) { setError('Erro ao carregar perfil'); return; }
         if (profileData) {
-          console.log('Profile loaded:', profileData);
           setProfile(profileData);
           await loadSellerStats(sellerId);
           await loadSellerProducts(sellerId);
           await loadSellerRatings(sellerId);
         } else {
-          console.error('No profile data found');
           setError('Perfil não encontrado');
         }
       }
-    } catch (error) {
-      console.error('Error loading seller data:', error);
-      setError('Erro ao carregar dados do vendedor');
+    } catch {
+      setError('Erro ao carregar dados');
     } finally {
       setLoading(false);
     }
@@ -125,504 +117,347 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
 
   async function loadAdminStats() {
     try {
-      console.log('Loading admin stats...');
-
-      const { count: totalSales, error: salesError } = await supabase
+      const { count: totalSales } = await supabase
         .from('store_orders')
         .select('*', { count: 'exact', head: true })
         .is('seller_id', null)
         .eq('status', 'completed');
-
-      if (salesError) {
-        console.error('Error loading admin sales:', salesError);
-      }
-
-      const { count: activeProducts, error: productsError } = await supabase
+      const { count: activeProducts } = await supabase
         .from('store_products')
         .select('*', { count: 'exact', head: true })
         .is('seller_id', null)
         .eq('active', true);
-
-      if (productsError) {
-        console.error('Error loading admin products count:', productsError);
-      }
-
-      const { data: ratingsData, error: ratingsError } = await supabase
+      const { data: ratingsData } = await supabase
         .from('product_ratings')
         .select('rating, store_products!inner(seller_id)')
         .is('store_products.seller_id', null);
-
-      if (ratingsError) {
-        console.error('Error loading admin ratings:', ratingsError);
-      }
-
       const avgRating = ratingsData && ratingsData.length > 0
-        ? ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length
-        : 0;
-
-      const statsData = {
-        total_sales: totalSales || 0,
-        active_products: activeProducts || 0,
-        average_rating: avgRating,
-        total_reviews: ratingsData?.length || 0,
-        member_since_days: 0
-      };
-
-      console.log('Admin stats loaded:', statsData);
-      setStats(statsData);
-
-      const { data: productsData, error: productsListError } = await supabase
-        .from('store_products')
-        .select('*')
-        .is('seller_id', null)
-        .eq('active', true)
-        .limit(6);
-
-      if (productsListError) {
-        console.error('Error loading admin products:', productsListError);
-      } else {
-        console.log('Admin products loaded:', productsData?.length || 0);
-        setProducts(productsData || []);
-      }
-
-      const { data: ratingsWithDetails, error: ratingsDetailsError } = await supabase
-        .from('product_ratings')
-        .select(`
-          *,
-          store_products!inner(name, seller_id),
-          profiles!product_ratings_user_id_fkey(full_name)
-        `)
-        .is('store_products.seller_id', null)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (ratingsDetailsError) {
-        console.error('Error loading admin ratings details:', ratingsDetailsError);
-      } else if (ratingsWithDetails) {
-        console.log('Admin ratings loaded:', ratingsWithDetails.length);
-        setRatings(ratingsWithDetails.map(r => ({
-          id: r.id,
-          rating: r.rating,
-          comment: r.comment || '',
-          created_at: r.created_at,
-          buyer_name: r.profiles?.full_name || 'Anonymous',
-          product_name: r.store_products?.name || ''
-        })));
-      }
-    } catch (error) {
-      console.error('Error in loadAdminStats:', error);
-    }
+        ? ratingsData.reduce((s: number, r: any) => s + r.rating, 0) / ratingsData.length : 0;
+      setStats({ total_sales: totalSales || 0, active_products: activeProducts || 0, average_rating: avgRating, total_reviews: ratingsData?.length || 0, member_since_days: 0 });
+    } catch { /* ignore */ }
   }
 
-  async function loadSellerStats(sellerId: string) {
+  async function loadSellerStats(id: string) {
     try {
-      console.log('Loading seller stats for:', sellerId);
-
-      const { count: totalSales, error: salesError } = await supabase
-        .from('store_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('seller_id', sellerId)
-        .eq('status', 'completed');
-
-      if (salesError) console.error('Error loading sales:', salesError);
-
-      const { count: activeProducts, error: productsError } = await supabase
-        .from('store_products')
-        .select('*', { count: 'exact', head: true })
-        .eq('seller_id', sellerId)
-        .eq('active', true);
-
-      if (productsError) console.error('Error loading products count:', productsError);
-
-      const { data: ratingsData, error: ratingsError } = await supabase
-        .from('product_ratings')
-        .select('rating, store_products!inner(seller_id)')
-        .eq('store_products.seller_id', sellerId);
-
-      if (ratingsError) console.error('Error loading ratings:', ratingsError);
-
+      const { count: totalSales } = await supabase
+        .from('store_orders').select('*', { count: 'exact', head: true })
+        .eq('seller_id', id).eq('status', 'completed');
+      const { count: activeProducts } = await supabase
+        .from('store_products').select('*', { count: 'exact', head: true })
+        .eq('seller_id', id).eq('active', true);
+      const { data: ratingsData } = await supabase
+        .from('product_ratings').select('rating, store_products!inner(seller_id)')
+        .eq('store_products.seller_id', id);
       const avgRating = ratingsData && ratingsData.length > 0
-        ? ratingsData.reduce((sum, r) => sum + r.rating, 0) / ratingsData.length
-        : 0;
-
-      const memberSince = profile?.created_at
-        ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
-
-      const statsData = {
-        total_sales: totalSales || 0,
-        active_products: activeProducts || 0,
-        average_rating: avgRating,
-        total_reviews: ratingsData?.length || 0,
-        member_since_days: memberSince
-      };
-
-      console.log('Stats loaded:', statsData);
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error in loadSellerStats:', error);
-    }
+        ? ratingsData.reduce((s: number, r: any) => s + r.rating, 0) / ratingsData.length : 0;
+      const memberDays = profile?.created_at
+        ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86400000) : 0;
+      setStats({ total_sales: totalSales || 0, active_products: activeProducts || 0, average_rating: avgRating, total_reviews: ratingsData?.length || 0, member_since_days: memberDays });
+    } catch { /* ignore */ }
   }
 
-  async function loadSellerProducts(sellerId: string) {
+  async function loadSellerProducts(id: string) {
     try {
-      console.log('Loading seller products for:', sellerId);
-
-      const { data, error } = await supabase
-        .from('store_products')
-        .select('*')
-        .eq('seller_id', sellerId)
-        .eq('active', true)
-        .limit(6);
-
-      if (error) {
-        console.error('Error loading products:', error);
-        throw error;
-      }
-
-      console.log('Products loaded:', data?.length || 0);
+      const { data } = await supabase
+        .from('store_products').select('*')
+        .eq('seller_id', id).eq('active', true)
+        .order('created_at', { ascending: false });
       setProducts(data || []);
-    } catch (error) {
-      console.error('Error in loadSellerProducts:', error);
-    }
+    } catch { /* ignore */ }
   }
 
-  async function loadSellerRatings(sellerId: string) {
+  async function loadSellerRatings(id: string) {
     try {
-      console.log('Loading seller ratings for:', sellerId);
-
-      const { data: ratingsWithDetails, error } = await supabase
+      const { data } = await supabase
         .from('product_ratings')
-        .select(`
-          *,
-          store_products!inner(name, seller_id),
-          profiles!product_ratings_user_id_fkey(full_name)
-        `)
-        .eq('store_products.seller_id', sellerId)
+        .select('*, store_products!inner(name, seller_id), profiles!product_ratings_user_id_fkey(full_name)')
+        .eq('store_products.seller_id', id)
         .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (error) {
-        console.error('Error loading ratings:', error);
-        throw error;
-      }
-
-      if (ratingsWithDetails) {
-        console.log('Ratings loaded:', ratingsWithDetails.length);
-        setRatings(ratingsWithDetails.map(r => ({
+        .limit(20);
+      if (data) {
+        setRatings(data.map((r: any) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment || '',
           created_at: r.created_at,
-          buyer_name: r.profiles?.full_name || 'Anonymous',
-          product_name: r.store_products?.name || ''
+          buyer_name: r.profiles?.full_name || 'Anônimo',
+          product_name: r.store_products?.name || '',
         })));
       }
-    } catch (error) {
-      console.error('Error in loadSellerRatings:', error);
-    }
+    } catch { /* ignore */ }
   }
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-8 min-w-[300px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="text-center mt-4 text-gray-600 dark:text-gray-400">
-            {t.language === 'pt' ? 'Carregando...' : t.language === 'en' ? 'Loading...' : 'Cargando...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-md w-full">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <X className="w-8 h-8 text-red-600 dark:text-red-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-              {t.language === 'pt' ? 'Erro ao Carregar' : t.language === 'en' ? 'Loading Error' : 'Error al Cargar'}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              {t.language === 'pt' ? 'Fechar' : t.language === 'en' ? 'Close' : 'Cerrar'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return null;
-  }
+  const themeColor = profile?.theme_color || '#3b82f6';
+  const lbl = (pt: string, en: string, es: string) =>
+    language === 'pt' ? pt : language === 'en' ? en : es;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between z-10">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {t.language === 'pt' ? 'Perfil do Vendedor' : t.language === 'en' ? 'Seller Profile' : 'Perfil del Vendedor'}
-          </h2>
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="relative min-h-screen flex items-start justify-center py-6 px-4">
+        <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
+
+          {/* Close button */}
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="absolute top-3 right-3 z-20 p-1.5 rounded-xl bg-black/30 hover:bg-black/50 text-white transition-colors"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           </button>
-        </div>
 
-        <div className="p-6 space-y-6">
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6 text-white">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  {profile.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt={profile.full_name}
-                      className="w-20 h-20 rounded-full border-4 border-white object-cover"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 rounded-full border-4 border-white bg-white/20 flex items-center justify-center">
-                      <span className="text-3xl font-bold">
-                        {profile.full_name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1">
-                    <CheckCircle className="w-5 h-5 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold">{profile.full_name}</h3>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <Award className="w-4 h-4" />
-                    <span className="text-sm opacity-90">
-                      {t.language === 'pt' ? 'Vendedor Verificado' : t.language === 'en' ? 'Verified Seller' : 'Vendedor Verificado'}
-                    </span>
-                  </div>
-                  {stats && stats.member_since_days > 0 && (
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm opacity-90">
-                        {t.language === 'pt'
-                          ? `Membro há ${stats.member_since_days} dias`
-                          : t.language === 'en'
-                          ? `Member for ${stats.member_since_days} days`
-                          : `Miembro por ${stats.member_since_days} días`}
-                      </span>
-                    </div>
-                  )}
-                </div>
+          {/* Cover */}
+          <div className="relative h-36 sm:h-44">
+            {profile?.cover_url ? (
+              <img src={profile.cover_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div
+                className="w-full h-full"
+                style={{ background: `linear-gradient(135deg, ${themeColor}55 0%, ${themeColor}cc 60%, ${themeColor}88 100%)` }}
+              />
+            )}
+            {/* Pattern overlay */}
+            {!profile?.cover_url && (
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  backgroundImage: `radial-gradient(circle, white 1px, transparent 1px)`,
+                  backgroundSize: '28px 28px',
+                }}
+              />
+            )}
+          </div>
+
+          {/* Avatar + header info */}
+          <div className="px-6 pb-4">
+            <div className="flex items-end justify-between -mt-10 mb-3">
+              {/* Avatar */}
+              <div
+                className="w-20 h-20 rounded-2xl border-4 border-white dark:border-gray-900 shadow-lg overflow-hidden flex items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}88)` }}
+              >
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="h-8 w-8 text-white" />
+                )}
               </div>
+
+              {/* Chat button */}
+              {user && profile && user.id !== profile.id && (
+                <button
+                  onClick={() => setChatOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors shrink-0"
+                  style={{ backgroundColor: themeColor }}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {lbl('Mensagem', 'Message', 'Mensaje')}
+                </button>
+              )}
+            </div>
+
+            {/* Name + badge + role */}
+            <div className="space-y-1">
+              {loading ? (
+                <div className="h-7 w-40 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+              ) : (
+                <div className="flex items-center flex-wrap gap-2">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {profile?.full_name || 'Usuário'}
+                  </h2>
+                  {profile?.profile_badge && (
+                    <span
+                      className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
+                      style={{ backgroundColor: themeColor }}
+                    >
+                      {profile.profile_badge}
+                    </span>
+                  )}
+                  <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                    profile?.role === 'admin'
+                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                  }`}>
+                    {profile?.role === 'admin'
+                      ? <><Shield className="w-3 h-3" /> Admin</>
+                      : <><Award className="w-3 h-3" /> {lbl('Vendedor', 'Seller', 'Vendedor')}</>
+                    }
+                  </span>
+                </div>
+              )}
+
+              {/* Online status */}
+              {profile && (
+                <OnlineBadge
+                  lastSeenAt={profile.last_seen_at}
+                  language={language}
+                  showLabel
+                  size="sm"
+                />
+              )}
+
+              {/* Bio */}
+              {profile?.bio && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 italic mt-1">
+                  "{profile.bio}"
+                </p>
+              )}
+
+              {/* Member since */}
+              {profile?.created_at && (
+                <p className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {lbl('Membro desde', 'Member since', 'Miembro desde')} {new Date(profile.created_at).toLocaleDateString(language === 'pt' ? 'pt-BR' : language === 'en' ? 'en-US' : 'es-ES', { month: 'short', year: 'numeric' })}
+                </p>
+              )}
             </div>
           </div>
 
+          {/* Stats strip */}
           {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
-                <div className="flex items-center justify-between mb-2">
-                  <ShoppingBag className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div className="mx-6 mb-4 grid grid-cols-4 gap-2">
+              {[
+                { icon: ShoppingBag, value: stats.total_sales, label: lbl('Vendas', 'Sales', 'Ventas'), color: 'text-blue-500' },
+                { icon: Package, value: stats.active_products, label: lbl('Produtos', 'Products', 'Productos'), color: 'text-emerald-500' },
+                { icon: Star, value: stats.average_rating.toFixed(1), label: lbl('Nota', 'Rating', 'Nota'), color: 'text-amber-500' },
+                { icon: TrendingUp, value: stats.total_reviews, label: lbl('Avaliações', 'Reviews', 'Reseñas'), color: 'text-rose-500' },
+              ].map((s, i) => (
+                <div key={i} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+                  <s.icon className={`h-4 w-4 mx-auto mb-1 ${s.color}`} />
+                  <div className="text-base font-bold text-gray-900 dark:text-white leading-tight">{s.value}</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{s.label}</div>
                 </div>
-                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats.total_sales}
-                </div>
-                <div className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  {t.language === 'pt' ? 'Vendas' : t.language === 'en' ? 'Sales' : 'Ventas'}
-                </div>
-              </div>
-
-              <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-700">
-                <div className="flex items-center justify-between mb-2">
-                  <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {stats.active_products}
-                </div>
-                <div className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  {t.language === 'pt' ? 'Produtos' : t.language === 'en' ? 'Products' : 'Productos'}
-                </div>
-              </div>
-
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-700">
-                <div className="flex items-center justify-between mb-2">
-                  <Star className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                  {stats.average_rating.toFixed(1)}
-                </div>
-                <div className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                  {t.language === 'pt' ? 'Avaliação' : t.language === 'en' ? 'Rating' : 'Calificación'}
-                </div>
-              </div>
-
-              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-700">
-                <div className="flex items-center justify-between mb-2">
-                  <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {stats.total_reviews}
-                </div>
-                <div className="text-xs text-purple-700 dark:text-purple-300 mt-1">
-                  {t.language === 'pt' ? 'Avaliações' : t.language === 'en' ? 'Reviews' : 'Reseñas'}
-                </div>
-              </div>
+              ))}
             </div>
           )}
 
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setActiveTab('products')}
-                className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-                  activeTab === 'products'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                {t.language === 'pt' ? 'Produtos' : t.language === 'en' ? 'Products' : 'Productos'} ({products.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('reviews')}
-                className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-                  activeTab === 'reviews'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                }`}
-              >
-                {t.language === 'pt' ? 'Avaliações' : t.language === 'en' ? 'Reviews' : 'Reseñas'} ({ratings.length})
-              </button>
+          {/* Tabs */}
+          <div className="border-t border-gray-100 dark:border-gray-800">
+            <div className="flex px-6">
+              {(['products', 'reviews'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`py-3 px-1 mr-6 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab
+                      ? 'border-current'
+                      : 'border-transparent text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                  }`}
+                  style={activeTab === tab ? { color: themeColor, borderColor: themeColor } : {}}
+                >
+                  {tab === 'products'
+                    ? `${lbl('Produtos', 'Products', 'Productos')} (${products.length})`
+                    : `${lbl('Avaliações', 'Reviews', 'Reseñas')} (${ratings.length})`}
+                </button>
+              ))}
             </div>
           </div>
 
-          {activeTab === 'products' && (
-            <div>
-              {products.length === 0 ? (
+          {/* Tab content */}
+          <div className="p-6 max-h-[50vh] overflow-y-auto">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-t-transparent" style={{ borderColor: themeColor }} />
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <p className="text-red-500 text-sm">{error}</p>
+              </div>
+            ) : activeTab === 'products' ? (
+              products.length === 0 ? (
                 <div className="text-center py-12">
-                  <Package className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    {t.language === 'pt' ? 'Nenhum produto disponível' : t.language === 'en' ? 'No products available' : 'No hay productos disponibles'}
+                  <Package className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-2" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {lbl('Nenhum produto disponível', 'No products available', 'No hay productos')}
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {products.map((product) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {products.map(product => (
                     <div
                       key={product.id}
-                      onClick={() => onProductClick?.(product)}
-                      className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 hover:shadow-lg transition-all cursor-pointer transform hover:scale-105"
+                      onClick={() => { onProductClick?.(product); onClose(); }}
+                      className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all cursor-pointer group"
                     >
-                      <div className="aspect-video bg-gray-200 dark:bg-gray-600">
+                      <div className="aspect-video bg-gray-200 dark:bg-gray-700 overflow-hidden">
                         {product.image_url ? (
-                          <img
-                            src={product.image_url}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
-                            <Package className="h-12 w-12 text-white" />
+                          <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${themeColor}55, ${themeColor}aa)` }}>
+                            <Package className="h-10 w-10 text-white" />
                           </div>
                         )}
                       </div>
-                      <div className="p-4">
-                        <h4 className="font-semibold text-gray-900 dark:text-white line-clamp-1">
-                          {product.name}
-                        </h4>
+                      <div className="p-3">
+                        <h3 className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1">{product.name}</h3>
                         {product.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
-                            {product.description}
-                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{product.description}</p>
                         )}
-                        <div className="mt-3">
-                          <ProductRatingsDisplay productId={product.id} showTitle={false} compact={true} />
+                        <div className="mt-2">
+                          <ProductRatingsDisplay productId={product.id} showTitle={false} compact />
                         </div>
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                            ${product.price_usdt.toFixed(2)}
-                          </span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">${product.price_usdt.toFixed(2)}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                             (product.manual_delivery || product.stock_quantity > 0)
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400'
                           }`}>
                             {(product.manual_delivery || product.stock_quantity > 0)
-                              ? (t.language === 'pt' ? 'Disponível' : t.language === 'en' ? 'Available' : 'Disponible')
-                              : (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Out of Stock' : 'Agotado')}
+                              ? lbl('Disponível', 'Available', 'Disponible')
+                              : lbl('Esgotado', 'Out of Stock', 'Agotado')}
                           </span>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'reviews' && (
-            <div>
-              {ratings.length === 0 ? (
+              )
+            ) : (
+              ratings.length === 0 ? (
                 <div className="text-center py-12">
-                  <Star className="mx-auto h-12 w-12 text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    {t.language === 'pt' ? 'Nenhuma avaliação ainda' : t.language === 'en' ? 'No reviews yet' : 'Sin reseñas todavía'}
+                  <Star className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-2" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {lbl('Nenhuma avaliação ainda', 'No reviews yet', 'Sin reseñas')}
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {ratings.map((rating) => (
-                    <div
-                      key={rating.id}
-                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600"
-                    >
-                      <div className="flex items-start justify-between mb-2">
+                <div className="space-y-3">
+                  {ratings.map(rating => (
+                    <div key={rating.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700">
+                      <div className="flex items-start justify-between mb-1">
                         <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              {rating.buyer_name}
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(rating.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                            {rating.product_name}
-                          </p>
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">{rating.buyer_name}</span>
+                          <p className="text-xs text-gray-400 mt-0.5">{rating.product_name}</p>
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-0.5 shrink-0">
                           {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-4 w-4 ${
-                                i < rating.rating
-                                  ? 'text-yellow-400 fill-yellow-400'
-                                  : 'text-gray-300 dark:text-gray-600'
-                              }`}
-                            />
+                            <Star key={i} className={`h-3.5 w-3.5 ${i < rating.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`} />
                           ))}
                         </div>
                       </div>
                       {rating.comment && (
-                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-                          {rating.comment}
-                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">{rating.comment}</p>
                       )}
+                      <p className="text-[10px] text-gray-400 mt-2">{new Date(rating.created_at).toLocaleDateString()}</p>
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
-          )}
+              )
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Chat modal */}
+      {chatOpen && profile && (
+        <ChatModal
+          otherUserId={profile.id}
+          onClose={() => setChatOpen(false)}
+        />
+      )}
     </div>
   );
 }
