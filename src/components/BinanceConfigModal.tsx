@@ -12,6 +12,7 @@ interface BinanceConfig {
   api_key: string;
   api_secret: string;
   merchant_id: string;
+  binance_id: string;
   is_active: boolean;
 }
 
@@ -20,6 +21,7 @@ export function BinanceConfigModal({ onClose, onSave }: BinanceConfigModalProps)
     api_key: '',
     api_secret: '',
     merchant_id: '',
+    binance_id: '1145829605',
     is_active: false,
   });
   const [loading, setLoading] = useState(true);
@@ -70,6 +72,7 @@ export function BinanceConfigModal({ onClose, onSave }: BinanceConfigModalProps)
             api_key: config.api_key,
             api_secret: config.api_secret,
             merchant_id: config.merchant_id,
+            binance_id: config.binance_id,
             is_active: config.is_active,
             updated_at: new Date().toISOString(),
           })
@@ -83,6 +86,7 @@ export function BinanceConfigModal({ onClose, onSave }: BinanceConfigModalProps)
             api_key: config.api_key,
             api_secret: config.api_secret,
             merchant_id: config.merchant_id,
+            binance_id: config.binance_id,
             is_active: config.is_active,
           }]);
 
@@ -205,6 +209,25 @@ export function BinanceConfigModal({ onClose, onSave }: BinanceConfigModalProps)
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
                 placeholder="Digite seu Binance Merchant ID"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Binance ID (para depósitos)
+                </div>
+              </label>
+              <input
+                type="text"
+                value={config.binance_id}
+                onChange={(e) => setConfig({ ...config, binance_id: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                placeholder="Ex: 1145829605"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Este ID será exibido aos usuários para que possam enviar depósitos manualmente via Binance Pay.
+              </p>
             </div>
 
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">

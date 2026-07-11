@@ -25,7 +25,9 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
   const [userOrderId, setUserOrderId] = useState(''); // typed by user
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedBinanceId, setCopiedBinanceId] = useState(false);
   const [configEnabled, setConfigEnabled] = useState(false);
+  const [binanceId, setBinanceId] = useState('1145829605');
 
   useEffect(() => {
     if (isOpen) {
@@ -37,10 +39,11 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
     try {
       const { data, error } = await supabase
         .from('binance_config')
-        .select('is_active')
+        .select('is_active, binance_id')
         .maybeSingle();
       if (error) throw error;
       setConfigEnabled(data?.is_active || false);
+      if (data?.binance_id) setBinanceId(data.binance_id);
       if (!data?.is_active) {
         setError('Pagamentos via Binance Pay não estão disponíveis no momento');
       }
@@ -150,6 +153,12 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyBinanceId = () => {
+    navigator.clipboard.writeText(binanceId);
+    setCopiedBinanceId(true);
+    setTimeout(() => setCopiedBinanceId(false), 2000);
+  };
+
   const handleClose = () => {
     setStep('init');
     setPaymentUrl('');
@@ -158,6 +167,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
     setUserOrderId('');
     setError('');
     setCopied(false);
+    setCopiedBinanceId(false);
     onClose();
   };
 
@@ -243,10 +253,35 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                 </p>
               </div>
 
+              {/* Binance ID for manual deposits */}
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                <label className="block text-xs font-semibold text-yellow-800 dark:text-yellow-300 mb-2">
+                  Binance ID para depósito
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={binanceId}
+                    readOnly
+                    className="flex-1 px-3 py-2 border border-yellow-300 dark:border-yellow-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono font-bold"
+                  />
+                  <button
+                    onClick={copyBinanceId}
+                    className="px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex-shrink-0 flex items-center gap-1"
+                  >
+                    {copiedBinanceId ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    {copiedBinanceId ? 'Copiado!' : 'Copiar'}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-yellow-700 dark:text-yellow-400">
+                  Abra o app Binance, vá em <strong>Transferir → Enviar</strong>, cole este Binance ID e envie o valor de <strong>${amount.toFixed(2)} USDT</strong>.
+                </p>
+              </div>
+
               {/* Geo-block info banner */}
               {!paymentUrl && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
-                  <strong>Atenção:</strong> Devido a restrições regionais, escaneie o QR code acima na Binance App, faça o depósito e digite o ID do pedido na próxima etapa para confirmar seu pagamento.
+                  <strong>Atenção:</strong> Devido a restrições regionais, escaneie o QR code acima na Binance App ou use o Binance ID para depósito, e digite o ID do pedido na próxima etapa para confirmar seu pagamento.
                 </div>
               )}
 
