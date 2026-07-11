@@ -948,6 +948,7 @@ interface PurchaseSuccessModalProps {
 
 function PurchaseSuccessModal({ isOpen, onClose, productName, price, orderId, onViewPurchase }: PurchaseSuccessModalProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
 
   if (!isOpen) return null;
 
@@ -1057,6 +1058,7 @@ interface ProductCardProps {
 
 function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing, onViewSellerProfile }: ProductCardProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const canAfford = userCredit ? userCredit.balance >= product.price_usdt : false;
   const isAvailable = product.manual_delivery || (product as any).account_recharge || product.stock_quantity > 0;
 
@@ -1273,6 +1275,7 @@ interface RechargeModalProps {
 
 function RechargeModal({ onClose, paymentMethods, onPaymentMethodSelect }: RechargeModalProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [selectedAmount, setSelectedAmount] = useState<number>(10);
   const [customAmount, setCustomAmount] = useState<string>('');
 
@@ -1394,6 +1397,7 @@ function RechargeModal({ onClose, paymentMethods, onPaymentMethodSelect }: Recha
 
 function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchasing, onViewSellerProfile }: ProductDetailsModalProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const canAfford = userCredit ? userCredit.balance >= product.price_usdt : false;
 
   return (
