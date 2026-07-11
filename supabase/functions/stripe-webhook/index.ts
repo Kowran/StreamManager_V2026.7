@@ -117,9 +117,14 @@ async function handlePaymentSucceeded(supabase: any, paymentIntent: Stripe.Payme
     }
 
     // Get the original amount and fees from metadata
-    const originalAmount = parseFloat(paymentIntent.metadata.original_amount_usd || payment.amount_usd);
-    const totalCharged = parseFloat(paymentIntent.metadata.total_charged_usd || payment.amount_usd);
-    const stripeFee = parseFloat(paymentIntent.metadata.stripe_fee || '0');
+    const originalAmountUSD = parseFloat(paymentIntent.metadata.original_amount_usd || payment.amount_usd);
+    const chargeCurrency = paymentIntent.metadata.charge_currency || payment.currency || 'USD';
+    const totalChargedInCurrency = parseFloat(paymentIntent.metadata.total_charged || '0');
+    const stripeFeeInCurrency = parseFloat(paymentIntent.metadata.stripe_fee || '0');
+    const exchangeRate = parseFloat(paymentIntent.metadata.exchange_rate || '1');
+    // Derive USD values for total charged and fee
+    const totalChargedUSD = exchangeRate > 0 ? totalChargedInCurrency / exchangeRate : originalAmountUSD;
+    const stripeFeeUSD = exchangeRate > 0 ? stripeFeeInCurrency / exchangeRate : 0;
 
     // Update payment status
     const { error: updateError } = await supabase
@@ -133,9 +138,12 @@ async function handlePaymentSucceeded(supabase: any, paymentIntent: Stripe.Payme
           payment_intent: paymentIntent,
           webhook_received: true,
           processed_at: new Date().toISOString(),
-          original_amount_usd: originalAmount,
-          total_charged_usd: totalCharged,
-          stripe_fee: stripeFee,
+          original_amount_usd: originalAmountUSD,
+          charge_currency: chargeCurrency,
+          total_charged: totalChargedInCurrency,
+          total_charged_usd: totalChargedUSD,
+          stripe_fee: stripeFeeInCurrency,
+          stripe_fee_usd: stripeFeeUSD,
           amount_charged_cents: paymentIntent.amount,
           amount_received_cents: paymentIntent.amount_received
         },
@@ -148,8 +156,8 @@ async function handlePaymentSucceeded(supabase: any, paymentIntent: Stripe.Payme
       return;
     }
 
-    // Add credits to user account (only the original amount, not including fees)
-    const amountUSD = originalAmount; // Only credit the original amount, not the fees
+    // Add credits to user account (only the original USD amount, not including fees)
+    const amountUSD = originalAmountUSD;
     
     // Get current user credit balance
     const { data: userCredit, error: creditError } = await supabase
@@ -177,17 +185,19 @@ async function handlePaymentSucceeded(supabase: any, paymentIntent: Stripe.Payme
         amount: amountUSD,
         balance_before: currentBalance,
         balance_after: newBalance,
-        description: `Recarga via Stripe - $${amountUSD.toFixed(2)} (cobrado $${totalCharged.toFixed(2)} com taxas)`,
+        description: `Recarga via Stripe - ${amountUSD.toFixed(2)} (cobrado ${chargeCurrency} ${totalChargedInCurrency.toFixed(2)} com taxas)`,
         reference_id: payment.id,
         reference_type: 'stripe_payment',
         metadata: {
           payment_intent_id: paymentIntent.id,
           stripe_charge_id: paymentIntent.latest_charge,
           payment_method: 'stripe',
-          currency: payment.currency,
-          original_amount: originalAmount,
-          total_charged: totalCharged,
-          stripe_fee: stripeFee,
+          currency: chargeCurrency,
+          original_amount_usd: originalAmountUSD,
+          total_charged: totalChargedInCurrency,
+          total_charged_usd: totalChargedUSD,
+          stripe_fee: stripeFeeInCurrency,
+          stripe_fee_usd: stripeFeeUSD,
           fees_excluded_from_balance: true
         }
       });
@@ -219,20 +229,23 @@ async function handlePaymentSucceeded(supabase: any, paymentIntent: Stripe.Payme
       p_user_id: payment.user_id,
       p_type: 'payment',
       p_title: '💳 Recarga Confirmada!',
-      p_message: `Sua recarga de $${amountUSD.toFixed(2)} via Stripe foi confirmada! Total cobrado: $${totalCharged.toFixed(2)} (inclui taxas de $${stripeFee.toFixed(2)}).`,
+      p_message: `Sua recarga de ${amountUSD.toFixed(2)} via Stripe foi confirmada! Total cobrado: ${chargeCurrency} ${totalChargedInCurrency.toFixed(2)} (inclui taxas de ${chargeCurrency} ${stripeFeeInCurrency.toFixed(2)}).`,
       p_data: {
         payment_intent_id: paymentIntent.id,
         amount: amountUSD,
-        total_charged: totalCharged,
-        stripe_fee: stripeFee,
-        currency: payment.currency,
+        charge_currency: chargeCurrency,
+        total_charged: totalChargedInCurrency,
+        total_charged_usd: totalChargedUSD,
+        stripe_fee: stripeFeeInCurrency,
+        stripe_fee_usd: stripeFeeUSD,
+        currency: chargeCurrency,
         payment_method: 'stripe'
       },
       p_priority: 'high',
       p_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     });
 
-    console.log(`Successfully processed Stripe payment: ${paymentIntent.id}, charged $${totalCharged} (fee: $${stripeFee}), credited $${amountUSD} to user ${payment.user_id}`);
+    console.log(`Successfully processed Stripe payment: ${paymentIntent.id}, charged ${chargeCurrency} ${totalChargedInCurrency} (fee: ${chargeCurrency} ${stripeFeeInCurrency}), credited ${amountUSD} to user ${payment.user_id}`);
 
   } catch (error) {
     console.error('Error handling payment success:', error);

@@ -57,10 +57,10 @@ Deno.serve(async (req: Request) => {
     const requestData: PaymentRequest = await req.json();
     const { amount, original_amount, currency, description, metadata } = requestData;
 
-    // Validate amount
-    if (!amount || amount < 0.01 || amount > 1000) {
+    // Validate amount (in user currency, so limits scale accordingly)
+    if (!amount || amount < 0.01 || amount > 1000000) {
       return new Response(
-        JSON.stringify({ error: 'Amount must be between $0.01 and $1000' }),
+        JSON.stringify({ error: 'Invalid amount' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -98,24 +98,32 @@ Deno.serve(async (req: Request) => {
     // Generate unique order ID
     const orderId = `ST-${Date.now()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
 
-    // Calculate the amount to credit (original amount without fees)
-    const amountToCredit = original_amount || amount;
-    const totalCharged = amount; // This includes fees
-    const stripeFee = totalCharged - amountToCredit;
+    // Calculate the amount to credit (original USD amount without fees)
+    const amountToCreditUSD = original_amount || amount;
+    const totalChargedInCurrency = amount; // This includes fees, in user currency
+    const stripeFeeInCurrency = totalChargedInCurrency - (amountToCreditUSD * (parseFloat(metadata?.exchange_rate || '1')));
+    
+    // Determine decimals: zero-decimal currencies (JPY, ARS, COP, CLP, etc.) don't use cents
+    const zeroDecimalCurrencies = ['ars', 'cop', 'clp', 'jpy', 'krw', 'vnd', 'idr', 'pyg', 'ugx'];
+    const isZeroDecimal = zeroDecimalCurrencies.includes(currency.toLowerCase());
+    const amountInSmallestUnit = isZeroDecimal 
+      ? Math.round(totalChargedInCurrency)
+      : Math.round(totalChargedInCurrency * 100);
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(totalCharged * 100), // Convert to cents (includes fees)
-      currency: 'usd', // Charge in USD
-      description: description || `Recarga de créditos - $${amountToCredit.toFixed(2)} (+ taxas $${stripeFee.toFixed(2)})`,
+      amount: amountInSmallestUnit,
+      currency: currency.toLowerCase(),
+      description: description || `Recarga de créditos - ${amountToCreditUSD.toFixed(2)} USD`,
       metadata: {
         order_id: orderId,
         user_id: user.id,
         user_email: user.email || '',
         type: 'credit_recharge',
-        original_amount_usd: amountToCredit, // Amount to credit to user
-        total_charged_usd: totalCharged, // Total amount charged
-        stripe_fee: stripeFee,
+        original_amount_usd: amountToCreditUSD.toString(),
+        charge_currency: currency.toUpperCase(),
+        total_charged: totalChargedInCurrency.toString(),
+        stripe_fee: stripeFeeInCurrency.toString(),
         ...metadata
       },
       payment_method_types: ['card'],
@@ -128,20 +136,20 @@ Deno.serve(async (req: Request) => {
         user_id: user.id,
         order_id: orderId,
         payment_intent_id: paymentIntent.id,
-        amount_usd: amountToCredit, // Store original amount (what user will receive as credits)
-        currency: 'USD',
+        amount_usd: amountToCreditUSD, // Store original USD amount (what user will receive as credits)
+        currency: currency.toUpperCase(),
         status: 'pending',
         client_secret: paymentIntent.client_secret,
-        description: description || `Recarga de créditos - $${amountToCredit.toFixed(2)} (+ taxas $${stripeFee.toFixed(2)})`,
+        description: description || `Recarga de créditos - ${amountToCreditUSD.toFixed(2)} USD`,
         metadata: paymentIntent.metadata,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         webhook_data: {
           payment_intent_id: paymentIntent.id,
           created_via: 'stripe_api',
-          original_amount_usd: amountToCredit,
-          total_charged_usd: totalCharged,
-          stripe_fee: stripeFee,
-          charged_in_usd: true,
+          original_amount_usd: amountToCreditUSD,
+          charge_currency: currency.toUpperCase(),
+          total_charged: totalChargedInCurrency,
+          stripe_fee: stripeFeeInCurrency,
           fees_included: true
         }
       });
@@ -163,11 +171,11 @@ Deno.serve(async (req: Request) => {
         client_secret: paymentIntent.client_secret,
         payment_intent_id: paymentIntent.id,
         order_id: orderId,
-        amount: amountToCredit, // Amount user will receive as credits
-        total_charged: totalCharged, // Total amount charged including fees
-        stripe_fee: stripeFee,
-        currency: 'USD',
-        amount_usd: Math.round(totalCharged * 100) // Total USD in cents (what's actually charged)
+        amount: amountToCreditUSD, // USD amount user will receive as credits
+        total_charged: totalChargedInCurrency, // Total charged in user currency
+        stripe_fee: stripeFeeInCurrency,
+        currency: currency.toUpperCase(),
+        amount_in_smallest_unit: amountInSmallestUnit
       }),
       {
         status: 200,

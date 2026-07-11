@@ -5,11 +5,12 @@ import type { Stripe, StripeElements } from '@stripe/stripe-js';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency, currencies } from './CurrencyProvider';
 
 interface StripePaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  amount: number;
+  amount: number; // amount in USD
   onSuccess: () => void;
 }
 
@@ -175,10 +176,15 @@ function PaymentElement({ clientSecret, amount, fees, onSuccess, onError }: Paym
 export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: StripePaymentModalProps) {
   const { user, session, signOut } = useAuth();
   const { t } = useLanguage();
+  const { currency, rates } = useCurrency();
   const [clientSecret, setClientSecret] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fees, setFees] = useState<StripeFeesCalculation | null>(null);
+
+  const currencyInfo = currencies.find(c => c.code === currency) || currencies[0];
+  const exchangeRate = rates[currency] || 1;
+  const amountInCurrency = amount * exchangeRate;
 
   useEffect(() => {
     if (isOpen && user && session) {
@@ -186,18 +192,17 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
     }
   }, [isOpen, user, session, amount]);
 
-  function calculateStripeFees(amount: number): StripeFeesCalculation {
-    // Stripe fees: 2.9% + $0.30 for US cards
-    // For international cards: 3.9% + $0.30
-    // We'll use the higher rate to be safe
+  function calculateStripeFees(amountInUserCurrency: number): StripeFeesCalculation {
+    // Stripe fees: 3.9% + fixed fee (fixed fee varies by currency, using USD-equivalent)
     const feePercentage = 0.039; // 3.9%
-    const fixedFee = 0.30; // $0.30
+    const fixedFeeUsd = 0.30;
+    const fixedFee = fixedFeeUsd * exchangeRate; // Convert fixed fee to user currency
     
-    const stripeFee = (amount * feePercentage) + fixedFee;
-    const totalAmount = amount + stripeFee;
+    const stripeFee = (amountInUserCurrency * feePercentage) + fixedFee;
+    const totalAmount = amountInUserCurrency + stripeFee;
     
     return {
-      originalAmount: amount,
+      originalAmount: amountInUserCurrency,
       stripeFee: stripeFee,
       totalAmount: totalAmount,
       feePercentage: feePercentage * 100,
@@ -226,17 +231,22 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: feesCalculation.totalAmount, // Charge total amount including fees
-          original_amount: amount, // But only credit original amount
-          currency: 'usd',
-          description: `Recarga de créditos - $${amount.toFixed(2)} (+ taxas $${feesCalculation.stripeFee.toFixed(2)})`,
+          amount: feesCalculation.totalAmount, // Charge total amount including fees (in user currency)
+          original_amount: amount, // Credit original USD amount
+          currency: currency.toLowerCase(), // Charge in user's currency
+          description: `Recarga de créditos - ${currencyInfo.symbol} ${amountInCurrency.toFixed(2)} (+ taxas ${currencyInfo.symbol} ${feesCalculation.stripeFee.toFixed(2)})`,
           metadata: {
             user_id: user.id,
             user_email: user.email,
             type: 'credit_recharge',
-            original_amount: amount.toString(),
+            original_amount_usd: amount.toString(),
+            original_amount_currency: amountInCurrency.toFixed(2),
+            charge_currency: currency,
+            exchange_rate: exchangeRate.toString(),
             stripe_fee: feesCalculation.stripeFee.toString(),
-            total_charged: feesCalculation.totalAmount.toString()
+            stripe_fee_usd: (feesCalculation.stripeFee / exchangeRate).toString(),
+            total_charged: feesCalculation.totalAmount.toString(),
+            total_charged_usd: (feesCalculation.totalAmount / exchangeRate).toString()
           }
         })
       });
@@ -333,7 +343,7 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
                 <div className="flex justify-between items-center">
                   <span className="text-blue-700 dark:text-blue-400">Créditos a receber:</span>
                   <span className="font-bold text-blue-900 dark:text-blue-200">
-                    ${amount.toFixed(2)}
+                    ${amount.toFixed(2)} USD
                   </span>
                 </div>
                 {fees && (
@@ -341,14 +351,14 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
                     <div className="flex justify-between items-center">
                       <span className="text-blue-700 dark:text-blue-400">Taxa do Stripe:</span>
                       <span className="text-sm text-blue-800 dark:text-blue-300">
-                        ${fees.stripeFee.toFixed(2)}
+                        {currencyInfo.symbol} {fees.stripeFee.toFixed(currencyInfo.decimals)}
                       </span>
                     </div>
                     <div className="border-t border-blue-200 dark:border-blue-700 pt-2">
                       <div className="flex justify-between items-center">
                         <span className="text-blue-700 dark:text-blue-400 font-medium">Total a pagar:</span>
                         <span className="font-bold text-blue-900 dark:text-blue-200 text-lg">
-                          ${fees.totalAmount.toFixed(2)}
+                          {currencyInfo.symbol} {fees.totalAmount.toFixed(currencyInfo.decimals)} {currency}
                         </span>
                       </div>
                     </div>
@@ -356,13 +366,13 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
                 )}
                 <div className="flex justify-between items-center">
                   <span className="text-blue-700 dark:text-blue-400">Moeda:</span>
-                  <span className="text-sm text-blue-800 dark:text-blue-300">USD</span>
+                  <span className="text-sm text-blue-800 dark:text-blue-300">{currency} (créditos em USD)</span>
                 </div>
               </div>
               
               <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
                 <p className="text-xs text-blue-600 dark:text-blue-400 text-center">
-                  💡 As taxas do Stripe são incluídas no valor total, mas apenas ${amount.toFixed(2)} será creditado como saldo
+                  💡 As taxas do Stripe são incluídas no valor total, mas apenas ${amount.toFixed(2)} USD será creditado como saldo
                 </p>
               </div>
             </div>
@@ -396,7 +406,7 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
                 <li>• Seus dados de cartão são criptografados</li>
                 <li>• Não armazenamos informações do cartão</li>
                 <li>• Certificação PCI DSS Level 1</li>
-                <li>• Pagamento processado em Dólar Americano (USD)</li>
+                <li>• Pagamento processado em {currency}</li>
                 <li>• Aceita cartões de débito e crédito</li>
                 <li>• Suporte a cartões internacionais</li>
                 <li>• Taxas de processamento incluídas automaticamente</li>
