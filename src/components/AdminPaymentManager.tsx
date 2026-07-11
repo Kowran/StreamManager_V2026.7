@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, DollarSign, TrendingUp, AlertCircle, CheckCircle, Clock, X, RefreshCw, Eye } from 'lucide-react';
+import { CreditCard, DollarSign, TrendingUp, AlertCircle, CheckCircle, Clock, X, RefreshCw, Eye, Power, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 
@@ -26,6 +26,24 @@ interface PaymentStats {
   failed_payments: number;
 }
 
+interface PaymentMethodConfig {
+  id: string;
+  method_id: string;
+  name: string;
+  is_active: boolean;
+  display_order: number;
+}
+
+const METHOD_ICONS: Record<string, string> = {
+  stripe: 'https://i.imgur.com/Un7zfmo.png',
+  paypal: 'https://i.imgur.com/VbyIdkc.png',
+  mercadopago: 'https://i.imgur.com/3oeBwGn.jpeg',
+  cryptomus: 'https://i.imgur.com/nXhq7ph.png',
+  binance: 'https://i.imgur.com/ylT9tJ1.png',
+  whatsapp: 'https://i.imgur.com/Ei6JERR.png',
+  triplea: 'https://i.imgur.com/nXhq7ph.png',
+};
+
 export default function AdminPaymentManager() {
   const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -39,11 +57,46 @@ export default function AdminPaymentManager() {
   const [loading, setLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [filter, setFilter] = useState<string>('all');
+  const [methodConfigs, setMethodConfigs] = useState<PaymentMethodConfig[]>([]);
+  const [togglingMethod, setTogglingMethod] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStripePayments();
     fetchStats();
+    fetchMethodConfigs();
   }, [filter]);
+
+  async function fetchMethodConfigs() {
+    try {
+      const { data, error } = await supabase
+        .from('payment_methods_config')
+        .select('*')
+        .order('display_order', { ascending: true });
+      if (error) throw error;
+      setMethodConfigs(data || []);
+    } catch (error) {
+      console.error('Error fetching payment method configs:', error);
+    }
+  }
+
+  async function toggleMethod(methodId: string, currentActive: boolean) {
+    setTogglingMethod(methodId);
+    try {
+      const { error } = await supabase
+        .from('payment_methods_config')
+        .update({ is_active: !currentActive, updated_at: new Date().toISOString() })
+        .eq('method_id', methodId);
+      if (error) throw error;
+      setMethodConfigs(prev =>
+        prev.map(m => m.method_id === methodId ? { ...m, is_active: !currentActive } : m)
+      );
+    } catch (error) {
+      console.error('Error toggling payment method:', error);
+      alert('Erro ao alterar status do método de pagamento');
+    } finally {
+      setTogglingMethod(null);
+    }
+  }
 
   const fetchStripePayments = async () => {
     try {
@@ -213,6 +266,56 @@ export default function AdminPaymentManager() {
           <RefreshCw className="h-4 w-4 mr-2" />
           Atualizar
         </button>
+      </div>
+
+      {/* Payment Methods Toggle */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Power className="h-5 w-5 text-blue-600" />
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+            Métodos de Pagamento
+          </h3>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            — Ative ou desative os métodos visíveis aos clientes
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {methodConfigs.map((method) => (
+            <div
+              key={method.method_id}
+              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                method.is_active
+                  ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20'
+                  : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center p-1 flex-shrink-0">
+                  <img src={METHOD_ICONS[method.method_id] || ''} alt={method.name} className="w-full h-full object-contain rounded-md" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{method.name}</p>
+                  <p className={`text-xs ${method.is_active ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
+                    {method.is_active ? 'Ativo' : 'Desativado'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleMethod(method.method_id, method.is_active)}
+                disabled={togglingMethod === method.method_id}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
+                  method.is_active ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    method.is_active ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Stats Cards */}

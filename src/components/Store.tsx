@@ -50,6 +50,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const { addNotification } = useNotificationContext();
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
   const [userCredit, setUserCredit] = useState<UserCredit | null>(null);
+  const [cashbackBalance, setCashbackBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -201,6 +202,15 @@ export function Store({ onNavigate }: StoreProps = {}) {
       }
 
       setUserCredit(data || { balance: 0, total_recharged: 0, total_spent: 0 });
+
+      const { data: smCredits, error: smError } = await supabase
+        .from('user_sm_credits')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!smError && smCredits) {
+        setCashbackBalance(smCredits.balance || 0);
+      }
     } catch (error) {
       console.error('Error loading user credit:', error);
       setUserCredit({ balance: 0, total_recharged: 0, total_spent: 0 });
@@ -282,7 +292,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     });
   }
 
-  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }) {
+  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean) {
     if (!user || !userCredit || !productToConfirm) return;
 
     const product = productToConfirm;
@@ -305,7 +315,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
           product_id: product.id,
           quantity: 1,
           coupon_code: couponCode,
-          recharge_data: rechargeData
+          recharge_data: rechargeData,
+          use_cashback: useCashback || false
         })
       });
 
@@ -876,6 +887,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
           isOpen={showConfirmModal}
           product={productToConfirm}
           userBalance={userCredit?.balance || 0}
+          cashbackBalance={cashbackBalance}
           onConfirm={handleConfirmPurchase}
           onCancel={() => {
             setShowConfirmModal(false);

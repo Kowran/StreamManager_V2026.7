@@ -15,7 +15,8 @@ interface PurchaseConfirmModalProps {
     account_recharge?: boolean;
   };
   userBalance: number;
-  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }) => void;
+  cashbackBalance?: number;
+  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -34,6 +35,7 @@ export function PurchaseConfirmModal({
   isOpen,
   product,
   userBalance,
+  cashbackBalance = 0,
   onConfirm,
   onCancel,
   isLoading = false
@@ -47,10 +49,14 @@ export function PurchaseConfirmModal({
   const [rechargePassword, setRechargePassword] = useState('');
   const [rechargeExtraData, setRechargeExtraData] = useState('');
   const [rechargeError, setRechargeError] = useState<string | null>(null);
+  const [useCashback, setUseCashback] = useState(false);
 
   const hasPromo = product.promotion_active && product.promotional_price_usdt;
   const basePrice = hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt;
-  const effectivePrice = appliedCoupon ? appliedCoupon.finalPrice : basePrice;
+  const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const priceAfterCoupon = appliedCoupon ? appliedCoupon.finalPrice : basePrice;
+  const cashbackToUse = useCashback ? Math.min(cashbackBalance, priceAfterCoupon) : 0;
+  const effectivePrice = Math.max(0, priceAfterCoupon - cashbackToUse);
   const remainingBalance = userBalance - effectivePrice;
 
   const isAccountRecharge = product.account_recharge === true;
@@ -175,9 +181,9 @@ export function PurchaseConfirmModal({
         email: rechargeEmail.trim(),
         password: rechargePassword.trim(),
         extra_data: rechargeExtraData.trim(),
-      });
+      }, useCashback);
     } else {
-      onConfirm(appliedCoupon?.code || undefined);
+      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback);
     }
   }
 
@@ -346,6 +352,36 @@ export function PurchaseConfirmModal({
                     ${userBalance.toFixed(2)}
                   </span>
                 </div>
+
+                {/* Cashback Toggle */}
+                {cashbackBalance > 0 && (
+                  <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                          {t.language === 'pt' ? 'Usar Cashback' : t.language === 'en' ? 'Use Cashback' : 'Usar Cashback'}
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                          {t.language === 'pt' ? `Disponível: ${cashbackBalance.toFixed(2)}` : t.language === 'en' ? `Available: ${cashbackBalance.toFixed(2)}` : `Disponible: ${cashbackBalance.toFixed(2)}`}
+                          {useCashback && cashbackToUse > 0 && ` · ${t.language === 'pt' ? 'Aplicado' : t.language === 'en' ? 'Applied' : 'Aplicado'}: -${cashbackToUse.toFixed(2)}`}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setUseCashback(!useCashback)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ml-2 ${
+                          useCashback ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            useCashback ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-600">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">

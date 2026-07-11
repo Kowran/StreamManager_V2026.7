@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, CreditCard, TrendingUp, TrendingDown, Calendar, RefreshCw, Plus, Clock, AlertTriangle, CheckCircle, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DollarSign, CreditCard, RefreshCw, Plus, Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight, Wallet } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -31,17 +31,21 @@ interface CreditTransaction {
   metadata?: any;
 }
 
-interface PaymentMethod {
-  id: string;
+interface PaymentMethodConfig {
+  method_id: string;
   name: string;
-  icon: string;
-  description: string;
-  enabled: boolean;
-  fees?: string;
-  processing_time?: string;
-  min_amount?: number;
-  max_amount?: number;
+  is_active: boolean;
 }
+
+const PAYMENT_METHOD_META: Record<string, { icon: string; description: string; fees: string; processing_time: string; min_amount: number; max_amount: number }> = {
+  stripe: { icon: 'https://i.imgur.com/Un7zfmo.png', description: 'Visa, Mastercard, American Express', fees: '3.9% + $0.30', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
+  paypal: { icon: 'https://i.imgur.com/VbyIdkc.png', description: 'PayPal, cartões internacionais', fees: '10% + $0.40', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
+  mercadopago: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, cartão (Brasil)', fees: 'Sem taxas (PIX)', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
+  cryptomus: { icon: 'https://i.imgur.com/nXhq7ph.png', description: 'Criptomoedas diversas', fees: 'Sem taxas', processing_time: '5-15 minutos', min_amount: 1, max_amount: 5000 },
+  binance: { icon: 'https://i.imgur.com/ylT9tJ1.png', description: 'Pagamento via Binance', fees: 'Sem taxas', processing_time: 'Instantâneo', min_amount: 1, max_amount: 10000 },
+  whatsapp: { icon: 'https://i.imgur.com/Ei6JERR.png', description: 'Atendimento personalizado', fees: 'Sem taxas', processing_time: '2-24 horas', min_amount: 1, max_amount: 10000 },
+  triplea: { icon: 'https://i.imgur.com/nXhq7ph.png', description: 'Bitcoin, Ethereum, USDC, USDT', fees: 'Sem taxas', processing_time: '5-15 minutos', min_amount: 1, max_amount: 5000 },
+};
 
 export function CreditsManager() {
   const { user } = useAuth();
@@ -56,12 +60,14 @@ export function CreditsManager() {
   const [currentPage, setCurrentPage] = useState(1);
   const transactionsPerPage = 10;
   const [cashbackBalance, setCashbackBalance] = useState<number>(0);
+  const [activeMethods, setActiveMethods] = useState<PaymentMethodConfig[]>([]);
 
   useEffect(() => {
     if (user) {
       loadUserCredit();
       loadTransactions();
       loadCashbackBalance();
+      fetchActiveMethods();
     }
   }, [user]);
 
@@ -128,99 +134,33 @@ export function CreditsManager() {
     }
   }
 
-  const paymentMethods: PaymentMethod[] = [
-    {
-      id: 'stripe',
-      name: 'Cartão de Crédito/Débito',
-      icon: 'https://i.imgur.com/Un7zfmo.png',
-      description: 'Visa, Mastercard, American Express',
-      enabled: true,
-      fees: '3.9% + $0.30',
-      processing_time: 'Instantâneo',
-      min_amount: 1,
-      max_amount: 1000
-    },
-    {
-      id: 'paypal',
-      name: 'PayPal',
-      icon: 'https://i.imgur.com/VbyIdkc.png',
-      description: 'PayPal, cartões internacionais',
-      enabled: true,
-      fees: '10% + $0.40',
-      processing_time: 'Instantâneo',
-      min_amount: 1,
-      max_amount: 1000
-    },
-    {
-      id: 'mercadopago',
-      name: 'PIX / Mercado Pago',
-      icon: 'https://i.imgur.com/3oeBwGn.jpeg',
-      description: 'PIX, cartão (Brasil)',
-      enabled: true,
-      fees: 'Sem taxas (PIX)',
-      processing_time: 'Instantâneo',
-      min_amount: 1,
-      max_amount: 1000
-    },
-    {
-      id: 'cryptomus',
-      name: 'Cryptomus',
-      icon: 'https://i.imgur.com/nXhq7ph.png',
-      description: 'Criptomoedas diversas',
-      enabled: true,
-      fees: 'Sem taxas',
-      processing_time: '5-15 minutos',
-      min_amount: 1,
-      max_amount: 5000
-    },
-    {
-      id: 'binance',
-      name: 'Binance Pay',
-      icon: 'https://i.imgur.com/ylT9tJ1.png',
-      description: 'Pagamento via Binance',
-      enabled: true,
-      fees: 'Sem taxas',
-      processing_time: 'Instantâneo',
-      min_amount: 1,
-      max_amount: 10000
-    },
-    {
-      id: 'whatsapp',
-      name: 'WhatsApp Manual',
-      icon: 'https://i.imgur.com/Ei6JERR.png',
-      description: 'Atendimento personalizado',
-      enabled: true,
-      fees: 'Sem taxas',
-      processing_time: '2-24 horas',
-      min_amount: 1,
-      max_amount: 10000
-    },
-    {
-      id: 'triplea',
-      name: 'Triple-A Crypto',
-      icon: 'https://i.imgur.com/nXhq7ph.png',
-      description: 'Bitcoin, Ethereum, USDC, USDT',
-      enabled: true,
-      fees: 'Sem taxas',
-      processing_time: '5-15 minutos',
-      min_amount: 1,
-      max_amount: 5000
-    }
-  ];
-
   const quickAmounts = [5, 10, 20, 50, 100];
 
+  async function fetchActiveMethods() {
+    try {
+      const { data, error } = await supabase
+        .from('payment_methods_config')
+        .select('method_id, name, is_active')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      if (error) throw error;
+      setActiveMethods(data || []);
+    } catch (error) {
+      console.error('Error fetching active payment methods:', error);
+    }
+  }
+
   function handlePaymentMethodSelect(methodId: string, amount: number) {
-    const method = paymentMethods.find(m => m.id === methodId);
+    const method = PAYMENT_METHOD_META[methodId];
     if (!method) return;
 
     if (amount < (method.min_amount || 1)) {
-      alert(`Valor mínimo para ${method.name}: $${method.min_amount || 1}`);
+      alert(`Valor mínimo: ${method.min_amount || 1}`);
       return;
     }
 
     if (amount > (method.max_amount || 1000)) {
-      alert(`Valor máximo para ${method.name}: $${method.max_amount || 1000}`);
+      alert(`Valor máximo: ${method.max_amount || 1000}`);
       return;
     }
 
@@ -311,65 +251,29 @@ export function CreditsManager() {
       </div>
 
       {/* Balance Card */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 sm:p-6 text-white">
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex-1">
-            <h3 className="text-sm sm:text-lg font-medium text-blue-100">
-              {t.language === 'pt' ? 'Saldo Atual' : t.language === 'en' ? 'Current Balance' : 'Saldo Actual'}
-            </h3>
-            <div className="text-3xl sm:text-4xl font-bold mt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="h-4 w-4 text-slate-400" />
+              <h3 className="text-sm font-medium text-slate-400">
+                {t.language === 'pt' ? 'Saldo Disponível' : t.language === 'en' ? 'Available Balance' : 'Saldo Disponible'}
+              </h3>
+            </div>
+            <div className="text-4xl sm:text-5xl font-bold tracking-tight">
               ${userCredit?.balance?.toFixed(2) || '0.00'}
             </div>
-            <p className="text-blue-100 text-xs sm:text-sm mt-1">
-              {t.language === 'pt' ? 'Disponível para compras' : t.language === 'en' ? 'Available for purchases' : 'Disponible para compras'}
-            </p>
+            {cashbackBalance > 0 && (
+              <p className="text-slate-400 text-xs sm:text-sm mt-3 flex items-center gap-1.5">
+                <CheckCircle className="h-3.5 w-3.5 text-yellow-500" />
+                {t.language === 'pt' ? `Cashback disponível: ${cashbackBalance.toFixed(2)}` : t.language === 'en' ? `Cashback available: ${cashbackBalance.toFixed(2)}` : `Cashback disponible: ${cashbackBalance.toFixed(2)}`}
+              </p>
+            )}
           </div>
           <div className="text-right">
-            <div className="bg-white bg-opacity-20 p-2 sm:p-3 rounded-lg">
-              <DollarSign className="h-6 w-6 sm:h-8 sm:w-8" />
+            <div className="bg-white bg-opacity-10 p-3 rounded-xl">
+              <DollarSign className="h-7 w-7 sm:h-9 sm:w-9" />
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">
-                {t.language === 'pt' ? 'Total Recarregado' : t.language === 'en' ? 'Total Recharged' : 'Total Recargado'}
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-green-600 mt-1">${userCredit?.total_recharged?.toFixed(2) || '0.00'}</p>
-            </div>
-            <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 flex-shrink-0 ml-2" />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">
-                {t.language === 'pt' ? 'Total Gasto' : t.language === 'en' ? 'Total Spent' : 'Total Gastado'}
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-red-600 mt-1">${userCredit?.total_spent?.toFixed(2) || '0.00'}</p>
-            </div>
-            <TrendingDown className="h-6 w-6 sm:h-8 sm:w-8 text-red-500 flex-shrink-0 ml-2" />
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900 dark:to-orange-900 rounded-lg shadow-sm border-2 border-yellow-300 dark:border-yellow-700 p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-yellow-700 dark:text-yellow-300 truncate">
-                {t.language === 'pt' ? 'Cashback Acumulado' : t.language === 'en' ? 'Cashback Earned' : 'Cashback Acumulado'}
-              </p>
-              <p className="text-xl sm:text-2xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">${cashbackBalance.toFixed(2)}</p>
-              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
-                {t.language === 'pt' ? '1% de cashback em compras' : t.language === 'en' ? '1% cashback on purchases' : '1% de cashback en compras'}
-              </p>
-            </div>
-            <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 flex-shrink-0 ml-2" />
           </div>
         </div>
       </div>
@@ -442,19 +346,22 @@ export function CreditsManager() {
             {t.language === 'pt' ? 'Escolha o Método de Pagamento' : t.language === 'en' ? 'Choose Payment Method' : 'Elige el Método de Pago'}
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            {paymentMethods.filter(method => method.enabled).map((method) => (
+            {activeMethods.map((activeMethod) => {
+              const method = PAYMENT_METHOD_META[activeMethod.method_id];
+              if (!method) return null;
+              return (
               <button
-                key={method.id}
-                onClick={() => handlePaymentMethodSelect(method.id, rechargeAmount)}
+                key={activeMethod.method_id}
+                onClick={() => handlePaymentMethodSelect(activeMethod.method_id, rechargeAmount)}
                 disabled={rechargeAmount < (method.min_amount || 1) || rechargeAmount > (method.max_amount || 1000)}
                 className="p-3 sm:p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
               >
                 <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center p-1 flex-shrink-0">
-                    <img src={method.icon} alt={method.name} className="w-full h-full object-contain rounded-md" />
+                    <img src={method.icon} alt={activeMethod.name} className="w-full h-full object-contain rounded-md" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{method.name}</h4>
+                    <h4 className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{activeMethod.name}</h4>
                     <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{method.description}</p>
                   </div>
                 </div>
@@ -469,7 +376,8 @@ export function CreditsManager() {
                   </div>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

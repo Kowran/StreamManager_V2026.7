@@ -11,6 +11,7 @@ interface PurchaseRequest {
   quantity: number;
   coupon_code?: string;
   recharge_data?: { email: string; password: string; extra_data?: string };
+  use_cashback?: boolean;
 }
 
 Deno.serve(async (req: Request) => {
@@ -53,7 +54,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestData: PurchaseRequest = await req.json();
-    const { product_id, quantity, coupon_code, recharge_data } = requestData;
+    const { product_id, quantity, coupon_code, recharge_data, use_cashback } = requestData;
 
     // Validate input
     if (!product_id || !quantity || quantity < 1) {
@@ -320,6 +321,22 @@ Deno.serve(async (req: Request) => {
 
     const currentBalance = userCredit?.balance || 0;
     const currentTotalSpent = userCredit?.total_spent || 0;
+
+    // Apply cashback if user opted in
+    let cashbackUsed = 0;
+    if (use_cashback) {
+      const { data: smCredits } = await supabaseAdmin
+        .from('user_sm_credits')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const smBalance = smCredits?.balance || 0;
+      if (smBalance > 0) {
+        cashbackUsed = Math.min(smBalance, totalPrice);
+        totalPrice = Math.max(0, Math.round((totalPrice - cashbackUsed) * 100) / 100);
+        console.log('Cashback applied:', cashbackUsed, 'New total:', totalPrice);
+      }
+    }
 
     // Check if user has sufficient balance
     if (currentBalance < totalPrice) {
@@ -596,6 +613,41 @@ Deno.serve(async (req: Request) => {
     if (creditDeductError) {
       console.error('Credit deduction error:', creditDeductError);
       console.warn('Purchase completed but credit transaction failed:', creditDeductError.message);
+    }
+
+    // Deduct used cashback from user_sm_credits
+    if (cashbackUsed > 0) {
+      const { data: smCreditsForDeduct } = await supabaseAdmin
+        .from('user_sm_credits')
+        .select('balance, total_spent')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const smCurrentBalance = smCreditsForDeduct?.balance || 0;
+      const smCurrentSpent = smCreditsForDeduct?.total_spent || 0;
+      const smNewBalance = Math.max(0, smCurrentBalance - cashbackUsed);
+
+      await supabaseAdmin
+        .from('user_sm_credits')
+        .upsert({
+          user_id: user.id,
+          balance: smNewBalance,
+          total_earned: smCreditsForDeduct?.total_earned || 0,
+          total_spent: smCurrentSpent + cashbackUsed,
+          updated_at: new Date().toISOString(),
+        });
+
+      await supabaseAdmin
+        .from('sm_credit_transactions')
+        .insert({
+          user_id: user.id,
+          type: 'store_purchase',
+          amount: -cashbackUsed,
+          balance_before: smCurrentBalance,
+          balance_after: smNewBalance,
+          description: `Cashback usado em compra: ${productName}`,
+          reference_id: order.id,
+          reference_type: 'store_order',
+        });
     }
 
     // Update order status to 'paid' to trigger manual delivery chat creation
