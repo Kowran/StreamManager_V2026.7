@@ -34,7 +34,11 @@ function PaymentElement({ clientSecret, amount, fees, onSuccess, onError }: Paym
   const [stripe, setStripe] = useState<Stripe | null>(null);
   const [elements, setElements] = useState<StripeElements | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [paymentIntentId, setPaymentIntentId] = useState<string>('');
   const [paymentElement, setPaymentElement] = useState<any>(null);
+  const { currency, rates } = useCurrency();
+  const currencyInfo = currencies.find(c => c.code === currency) || currencies[0];
 
   useEffect(() => {
     const initializeStripe = async () => {
@@ -128,7 +132,34 @@ function PaymentElement({ clientSecret, amount, fees, onSuccess, onError }: Paym
       if (error) {
         onError(error.message);
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        onSuccess();
+        setPaymentIntentId(paymentIntent.id);
+        setConfirming(true);
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          const confirmResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-stripe-payment`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`,
+              },
+              body: JSON.stringify({ payment_intent_id: paymentIntent.id }),
+            }
+          );
+          const confirmResult = await confirmResponse.json();
+          if (confirmResult.success) {
+            onSuccess();
+          } else {
+            console.error('Failed to confirm payment:', confirmResult);
+            onSuccess();
+          }
+        } catch (confirmError) {
+          console.error('Error confirming payment:', confirmError);
+          onSuccess();
+        } finally {
+          setConfirming(false);
+        }
       }
     } catch (error) {
       onError('Erro ao processar pagamento');
@@ -154,7 +185,7 @@ function PaymentElement({ clientSecret, amount, fees, onSuccess, onError }: Paym
       
       <button
         type="submit"
-        disabled={processing}
+        disabled={processing || confirming}
         className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2"
       >
         {processing ? (
@@ -162,10 +193,15 @@ function PaymentElement({ clientSecret, amount, fees, onSuccess, onError }: Paym
             <Loader className="h-4 w-4 animate-spin" />
             <span>Processando...</span>
           </>
+        ) : confirming ? (
+          <>
+            <Loader className="h-4 w-4 animate-spin" />
+            <span>Confirmando pagamento...</span>
+          </>
         ) : (
           <>
             <Lock className="h-4 w-4" />
-            <span>Pagar ${fees.totalAmount.toFixed(2)}</span>
+            <span>Pagar {currencyInfo.symbol} {fees.totalAmount.toFixed(currencyInfo.decimals)}</span>
           </>
         )}
       </button>
