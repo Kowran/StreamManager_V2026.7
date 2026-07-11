@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle, ArrowLeft, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { OnlineBadge } from './OnlineBadge';
@@ -54,7 +53,6 @@ interface ProductRating {
 
 export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: PublicSellerProfilePageProps) {
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const { user } = useAuth();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -445,7 +443,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                           </div>
                           <div className="mt-4 flex items-center justify-between">
                             <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                              {formatPrice(product.price_usdt)}
+                              ${product.price_usdt.toFixed(2)}
                             </span>
                             <span className={`text-xs px-3 py-1 rounded-full font-medium ${
                               (product.manual_delivery || product.stock_quantity > 0)

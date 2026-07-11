@@ -3,7 +3,6 @@ import { DollarSign, Plus, Minus, Search, User, TrendingUp, TrendingDown, Clock,
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 
 interface UserCredit {
   id: string;
@@ -33,7 +32,6 @@ interface CreditTransaction {
 export function AdminCreditManager() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const [userCredits, setUserCredits] = useState<UserCredit[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -177,11 +175,11 @@ export function AdminCreditManager() {
     const newBalance = selectedUser.balance + finalAmount;
 
     if (newBalance < 0) {
-      alert('O saldo não pode ficar negativo. Valor máximo para remoção: ' + formatPrice(selectedUser.balance));
+      alert('O saldo não pode ficar negativo. Valor máximo para remoção: $' + selectedUser.balance.toFixed(2));
       return;
     }
 
-    const confirmMessage = `${adjustmentType === 'add' ? 'Adicionar' : 'Remover'} ${formatPrice(adjustmentAmount)} ${adjustmentType === 'add' ? 'para' : 'de'} ${selectedUser.profiles?.email}?\n\nSaldo atual: ${formatPrice(selectedUser.balance)}\nNovo saldo: ${formatPrice(newBalance)}\nMotivo: ${adjustmentReason}\n\nEsta ação será registrada no histórico.`;
+    const confirmMessage = `${adjustmentType === 'add' ? 'Adicionar' : 'Remover'} $${adjustmentAmount.toFixed(2)} ${adjustmentType === 'add' ? 'para' : 'de'} ${selectedUser.profiles?.email}?\n\nSaldo atual: $${selectedUser.balance.toFixed(2)}\nNovo saldo: $${newBalance.toFixed(2)}\nMotivo: ${adjustmentReason}\n\nEsta ação será registrada no histórico.`;
 
     if (!confirm(confirmMessage)) {
       return;
@@ -332,7 +330,7 @@ export function AdminCreditManager() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">Saldo Total</p>
-              <p className="text-lg sm:text-xl font-bold text-green-600">{formatPrice(stats.totalBalance)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">${stats.totalBalance.toFixed(2)}</p>
             </div>
             <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
           </div>
@@ -342,7 +340,7 @@ export function AdminCreditManager() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">Total Recarregado</p>
-              <p className="text-lg sm:text-xl font-bold text-blue-600">{formatPrice(stats.totalRecharged)}</p>
+              <p className="text-lg sm:text-xl font-bold text-blue-600">${stats.totalRecharged.toFixed(2)}</p>
             </div>
             <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
           </div>
@@ -352,7 +350,7 @@ export function AdminCreditManager() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">Total Gasto</p>
-              <p className="text-lg sm:text-xl font-bold text-purple-600">{formatPrice(stats.totalSpent)}</p>
+              <p className="text-lg sm:text-xl font-bold text-purple-600">${stats.totalSpent.toFixed(2)}</p>
             </div>
             <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
           </div>
@@ -433,7 +431,7 @@ export function AdminCreditManager() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-bold text-gray-900 dark:text-white">
-                      {formatPrice(userCredit.balance)}
+                      ${userCredit.balance.toFixed(2)}
                     </div>
                     <div className={`text-xs ${
                       userCredit.balance > 50 ? 'text-green-600' :
@@ -448,10 +446,10 @@ export function AdminCreditManager() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {formatPrice(userCredit.total_recharged)}
+                    ${userCredit.total_recharged.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {formatPrice(userCredit.total_spent)}
+                    ${userCredit.total_spent.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {new Date(userCredit.updated_at).toLocaleDateString('pt-BR')}
@@ -511,7 +509,7 @@ export function AdminCreditManager() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-bold text-gray-900 dark:text-white">
-                    {formatPrice(userCredit.balance)}
+                    ${userCredit.balance.toFixed(2)}
                   </div>
                   <div className={`text-xs ${
                     userCredit.balance > 50 ? 'text-green-600' :
@@ -531,13 +529,13 @@ export function AdminCreditManager() {
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Total Recarregado</p>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {formatPrice(userCredit.total_recharged)}
+                    ${userCredit.total_recharged.toFixed(2)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">Total Gasto</p>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {formatPrice(userCredit.total_spent)}
+                    ${userCredit.total_spent.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -634,10 +632,10 @@ export function AdminCreditManager() {
                     <p className={`text-sm font-bold ${
                       transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {transaction.amount > 0 ? '+' : ''}{formatPrice(transaction.amount)}
+                      {transaction.amount > 0 ? '+' : ''}${transaction.amount.toFixed(2)}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Saldo: {formatPrice(transaction.balance_after)}
+                      Saldo: ${transaction.balance_after.toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -683,7 +681,7 @@ export function AdminCreditManager() {
                       {selectedUser.profiles?.email}
                     </p>
                     <p className="text-sm font-bold text-green-600 dark:text-green-400">
-                      Saldo atual: {formatPrice(selectedUser.balance)}
+                      Saldo atual: ${selectedUser.balance.toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -743,7 +741,7 @@ export function AdminCreditManager() {
                 </div>
                 {adjustmentType === 'remove' && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Máximo disponível para remoção: {formatPrice(selectedUser.balance)}
+                    Máximo disponível para remoção: ${selectedUser.balance.toFixed(2)}
                   </p>
                 )}
               </div>
@@ -782,15 +780,15 @@ export function AdminCreditManager() {
                 }`}>
                   <div className="flex justify-between">
                     <span>Saldo atual:</span>
-                    <span>{formatPrice(selectedUser.balance)}</span>
+                    <span>${selectedUser.balance.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>{adjustmentType === 'add' ? 'Adicionar:' : 'Remover:'}</span>
-                    <span>{adjustmentType === 'add' ? '+' : '-'}{formatPrice(adjustmentAmount)}</span>
+                    <span>{adjustmentType === 'add' ? '+' : '-'}${adjustmentAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold border-t pt-1">
                     <span>Novo saldo:</span>
-                    <span>{formatPrice(selectedUser.balance + (adjustmentType === 'add' ? adjustmentAmount : -adjustmentAmount))}</span>
+                    <span>${(selectedUser.balance + (adjustmentType === 'add' ? adjustmentAmount : -adjustmentAmount)).toFixed(2)}</span>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 pt-2 border-t">

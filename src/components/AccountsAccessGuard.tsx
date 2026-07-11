@@ -3,7 +3,6 @@ import { Lock, CreditCard, Calendar, Star, Check, AlertCircle } from 'lucide-rea
 import { supabase, hasAccountsAccess, getUserAccountsAccess } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { useNotifications } from '../hooks/useNotifications';
 
 interface AccountsAccess {
@@ -24,7 +23,6 @@ interface AccountsAccessGuardProps {
 export function AccountsAccessGuard({ children }: AccountsAccessGuardProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const { addNotification } = useNotifications();
   const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const [accessInfo, setAccessInfo] = useState<AccountsAccess | null>(null);
@@ -367,7 +365,7 @@ export function AccountsAccessGuard({ children }: AccountsAccessGuardProps) {
                 </span>
               </div>
               <span className="text-lg font-bold text-blue-900 dark:text-blue-200">
-                {formatPrice(userCredit?.balance || 0)}
+                ${userCredit?.balance?.toFixed(2) || '0.00'}
               </span>
             </div>
           </div>

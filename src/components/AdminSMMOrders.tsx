@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Search, Filter, Calendar, User, Link as LinkIcon, TrendingUp, CheckCircle, Clock, XCircle, AlertTriangle, RefreshCw, CreditCard as Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 
 interface SMMOrder {
   id: string;
@@ -25,7 +24,6 @@ interface SMMOrder {
 
 export function AdminSMMOrders() {
   const { language } = useLanguage();
-  const { formatPrice } = useCurrency();
   const [orders, setOrders] = useState<SMMOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -324,7 +322,7 @@ export function AdminSMMOrders() {
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatPrice(Number(order.charge))}
+                        ${Number(order.charge).toFixed(2)}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
@@ -370,7 +368,7 @@ export function AdminSMMOrders() {
             {language === 'pt' ? `Total: ${filteredOrders.length} pedidos` : language === 'en' ? `Total: ${filteredOrders.length} orders` : `Total: ${filteredOrders.length} pedidos`}
           </div>
           <div className="text-sm font-medium text-gray-900 dark:text-white">
-            {language === 'pt' ? 'Valor Total:' : language === 'en' ? 'Total Amount:' : 'Monto Total:'} {formatPrice(filteredOrders.reduce((sum, order) => sum + Number(order.charge), 0))}
+            {language === 'pt' ? 'Valor Total:' : language === 'en' ? 'Total Amount:' : 'Monto Total:'} ${filteredOrders.reduce((sum, order) => sum + Number(order.charge), 0).toFixed(2)}
           </div>
         </div>
       </div>

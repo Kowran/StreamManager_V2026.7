@@ -3,7 +3,6 @@ import { ShoppingBag, Search, Calendar, DollarSign, Package, User, Eye, Download
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { AdminSaleCancellationModal } from './AdminSaleCancellationModal';
 
 interface Sale {
@@ -50,7 +49,6 @@ interface SalesStats {
 export function AdminSalesManager() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const [sales, setSales] = useState<Sale[]>([]);
   const [stats, setStats] = useState<SalesStats>({
     total_sales: 0,
@@ -424,7 +422,7 @@ export function AdminSalesManager() {
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Receita</p>
               <DollarSign className="h-4 w-4 text-green-500 flex-shrink-0" />
             </div>
-            <p className="text-base sm:text-lg font-bold text-green-600 break-all">{formatPrice(stats.total_revenue)}</p>
+            <p className="text-base sm:text-lg font-bold text-green-600 break-all">${stats.total_revenue.toFixed(2)}</p>
           </div>
         </div>
 
@@ -444,7 +442,7 @@ export function AdminSalesManager() {
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Rec. Hoje</p>
               <TrendingUp className="h-4 w-4 text-blue-500 flex-shrink-0" />
             </div>
-            <p className="text-base sm:text-lg font-bold text-blue-600 break-all">{formatPrice(stats.today_revenue)}</p>
+            <p className="text-base sm:text-lg font-bold text-blue-600 break-all">${stats.today_revenue.toFixed(2)}</p>
           </div>
         </div>
 
@@ -464,7 +462,7 @@ export function AdminSalesManager() {
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Rec. Mês</p>
               <DollarSign className="h-4 w-4 text-purple-500 flex-shrink-0" />
             </div>
-            <p className="text-base sm:text-lg font-bold text-purple-600 break-all">{formatPrice(stats.this_month_revenue)}</p>
+            <p className="text-base sm:text-lg font-bold text-purple-600 break-all">${stats.this_month_revenue.toFixed(2)}</p>
           </div>
         </div>
 
@@ -474,7 +472,7 @@ export function AdminSalesManager() {
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Ticket</p>
               <TrendingUp className="h-4 w-4 text-orange-500 flex-shrink-0" />
             </div>
-            <p className="text-base sm:text-lg font-bold text-orange-600 break-all">{formatPrice(stats.average_order_value)}</p>
+            <p className="text-base sm:text-lg font-bold text-orange-600 break-all">${stats.average_order_value.toFixed(2)}</p>
           </div>
         </div>
 
@@ -598,7 +596,7 @@ export function AdminSalesManager() {
 
             <div className="flex flex-wrap gap-3 sm:gap-4">
               <span className="flex-shrink-0">Canceladas: <strong className="text-red-600 dark:text-red-400">{stats.cancelled_sales}</strong></span>
-              <span className="flex-shrink-0">Perdido: <strong className="text-red-600 dark:text-red-400">{formatPrice(stats.cancelled_revenue)}</strong></span>
+              <span className="flex-shrink-0">Perdido: <strong className="text-red-600 dark:text-red-400">${stats.cancelled_revenue.toFixed(2)}</strong></span>
             </div>
           </div>
         </div>
@@ -663,7 +661,7 @@ export function AdminSalesManager() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-bold text-green-600 dark:text-green-400">
-                      {formatPrice(sale.purchase_price)}
+                      ${sale.purchase_price.toFixed(2)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
@@ -820,7 +818,7 @@ export function AdminSalesManager() {
               </div>
               <div className="text-right ml-2">
                 <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                  {formatPrice(sale.purchase_price)}
+                  ${sale.purchase_price.toFixed(2)}
                 </div>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                   sale.store_orders?.status === 'cancelled' 
@@ -1078,7 +1076,7 @@ export function AdminSalesManager() {
                       Valor Pago
                     </label>
                     <p className="mt-1 text-sm font-bold text-blue-900 dark:text-blue-200">
-                      {formatPrice(selectedSale.purchase_price)}
+                      ${selectedSale.purchase_price.toFixed(2)}
                     </p>
                   </div>
                   {selectedSale.store_orders?.discount_amount && selectedSale.store_orders.discount_amount > 0 && (
@@ -1087,7 +1085,7 @@ export function AdminSalesManager() {
                         Desconto (Cupom)
                       </label>
                       <p className="mt-1 text-sm font-semibold text-green-600 dark:text-green-400">
-                        -{formatPrice(selectedSale.store_orders.discount_amount)}
+                        -$${selectedSale.store_orders.discount_amount.toFixed(2)}
                       </p>
                     </div>
                   )}
@@ -1097,7 +1095,7 @@ export function AdminSalesManager() {
                         Cashback Utilizado
                       </label>
                       <p className="mt-1 text-sm font-semibold text-amber-600 dark:text-amber-400">
-                        -{formatPrice(selectedSale.store_orders.cashback_used)}
+                        -$${selectedSale.store_orders.cashback_used.toFixed(2)}
                       </p>
                     </div>
                   )}

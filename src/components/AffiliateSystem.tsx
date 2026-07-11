@@ -3,7 +3,6 @@ import { Users, Link, Copy, Check, DollarSign, TrendingUp, Eye, Calendar, Gift, 
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { useNotificationContext } from './NotificationProvider';
 
 interface AffiliateLink {
@@ -53,7 +52,6 @@ interface AffiliateCommission {
 export function AffiliateSystem() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const { addNotification } = useNotificationContext();
   const [affiliateLink, setAffiliateLink] = useState<AffiliateLink | null>(null);
   const [referrals, setReferrals] = useState<AffiliateReferral[]>([]);
@@ -276,7 +274,7 @@ export function AffiliateSystem() {
                  t.language === 'en' ? 'Total Earned' :
                  'Total Ganado'}
               </p>
-              <p className="text-lg sm:text-xl font-bold text-green-600">{formatPrice(stats.totalEarned)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">${stats.totalEarned.toFixed(2)}</p>
             </div>
             <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
           </div>
@@ -663,7 +661,7 @@ export function AffiliateSystem() {
                          t.language === 'en' ? 'Total earned:' :
                          'Total ganado:'}
                       </span>
-                      <span className="text-sm sm:text-base font-bold text-green-600">{formatPrice(stats.totalEarned)}</span>
+                      <span className="text-sm sm:text-base font-bold text-green-600">${stats.totalEarned.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
@@ -778,7 +776,7 @@ export function AffiliateSystem() {
                       </div>
                       <div className="text-right sm:ml-3 flex-shrink-0">
                         <div className="text-base sm:text-lg font-bold text-green-600">
-                          {formatPrice(referral.total_commission_earned)}
+                          ${referral.total_commission_earned.toFixed(2)}
                         </div>
                         <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                           {t.language === 'pt' ? 'comissão total' :
@@ -786,7 +784,7 @@ export function AffiliateSystem() {
                            'comisión total'}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-500">
-                          {formatPrice(referral.total_spent)} {t.language === 'pt' ? 'gastos' :
+                          ${referral.total_spent.toFixed(2)} {t.language === 'pt' ? 'gastos' :
                                                               t.language === 'en' ? 'spent' :
                                                               'gastados'}
                         </div>
@@ -832,7 +830,7 @@ export function AffiliateSystem() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">
-                            +{formatPrice(commission.commission_amount)} {t.language === 'pt' ? 'comissão' :
+                            +${commission.commission_amount.toFixed(2)} {t.language === 'pt' ? 'comissão' :
                                                                          t.language === 'en' ? 'commission' :
                                                                          'comisión'}
                           </h4>
@@ -842,7 +840,7 @@ export function AffiliateSystem() {
                           <p className="text-xs text-gray-500 dark:text-gray-500 break-words">
                             {t.language === 'pt' ? 'Recarga de' :
                              t.language === 'en' ? 'Recharge of' :
-                             'Recarga de'} {formatPrice(commission.recharge_amount)} • {(commission.commission_rate * 100).toFixed(1)}% {t.language === 'pt' ? 'comissão' :
+                             'Recarga de'} ${commission.recharge_amount.toFixed(2)} • {(commission.commission_rate * 100).toFixed(1)}% {t.language === 'pt' ? 'comissão' :
                                                                                                                                                                     t.language === 'en' ? 'commission' :
                                                                                                                                                                     'comisión'}
                           </p>

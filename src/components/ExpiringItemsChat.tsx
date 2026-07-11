@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertCircle, ChevronDown, ChevronUp, Package, Users, ShoppingBag, RefreshCw, Calendar, DollarSign, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
-import { useCurrency } from './CurrencyProvider';
+import { useLanguage } from './LanguageProvider';
 
 interface ExpiringItem {
   id: string;
@@ -21,7 +21,6 @@ interface ExpiringItem {
 export function ExpiringItemsChat() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [expiringItems, setExpiringItems] = useState<ExpiringItem[]>([]);
@@ -405,7 +404,7 @@ export function ExpiringItemsChat() {
                           <span>{t.language === 'pt' ? 'Valor' : t.language === 'en' ? 'Price' : 'Valor'}:</span>
                         </div>
                         <span className="font-semibold text-lg">
-                          {formatPrice(selectedItem.price)}
+                          ${selectedItem.price.toFixed(2)}
                         </span>
                       </div>
                     )}

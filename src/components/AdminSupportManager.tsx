@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Search, Filter, Clock, CheckCircle, AlertTriangle, User, Package, Send, Eye, CreditCard as Edit, Trash2, ArrowLeft, UserCheck } from 'lucide-react';
+import { MessageCircle, Search, Filter, Clock, CheckCircle, AlertTriangle, User, Package, Send, Eye, Edit, Trash2, ArrowLeft, UserCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { useNotificationContext } from './NotificationProvider';
 
 interface SupportTicket {
@@ -63,7 +62,6 @@ interface SupportMessage {
 export function AdminSupportManager() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const { addNotification } = useNotificationContext();
   const [activeView, setActiveView] = useState<'list' | 'view'>('list');
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -892,7 +890,7 @@ export function AdminSupportManager() {
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Pedido:</span>
                       <span className="text-gray-900 dark:text-white">
-                        {formatPrice(selectedTicket.store_orders.total_usdt)}
+                        ${selectedTicket.store_orders.total_usdt.toFixed(2)}
                       </span>
                     </div>
                   )}

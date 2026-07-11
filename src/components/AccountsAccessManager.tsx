@@ -3,7 +3,6 @@ import { Users, Shield, Calendar, Trash2, Eye, AlertTriangle, CheckCircle, Clock
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 
 interface AccountsAccess {
   id: string;
@@ -33,7 +32,6 @@ interface AccountsAccess {
 export function AccountsAccessManager() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const [accessRecords, setAccessRecords] = useState<AccountsAccess[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -326,7 +324,7 @@ export function AccountsAccessManager() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs sm:text-xs font-medium text-gray-600 dark:text-gray-400">Receita</p>
-              <p className="text-lg sm:text-xl font-bold text-purple-600">{formatPrice(stats.totalRevenue)}</p>
+              <p className="text-lg sm:text-xl font-bold text-purple-600">${stats.totalRevenue.toFixed(2)}</p>
             </div>
             <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
           </div>
@@ -438,7 +436,7 @@ export function AccountsAccessManager() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                      {formatPrice(access.store_orders?.total_usdt || 0)}
+                      ${access.store_orders?.total_usdt?.toFixed(2) || '0.00'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">

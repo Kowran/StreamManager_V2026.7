@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, CreditCard as Edit, Trash2, Eye, Calendar, AlertTriangle, Users, BarChart3, DollarSign, TrendingUp, Clock, Package, X, User, Mail, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, Calendar, AlertTriangle, Users, BarChart3, DollarSign, TrendingUp, Clock, Package, X, User, Mail, Phone } from 'lucide-react';
 import { supabase, StreamingAccount, StreamingService, Seller } from '../lib/supabase';
 import { AccountForm } from './AccountForm';
 import { ProfilesManager } from './ProfilesManager';
 import { ClientsManager } from './ClientsManager';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
 
 export function AccountsManager() {
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'accounts' | 'clients'>('accounts');
   const [accounts, setAccounts] = useState<StreamingAccount[]>([]);
@@ -482,7 +480,7 @@ export function AccountsManager() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">Faturado</p>
-                <p className="text-lg sm:text-xl font-bold text-green-600">{formatPrice(dashboardStats.totalRevenue)}</p>
+                <p className="text-lg sm:text-xl font-bold text-green-600">${dashboardStats.totalRevenue.toFixed(2)}</p>
               </div>
               <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
             </div>
@@ -495,7 +493,7 @@ export function AccountsManager() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">Custos</p>
-                <p className="text-lg sm:text-xl font-bold text-red-600">{formatPrice(dashboardStats.totalCosts)}</p>
+                <p className="text-lg sm:text-xl font-bold text-red-600">${dashboardStats.totalCosts.toFixed(2)}</p>
               </div>
               <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
             </div>
@@ -545,7 +543,7 @@ export function AccountsManager() {
                   ? 'text-green-600 dark:text-green-400' 
                   : 'text-red-600 dark:text-red-400'
               }`}>
-                {formatPrice(dashboardStats.totalRevenue - dashboardStats.totalCosts)}
+                ${(dashboardStats.totalRevenue - dashboardStats.totalCosts).toFixed(2)}
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
                 {((dashboardStats.totalRevenue - dashboardStats.totalCosts) / Math.max(dashboardStats.totalCosts, 1) * 100).toFixed(1)}% margem

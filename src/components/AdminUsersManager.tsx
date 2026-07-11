@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { AdminAPI } from '../lib/adminApi';
 import { Users, Search, Shield, Ban, CheckCircle, XCircle, Calendar, Mail, User, DollarSign, ShoppingBag, X, TrendingUp, CreditCard, Crown, UserCog, AlertTriangle, Settings2 } from 'lucide-react';
 import { AdminPermissionsModal } from './AdminPermissionsModal';
@@ -52,7 +51,6 @@ interface UserDetails {
 
 export default function AdminUsersManager() {
   const { t, language } = useLanguage();
-  const { formatPrice } = useCurrency();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -754,7 +752,7 @@ export default function AdminUsersManager() {
                             {t.language === 'pt' ? 'Saldo' : t.language === 'en' ? 'Balance' : 'Saldo'}
                           </p>
                           <p className="text-2xl font-bold text-green-900 dark:text-green-200">
-                            {formatPrice(selectedUser.credits?.balance || 0)}
+                            ${selectedUser.credits?.balance.toFixed(2) || '0.00'}
                           </p>
                         </div>
                         <DollarSign className="w-8 h-8 text-green-600 dark:text-green-400" />
