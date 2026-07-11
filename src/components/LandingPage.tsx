@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, type LucideIcon } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { LanguageSelector } from './LanguageSelector';
 import { useTheme } from './ThemeProvider';
 import { supabase } from '../lib/supabase';
@@ -63,6 +64,7 @@ interface StoreProduct {
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   const { t, language } = useLanguage();
+  const { formatPrice } = useCurrency();
   // Rendered before rest of component when a product is selected
   // (see early return below)
   const { theme, toggleTheme } = useTheme();
@@ -496,13 +498,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                         <div className="flex items-baseline gap-2">
                           {hasPromo ? (
                             <>
-                              <span className="text-lg lg:text-xl font-bold text-red-500">${product.promotional_price_usdt}</span>
-                              <span className="text-xs text-gray-400 line-through">${product.price_usdt}</span>
+                              <span className="text-lg lg:text-xl font-bold text-red-500">{formatPrice(Number(product.promotional_price_usdt))}</span>
+                              <span className="text-xs text-gray-400 line-through">{formatPrice(Number(product.price_usdt))}</span>
                             </>
                           ) : (
-                            <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">${product.price_usdt}</span>
+                            <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">{formatPrice(Number(product.price_usdt))}</span>
                           )}
-                          <span className="text-xs text-gray-400">/ R$ {Number(product.price_brl).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>

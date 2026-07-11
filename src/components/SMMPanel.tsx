@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Package, ShoppingCart, History, Search, Instagram, Facebook, Twitter, Youtube, Tiktok, Spotify, Telegram, Send, TrendingUp, MessageCircle, Linkedin, Twitch, Globe, ArrowUpDown, Clock, RefreshCw, XCircle, Droplets, Copy, ExternalLink, Filter, CheckCircle2, Loader2 } from 'lucide-react';
+import { Package, ShoppingCart, History, Search, Instagram, Facebook, Twitter, Youtube, Atom as Tiktok, AlignJustify as Spotify, Instagram as Telegram, Send, TrendingUp, MessageCircle, Linkedin, Twitch, Globe, ArrowUpDown, Clock, RefreshCw, XCircle, Droplets, Copy, ExternalLink, Filter, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { BinancePaymentModal } from './BinancePaymentModal';
 
 interface SMMCategory {
@@ -47,6 +48,7 @@ interface SMMOrder {
 export function SMMPanel() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [activeTab, setActiveTab] = useState<'services' | 'orders'>('services');
   const [categories, setCategories] = useState<SMMCategory[]>([]);
   const [services, setServices] = useState<SMMService[]>([]);
@@ -397,7 +399,7 @@ export function SMMPanel() {
             <div className="text-sm text-blue-100 group-hover:text-white transition-colors">
               {t.language === 'pt' ? 'Saldo' : t.language === 'en' ? 'Balance' : 'Saldo'}
             </div>
-            <div className="text-2xl font-bold group-hover:scale-105 transition-transform">${balance.toFixed(2)}</div>
+            <div className="text-2xl font-bold group-hover:scale-105 transition-transform">{formatPrice(balance)}</div>
             <div className="text-xs text-blue-200 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {t.language === 'pt' ? 'Recarregar' : t.language === 'en' ? 'Recharge' : 'Recargar'}
             </div>
@@ -606,7 +608,7 @@ export function SMMPanel() {
                     <div className="flex items-center space-x-4 flex-shrink-0">
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                          ${service.price_per_1000.toFixed(2)}
+                          {formatPrice(service.price_per_1000)}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {t.language === 'pt' ? 'por 1000' : t.language === 'en' ? 'per 1000' : 'por 1000'}
@@ -818,7 +820,7 @@ export function SMMPanel() {
                         <div className="flex flex-col items-end space-y-2">
                           <div className="text-right">
                             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                              ${order.charge.toFixed(2)}
+                              {formatPrice(order.charge)}
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
                               {new Date(order.created_at).toLocaleDateString(
@@ -1142,7 +1144,7 @@ export function SMMPanel() {
                     {t.language === 'pt' ? 'Custo Total' : t.language === 'en' ? 'Total Cost' : 'Costo Total'}:
                   </span>
                   <span className="font-bold text-green-600 dark:text-green-400">
-                    ${((selectedService.price_per_1000 / 1000) * orderForm.quantity).toFixed(2)}
+                    {formatPrice((selectedService.price_per_1000 / 1000) * orderForm.quantity)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1150,7 +1152,7 @@ export function SMMPanel() {
                     {t.language === 'pt' ? 'Seu Saldo' : t.language === 'en' ? 'Your Balance' : 'Tu Saldo'}:
                   </span>
                   <span className="font-bold text-gray-900 dark:text-white">
-                    ${balance.toFixed(2)}
+                    {formatPrice(balance)}
                   </span>
                 </div>
               </div>

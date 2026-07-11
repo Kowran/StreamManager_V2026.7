@@ -3,6 +3,7 @@ import { DollarSign, CreditCard, RefreshCw, Plus, Calendar, Clock, CheckCircle, 
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { StripePaymentModal } from './StripePaymentModal';
 import { PayPalPaymentModal } from './PayPalPaymentModal';
 import { MercadoPagoPaymentModal } from './MercadoPagoPaymentModal';
@@ -50,6 +51,7 @@ const PAYMENT_METHOD_META: Record<string, { icon: string; description: string; f
 export function CreditsManager() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [userCredit, setUserCredit] = useState<UserCredit | null>(null);
   const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -261,12 +263,12 @@ export function CreditsManager() {
               </h3>
             </div>
             <div className="text-4xl sm:text-5xl font-bold tracking-tight">
-              ${userCredit?.balance?.toFixed(2) || '0.00'}
+              {formatPrice(userCredit?.balance || 0)}
             </div>
             {cashbackBalance > 0 && (
               <p className="text-slate-400 text-xs sm:text-sm mt-3 flex items-center gap-1.5">
                 <CheckCircle className="h-3.5 w-3.5 text-yellow-500" />
-                {t.language === 'pt' ? `Cashback disponível: ${cashbackBalance.toFixed(2)}` : t.language === 'en' ? `Cashback available: ${cashbackBalance.toFixed(2)}` : `Cashback disponible: ${cashbackBalance.toFixed(2)}`}
+                {t.language === 'pt' ? `Cashback disponível: ${formatPrice(cashbackBalance)}` : t.language === 'en' ? `Cashback available: ${formatPrice(cashbackBalance)}` : `Cashback disponible: ${formatPrice(cashbackBalance)}`}
               </p>
             )}
           </div>
@@ -455,11 +457,11 @@ export function CreditsManager() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`text-sm font-bold ${getTransactionColor(transaction.type)}`}>
-                            {transaction.amount >= 0 ? '+' : ''}${transaction.amount.toFixed(2)}
+                            {transaction.amount >= 0 ? '+' : ''}{formatPrice(transaction.amount)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          ${transaction.balance_after.toFixed(2)}
+                          {formatPrice(transaction.balance_after)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                           <div className="flex items-center space-x-1">
@@ -504,7 +506,7 @@ export function CreditsManager() {
                         {transaction.amount >= 0 ? '+' : ''}${transaction.amount.toFixed(2)}
                       </span>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Saldo: ${transaction.balance_after.toFixed(2)}
+                        Saldo: {formatPrice(transaction.balance_after)}
                       </div>
                     </div>
                   </div>

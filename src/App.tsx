@@ -6,6 +6,8 @@ import { AuthProvider, useAuth } from './components/AuthProvider';
 import { LanguageProvider, useLanguage } from './components/LanguageProvider';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { LanguageSelector } from './components/LanguageSelector';
+import { CurrencySelector } from './components/CurrencySelector';
+import { CurrencyProvider } from './components/CurrencyProvider';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationProvider, useNotificationContext } from './components/NotificationProvider';
@@ -664,6 +666,10 @@ function AppContent() {
                 )}
               </button>
               <NotificationCenter />
+              {/* Currency Selector - Hidden on mobile */}
+              <div className="hidden lg:block">
+                <CurrencySelector />
+              </div>
               {/* Language Selector - Hidden on mobile */}
               <div className="hidden lg:block">
                 <LanguageSelector />
@@ -796,6 +802,9 @@ function AppContent() {
                   )}
                 </button>
 
+                {/* Currency Selector */}
+                <CurrencySelector />
+
                 {/* Language Selector */}
                 <LanguageSelector />
               </div>
@@ -891,11 +900,13 @@ export default function App() {
   return (
     <ThemeProvider>
       <LanguageProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <AppContent />
-          </NotificationProvider>
-        </AuthProvider>
+        <CurrencyProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <AppContent />
+            </NotificationProvider>
+          </AuthProvider>
+        </CurrencyProvider>
       </LanguageProvider>
     </ThemeProvider>
   );

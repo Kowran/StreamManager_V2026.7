@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, CreditCard, AlertCircle, AlertTriangle, TrendingUp, Package, ShoppingBag, MessageCircle, DollarSign, Star, Newspaper, Store } from 'lucide-react';
 import { supabase, ensureUserSetup } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
 import { useActivityTracker } from '../hooks/useActivityTracker';
 import { TopRatedProducts } from './TopRatedProducts';
@@ -30,6 +31,7 @@ interface UserProfile {
 
 export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {}) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const { user } = useAuth();
   const { trackAction } = useActivityTracker('dashboard');
   const [stats, setStats] = useState<DashboardStats>({
@@ -200,7 +202,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
   const statCards = [
     {
       title: t.language === 'pt' ? 'Saldo Atual' : t.language === 'en' ? 'Current Balance' : 'Saldo Actual',
-      value: `$${stats.myBalance.toFixed(2)}`,
+      value: formatPrice(stats.myBalance),
       icon: DollarSign,
       color: 'bg-green-500',
       textColor: 'text-green-600',
@@ -209,7 +211,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
     },
     {
       title: t.language === 'pt' ? 'Cashback Acumulado' : t.language === 'en' ? 'Cashback Earned' : 'Cashback Acumulado',
-      value: `$${stats.cashbackBalance.toFixed(2)}`,
+      value: formatPrice(stats.cashbackBalance),
       icon: Star,
       color: 'bg-yellow-500',
       textColor: 'text-yellow-600',
@@ -231,7 +233,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
     },
     {
       title: t.language === 'pt' ? 'Total Recarregado' : t.language === 'en' ? 'Total Recharged' : 'Total Recargado',
-      value: `$${stats.myTotalRecharged.toFixed(2)}`,
+      value: formatPrice(stats.myTotalRecharged),
       icon: TrendingUp,
       color: 'bg-blue-500',
       textColor: 'text-blue-600'
@@ -405,7 +407,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {t.language === 'pt' ? 'Saldo Atual' : t.language === 'en' ? 'Current Balance' : 'Saldo Actual'}
               </span>
-              <span className="text-sm font-semibold text-green-600">${stats.myBalance.toFixed(2)}</span>
+              <span className="text-sm font-semibold text-green-600">{formatPrice(stats.myBalance)}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600 dark:text-gray-400">
@@ -439,7 +441,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {t.language === 'pt' ? 'Total Recarregado' : t.language === 'en' ? 'Total Recharged' : 'Total Recargado'}
               </span>
-              <span className="text-sm font-semibold text-blue-600">${stats.myTotalRecharged.toFixed(2)}</span>
+              <span className="text-sm font-semibold text-blue-600">{formatPrice(stats.myTotalRecharged)}</span>
             </div>
           </div>
         </div>
@@ -475,7 +477,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
                 {t.language === 'pt' ? 'Gasto Total' : t.language === 'en' ? 'Total Spent' : 'Total Gastado'}
               </span>
               <span className="text-sm font-semibold text-orange-600">
-                ${(stats.myTotalRecharged - stats.myBalance).toFixed(2)}
+                {formatPrice(stats.myTotalRecharged - stats.myBalance)}
               </span>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangl
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { ProductRatingModal } from './ProductRatingModal';
 import RenewalPromptModal from './RenewalPromptModal';
 
@@ -104,6 +105,7 @@ interface UserPurchase {
 export function UserPurchases() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [purchases, setPurchases] = useState<UserPurchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPurchase, setSelectedPurchase] = useState<UserPurchase | null>(null);
@@ -353,7 +355,7 @@ export function UserPurchases() {
                         {new Date(purchase.purchase_date).toLocaleDateString(t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES')}
                       </span>
                       <span className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
-                        ${purchase.purchase_price.toFixed(2)}
+                        {formatPrice(purchase.purchase_price)}
                       </span>
                     </div>
 
@@ -605,7 +607,7 @@ export function UserPurchases() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t.amountPaid}</label>
-                    <p className="mt-1 text-sm font-bold text-gray-900 dark:text-white">${selectedPurchase.purchase_price.toFixed(2)}</p>
+                    <p className="mt-1 text-sm font-bold text-gray-900 dark:text-white">{formatPrice(selectedPurchase.purchase_price)}</p>
                   </div>
                   {selectedPurchase.store_orders?.discount_amount && selectedPurchase.store_orders.discount_amount > 0 && (
                     <div>
@@ -613,7 +615,7 @@ export function UserPurchases() {
                         {t.language === 'pt' ? 'Desconto (Cupom)' : t.language === 'en' ? 'Discount (Coupon)' : 'Descuento (Cupón)'}
                       </label>
                       <p className="mt-1 text-sm font-semibold text-green-600 dark:text-green-400">
-                        -$${selectedPurchase.store_orders.discount_amount.toFixed(2)}
+                        -{formatPrice(selectedPurchase.store_orders.discount_amount)}
                       </p>
                     </div>
                   )}
@@ -623,7 +625,7 @@ export function UserPurchases() {
                         {t.language === 'pt' ? 'Cashback Utilizado' : t.language === 'en' ? 'Cashback Used' : 'Cashback Utilizado'}
                       </label>
                       <p className="mt-1 text-sm font-semibold text-amber-600 dark:text-amber-400">
-                        -$${selectedPurchase.store_orders.cashback_used.toFixed(2)}
+                        -{formatPrice(selectedPurchase.store_orders.cashback_used)}
                       </p>
                     </div>
                   )}
@@ -726,9 +728,9 @@ export function UserPurchases() {
                         💰 {t.language === 'pt' ? 'Reembolso Processado' : t.language === 'en' ? 'Refund Processed' : 'Reembolso Procesado'}
                       </h5>
                       <p className="text-xs text-blue-700 dark:text-blue-400">
-                        {t.language === 'pt' ? `O valor de $${selectedPurchase.purchase_price.toFixed(2)} foi automaticamente reembolsado para sua conta. Você pode usar esses créditos para fazer novas compras.` :
-                         t.language === 'en' ? `The amount of $${selectedPurchase.purchase_price.toFixed(2)} was automatically refunded to your account. You can use these credits to make new purchases.` :
-                         `El monto de $${selectedPurchase.purchase_price.toFixed(2)} fue automáticamente reembolsado a tu cuenta. Puedes usar estos créditos para hacer nuevas compras.`}
+                        {t.language === 'pt' ? `O valor de ${formatPrice(selectedPurchase.purchase_price)} foi automaticamente reembolsado para sua conta. Você pode usar esses créditos para fazer novas compras.` :
+                         t.language === 'en' ? `The amount of ${formatPrice(selectedPurchase.purchase_price)} was automatically refunded to your account. You can use these credits to make new purchases.` :
+                         `El monto de ${formatPrice(selectedPurchase.purchase_price)} fue automáticamente reembolsado a tu cuenta. Puedes usar estos créditos para hacer nuevas compras.`}
                       </p>
                     </div>
                     
@@ -1071,6 +1073,7 @@ interface RenewalConfirmationModalProps {
 
 function RenewalConfirmationModal({ isOpen, onClose, purchase, onConfirm, isProcessing }: RenewalConfirmationModalProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
 
   if (!isOpen) return null;
 
@@ -1106,10 +1109,10 @@ function RenewalConfirmationModal({ isOpen, onClose, purchase, onConfirm, isProc
             </p>
             <p className="text-gray-700 dark:text-gray-300">
               {t.language === 'pt'
-                ? `Será cobrado $${purchase.purchase_price.toFixed(2)} por mais 30 dias.`
+                ? `Será cobrado ${formatPrice(purchase.purchase_price)} por mais 30 dias.`
                 : t.language === 'en'
-                ? `You will be charged $${purchase.purchase_price.toFixed(2)} for 30 more days.`
-                : `Se le cobrará $${purchase.purchase_price.toFixed(2)} por 30 días más.`}
+                ? `You will be charged ${formatPrice(purchase.purchase_price)} for 30 more days.`
+                : `Se le cobrará ${formatPrice(purchase.purchase_price)} por 30 días más.`}
             </p>
           </div>
 
@@ -1132,7 +1135,7 @@ function RenewalConfirmationModal({ isOpen, onClose, purchase, onConfirm, isProc
               <span className="text-gray-600 dark:text-gray-400">
                 {t.language === 'pt' ? 'Valor:' : t.language === 'en' ? 'Amount:' : 'Valor:'}
               </span>
-              <span className="font-semibold text-gray-900 dark:text-white">${purchase.purchase_price.toFixed(2)}</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatPrice(purchase.purchase_price)}</span>
             </div>
           </div>
         </div>

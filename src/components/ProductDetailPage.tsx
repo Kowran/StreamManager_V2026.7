@@ -4,6 +4,7 @@ import {
   Sun, Moon, LogIn, Menu, X, AlertCircle, Loader, UserCheck, CreditCard
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { useTheme } from './ThemeProvider';
 import { LanguageSelector } from './LanguageSelector';
 import { supabase } from '../lib/supabase';
@@ -40,6 +41,7 @@ interface ProductDetailPageProps {
 
 export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDetailPageProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const { theme, toggleTheme } = useTheme();
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -218,14 +220,11 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
               <div className="flex items-baseline gap-3 mb-6">
                 {hasPromo && (
                   <span className="text-2xl text-gray-400 line-through">
-                    ${Number(product.price_usdt).toFixed(2)}
+                    {formatPrice(Number(product.price_usdt))}
                   </span>
                 )}
                 <span className={`text-4xl font-bold ${hasPromo ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
-                  ${effectivePrice.toFixed(2)}
-                </span>
-                <span className="text-sm text-gray-400">
-                  / R$ {Number(product.price_brl).toFixed(2)}
+                  {formatPrice(effectivePrice)}
                 </span>
               </div>
 
@@ -335,11 +334,11 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
                         <div className="flex items-baseline gap-2">
                           {rpPromo ? (
                             <>
-                              <span className="text-base font-bold text-red-500">${Number(rp.promotional_price_usdt).toFixed(2)}</span>
-                              <span className="text-xs text-gray-400 line-through">${Number(rp.price_usdt).toFixed(2)}</span>
+                              <span className="text-base font-bold text-red-500">{formatPrice(Number(rp.promotional_price_usdt))}</span>
+                              <span className="text-xs text-gray-400 line-through">{formatPrice(Number(rp.price_usdt))}</span>
                             </>
                           ) : (
-                            <span className="text-base font-bold text-gray-900 dark:text-white">${Number(rp.price_usdt).toFixed(2)}</span>
+                            <span className="text-base font-bold text-gray-900 dark:text-white">{formatPrice(Number(rp.price_usdt))}</span>
                           )}
                         </div>
                       </div>

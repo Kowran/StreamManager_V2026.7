@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 import { supabase } from '../lib/supabase';
 
 interface PurchaseConfirmModalProps {
@@ -41,6 +42,7 @@ export function PurchaseConfirmModal({
   isLoading = false
 }: PurchaseConfirmModalProps) {
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number; finalPrice: number; discountType: string; discountValue: number } | null>(null);
   const [validating, setValidating] = useState(false);
@@ -319,11 +321,11 @@ export function PurchaseConfirmModal({
                   <div className="flex items-center gap-2">
                     {hasPromo && (
                       <span className="text-sm text-gray-400 line-through">
-                        ${product.price_usdt.toFixed(2)}
+                        {formatPrice(product.price_usdt)}
                       </span>
                     )}
                     <span className="text-lg font-bold text-green-600 dark:text-green-400">
-                      ${basePrice.toFixed(2)}
+                      {formatPrice(basePrice)}
                     </span>
                   </div>
                 </div>
@@ -339,7 +341,7 @@ export function PurchaseConfirmModal({
                       </span>
                     </span>
                     <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                      -${appliedCoupon.discountAmount.toFixed(2)}
+                      -{formatPrice(appliedCoupon.discountAmount)}
                     </span>
                   </div>
                 )}
@@ -349,7 +351,7 @@ export function PurchaseConfirmModal({
                     {t.language === 'pt' ? 'Saldo Atual:' : t.language === 'en' ? 'Current Balance:' : 'Saldo Actual:'}
                   </span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    ${userBalance.toFixed(2)}
+                    {formatPrice(userBalance)}
                   </span>
                 </div>
 
@@ -362,8 +364,8 @@ export function PurchaseConfirmModal({
                           {t.language === 'pt' ? 'Usar Cashback' : t.language === 'en' ? 'Use Cashback' : 'Usar Cashback'}
                         </p>
                         <p className="text-xs text-amber-600 dark:text-amber-400">
-                          {t.language === 'pt' ? `Disponível: ${cashbackBalance.toFixed(2)}` : t.language === 'en' ? `Available: ${cashbackBalance.toFixed(2)}` : `Disponible: ${cashbackBalance.toFixed(2)}`}
-                          {useCashback && cashbackToUse > 0 && ` · ${t.language === 'pt' ? 'Aplicado' : t.language === 'en' ? 'Applied' : 'Aplicado'}: -${cashbackToUse.toFixed(2)}`}
+                          {t.language === 'pt' ? `Disponível: ${formatPrice(cashbackBalance)}` : t.language === 'en' ? `Available: ${formatPrice(cashbackBalance)}` : `Disponible: ${formatPrice(cashbackBalance)}`}
+                          {useCashback && cashbackToUse > 0 && ` · ${t.language === 'pt' ? 'Aplicado' : t.language === 'en' ? 'Applied' : 'Aplicado'}: -${formatPrice(cashbackToUse)}`}
                         </p>
                       </div>
                       <button
@@ -388,7 +390,7 @@ export function PurchaseConfirmModal({
                     {t.language === 'pt' ? 'Total a Pagar:' : t.language === 'en' ? 'Total to Pay:' : 'Total a Pagar:'}
                   </span>
                   <span className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                    ${effectivePrice.toFixed(2)}
+                    {formatPrice(effectivePrice)}
                   </span>
                 </div>
 
@@ -401,7 +403,7 @@ export function PurchaseConfirmModal({
                       ? 'text-blue-600 dark:text-blue-400'
                       : 'text-red-600 dark:text-red-400'
                   }`}>
-                    ${remainingBalance.toFixed(2)}
+                    {formatPrice(remainingBalance)}
                   </span>
                 </div>
               </div>
@@ -462,7 +464,7 @@ export function PurchaseConfirmModal({
                       {t.language === 'pt' ? 'Cupom aplicado!' : t.language === 'en' ? 'Coupon applied!' : 'Cupon aplicado!'}
                     </p>
                     <p className="text-xs text-green-600 dark:text-green-400">
-                      {appliedCoupon.code} - {t.language === 'pt' ? 'Desconto' : t.language === 'en' ? 'Discount' : 'Descuento'}: ${appliedCoupon.discountAmount.toFixed(2)}
+                      {appliedCoupon.code} - {t.language === 'pt' ? 'Desconto' : t.language === 'en' ? 'Discount' : 'Descuento'}: {formatPrice(appliedCoupon.discountAmount)}
                     </p>
                   </div>
                 </div>

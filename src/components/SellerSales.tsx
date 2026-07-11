@@ -3,6 +3,7 @@ import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, D
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { useCurrency } from './CurrencyProvider';
 
 interface SellerSale {
   id: string;
@@ -29,6 +30,7 @@ interface SalesStats {
 export function SellerSales() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { formatPrice } = useCurrency();
   const [sales, setSales] = useState<SellerSale[]>([]);
   const [filteredSales, setFilteredSales] = useState<SellerSale[]>([]);
   const [stats, setStats] = useState<SalesStats>({
@@ -282,7 +284,7 @@ export function SellerSales() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Receita Total</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
-                ${stats.totalRevenue.toFixed(2)}
+                {formatPrice(stats.totalRevenue)}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-green-500" />
@@ -417,7 +419,7 @@ export function SellerSales() {
                     {sale.quantity}
                   </td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
-                    ${sale.total_usdt.toFixed(2)}
+                    {formatPrice(sale.total_usdt)}
                   </td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(sale.status)}

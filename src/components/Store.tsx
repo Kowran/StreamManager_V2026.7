@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
+import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
 import { useNotificationContext } from './NotificationProvider';
 import { StripePaymentModal } from './StripePaymentModal';
@@ -48,6 +49,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const { user } = useAuth();
   const { t, language } = useLanguage();
   const { addNotification } = useNotificationContext();
+  const { formatPrice } = useCurrency();
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
   const [userCredit, setUserCredit] = useState<UserCredit | null>(null);
   const [cashbackBalance, setCashbackBalance] = useState(0);
@@ -288,10 +290,10 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       if (userCredit.balance < price) {
         alert(t.language === 'pt' ?
-          `Saldo insuficiente. Você precisa de ${price.toFixed(2)} mas tem apenas ${userCredit.balance.toFixed(2)}. Recarregue sua conta primeiro.` :
+          `Saldo insuficiente. Você precisa de ${formatPrice(price)} mas tem apenas ${formatPrice(userCredit.balance)}. Recarregue sua conta primeiro.` :
           t.language === 'en' ?
-          `Insufficient balance. You need ${price.toFixed(2)} but only have ${userCredit.balance.toFixed(2)}. Please recharge your account first.` :
-          `Saldo insuficiente. Necesitas ${price.toFixed(2)} pero solo tienes ${userCredit.balance.toFixed(2)}. Recarga tu cuenta primero.`
+          `Insufficient balance. You need ${formatPrice(price)} but only have ${formatPrice(userCredit.balance)}. Please recharge your account first.` :
+          `Saldo insuficiente. Necesitas ${formatPrice(price)} pero solo tienes ${formatPrice(userCredit.balance)}. Recarga tu cuenta primero.`
         );
         return;
       }
@@ -542,7 +544,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 {t.language === 'pt' ? 'Saldo Disponível' : t.language === 'en' ? 'Available Balance' : 'Saldo Disponible'}
               </div>
               <div className="text-lg sm:text-2xl font-bold">
-                {'$'}{userCredit?.balance?.toFixed(2) || '0.00'}
+                {formatPrice(userCredit?.balance || 0)}
               </div>
             </div>
             <div className="opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
@@ -998,7 +1000,7 @@ function PurchaseSuccessModal({ isOpen, onClose, productName, price, orderId, on
               <span className="text-sm text-gray-600 dark:text-gray-400">
                 {t.language === 'pt' ? 'Valor Pago:' : t.language === 'en' ? 'Amount Paid:' : 'Valor Pagado:'}
               </span>
-              <span className="font-bold text-green-600 dark:text-green-400 text-lg">{'$'}{price.toFixed(2)}</span>
+              <span className="font-bold text-green-600 dark:text-green-400 text-lg">{formatPrice(price)}</span>
             </div>
           </div>
 
@@ -1218,9 +1220,8 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
         {/* Price */}
         <div className="flex items-baseline gap-1.5 sm:gap-2 mb-2 sm:mb-3">
           <span className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
-            {'$'}{product.price_usdt.toFixed(2)}
+            {formatPrice(product.price_usdt)}
           </span>
-          <span className="text-[10px] sm:text-xs text-gray-400">/ R$ {Number(product.price_brl).toFixed(2)}</span>
         </div>
 
         {/* Actions */}
@@ -1448,7 +1449,7 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
               </div>
               <div className="text-left sm:text-right flex-shrink-0">
                 <div className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400">
-                  ${product.price_usdt.toFixed(2)}
+                  {formatPrice(product.price_usdt)}
                 </div>
               </div>
             </div>
@@ -1580,7 +1581,7 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
                   {t.language === 'pt' ? 'Seu saldo atual:' : t.language === 'en' ? 'Your current balance:' : 'Tu saldo actual:'}
                 </span>
                 <span className="font-bold text-blue-900 dark:text-blue-200">
-                  {'$'}{userCredit?.balance?.toFixed(2) || '0.00'}
+                  {formatPrice(userCredit?.balance || 0)}
                 </span>
               </div>
               {!canAfford && (
