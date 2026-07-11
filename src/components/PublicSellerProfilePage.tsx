@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle, ArrowLeft, Mail, ExternalLink } from 'lucide-react';
+import { Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle, ArrowLeft, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
+import { useAuth } from './AuthProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
+import { OnlineBadge } from './OnlineBadge';
+import { ChatModal } from './ChatModal';
 
 interface PublicSellerProfilePageProps {
   sellerSlug: string;
@@ -50,7 +53,9 @@ interface ProductRating {
 
 export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: PublicSellerProfilePageProps) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [ratings, setRatings] = useState<ProductRating[]>([]);
@@ -290,10 +295,31 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                       </span>
                     </div>
                   )}
+                  <OnlineBadge
+                    lastSeenAt={(profile as any).last_seen_at}
+                    language={t.language}
+                    showLabel
+                  />
                 </div>
               </div>
+              {/* Chat button */}
+              {user && user.id !== profile.id && (
+                <button
+                  onClick={() => setChatOpen(true)}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 text-white font-medium rounded-xl transition-colors backdrop-blur-sm border border-white/30 shrink-0"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {t.language === 'pt' ? 'Enviar mensagem' : t.language === 'en' ? 'Send message' : 'Enviar mensaje'}
+                </button>
+              )}
             </div>
           </div>
+          {chatOpen && (
+            <ChatModal
+              otherUserId={profile.id}
+              onClose={() => setChatOpen(false)}
+            />
+          )}
 
           {stats && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 border-b border-gray-200 dark:border-gray-700">

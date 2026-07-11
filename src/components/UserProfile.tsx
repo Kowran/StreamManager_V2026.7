@@ -4,8 +4,9 @@ import { supabase, hasAccountsAccess } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { useNotificationContext } from './NotificationProvider';
-import { PasswordChangeModal } from './PasswordChangeModal';
 import { SellerRequestForm } from './SellerRequestForm';
+import { OnlineBadge } from './OnlineBadge';
+import { PasswordChangeModal } from './PasswordChangeModal';
 
 interface UserProfileData {
   id: string;
@@ -22,6 +23,7 @@ interface UserProfileData {
   updated_at: string;
   last_login_at: string | null;
   login_count: number;
+  last_seen_at: string | null;
   hide_expiring_balloon?: boolean;
 }
 
@@ -537,6 +539,12 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               {profile.last_login_at ? formatDate(profile.last_login_at) : '-'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">{language === 'pt' ? 'Último acesso' : 'Last login'}</div>
+          </div>
+        </div>
+        {/* Online status strip */}
+        <div className="px-6 pb-5">
+          <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl py-2.5">
+            <OnlineBadge lastSeenAt={profile.last_seen_at} language={language} showLabel size="md" />
           </div>
         </div>
       </div>

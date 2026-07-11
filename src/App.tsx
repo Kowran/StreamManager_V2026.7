@@ -60,8 +60,10 @@ import { AnnouncementBar } from './components/AnnouncementBar';
 import { AdminAnnouncementManager } from './components/AdminAnnouncementManager';
 import { AdminBannerManager } from './components/AdminBannerManager';
 import { AdminCouponsManager } from './components/AdminCouponsManager';
+import { ChatInbox } from './components/ChatInbox';
+import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'dashboard' | 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile';
+type ActiveTab = 'dashboard' | 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages';
 
 interface StoreConfig {
   store_name?: string;
@@ -86,6 +88,31 @@ function AppContent() {
   });
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
   const { unreadCount: notificationsUnreadCount } = useNotificationContext();
+  useOnlineHeartbeat(user?.id);
+
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    loadChatUnread();
+    const ch = supabase
+      .channel('chat-unread-watch')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_chats' }, loadChatUnread)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user]);
+
+  async function loadChatUnread() {
+    if (!user) return;
+    const { data } = await supabase
+      .from('direct_chats')
+      .select('user1_id, user1_unread, user2_unread')
+      .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`);
+    const total = (data || []).reduce((acc, c) => {
+      return acc + (c.user1_id === user.id ? c.user1_unread : c.user2_unread);
+    }, 0);
+    setChatUnreadCount(total);
+  }
 
   useEffect(() => {
     detectSubdomain();
@@ -239,6 +266,7 @@ function AppContent() {
     { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
     { id: 'notifications', name: t.language === 'pt' ? 'Notificações' : t.language === 'en' ? 'Notifications' : 'Notificaciones', icon: Bell },
     { id: 'purchases', name: t.myPurchases, icon: Package },
+    { id: 'messages', name: t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes', icon: MessageCircle },
     { id: 'support', name: t.language === 'pt' ? 'Suporte' : t.language === 'en' ? 'Support' : 'Soporte', icon: MessageCircle },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Gerenciador Streaming' : t.language === 'en' ? 'Streaming Manager' : 'Gestor Streaming', icon: Play },
@@ -419,6 +447,8 @@ function AppContent() {
             <AdminFlyingBalloonManager />
           </AdminGuard>
         );
+      case 'messages':
+        return <ChatInbox />;
       case 'notifications':
         return <NotificationsPage />;
       case 'seller-requests':
@@ -736,6 +766,11 @@ function AppContent() {
                           {notificationsUnreadCount > 99 ? '99+' : notificationsUnreadCount}
                         </span>
                       )}
+                      {item.id === 'messages' && chatUnreadCount > 0 && (
+                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-500 text-white text-xs font-bold rounded-full">
+                          {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -814,6 +849,11 @@ function AppContent() {
                     {isSidebarOpen && item.id === 'community' && communityUnreadCount > 0 && (
                       <span className="flex items-center justify-center min-w-[22px] h-6 px-2 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
                         {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
+                      </span>
+                    )}
+                    {isSidebarOpen && item.id === 'messages' && chatUnreadCount > 0 && (
+                      <span className="flex items-center justify-center min-w-[22px] h-6 px-2 bg-blue-500 text-white text-xs font-bold rounded-full animate-pulse">
+                        {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
                       </span>
                     )}
                   </button>
