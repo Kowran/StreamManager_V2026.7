@@ -118,13 +118,37 @@ Deno.serve(async (req: Request) => {
       console.error('Binance API error - code:', code, 'msg:', msg);
 
       // Geo-block detection
-      if (
+      const isGeoBlock =
         msg.toLowerCase().includes('geo') ||
         msg.toLowerCase().includes('region') ||
         msg.toLowerCase().includes('location') ||
-        code === '000002'
-      ) {
-        throw new Error('Failed to create Binance payment - geo restriction detected');
+        msg.toLowerCase().includes('country') ||
+        msg.toLowerCase().includes('restricted') ||
+        code === '000002';
+
+      if (isGeoBlock) {
+        const fallbackOrderId = `GEO${sanitizedUserId}${tsShort}`;
+        await supabase.from('binance_payments').insert({
+          user_id,
+          order_id: fallbackOrderId,
+          amount_usd: orderAmount,
+          status: 'pending',
+          payment_url: '',
+          webhook_data: {
+            merchant_trade_no: merchantTradeNo,
+            geo_blocked: true,
+            currency: 'USDT',
+          },
+        });
+
+        return new Response(
+          JSON.stringify({
+            geo_blocked: true,
+            order_id: fallbackOrderId,
+            qr_image_url: '',
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       throw new Error(msg);

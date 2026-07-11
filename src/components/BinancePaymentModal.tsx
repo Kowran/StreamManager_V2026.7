@@ -67,16 +67,32 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao criar pagamento');
 
+      if (data.geo_blocked) {
+        // Geo-blocked: show static QR, user pays manually and enters Order ID
+        setPaymentUrl('');
+        setInternalOrderId(data.order_id);
+        setQrCode('/photo_2026-07-11_11-04-20.jpg');
+        setStep('qr');
+        return;
+      }
+
       setPaymentUrl(data.payment_url);
       setInternalOrderId(data.order_id);
 
-      const qrSrc = data.qr_image_url || (await QRCodeLib.toDataURL(data.payment_url));
+      let qrSrc: string;
+      try {
+        qrSrc = data.qr_image_url || (await QRCodeLib.toDataURL(data.payment_url));
+      } catch {
+        qrSrc = '/photo_2026-07-11_11-04-20.jpg';
+      }
       setQrCode(qrSrc);
       setStep('qr');
     } catch (err: any) {
       const msg = err.message || t.paymentCreationError;
-      if (msg.includes('geo') || msg.includes('region') || msg.includes('location')) {
-        setError(t.binanceGeoBlockError);
+      if (msg.includes('geo') || msg.includes('region') || msg.includes('location') || msg.includes('country') || msg.includes('restricted')) {
+        // Geo-blocked: show static QR and allow user to enter Order ID manually
+        setQrCode('/photo_2026-07-11_11-04-20.jpg');
+        setStep('qr');
       } else {
         setError(msg);
       }
@@ -227,7 +243,15 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                 </p>
               </div>
 
-              {/* Payment link */}
+              {/* Geo-block info banner */}
+              {!paymentUrl && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
+                  <strong>Atenção:</strong> Devido a restrições regionais, escaneie o QR code acima na Binance App, faça o depósito e digite o ID do pedido na próxima etapa para confirmar seu pagamento.
+                </div>
+              )}
+
+              {/* Payment link — only when dynamically generated */}
+              {paymentUrl && (
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                   Ou abra o link de pagamento:
@@ -247,6 +271,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                   </button>
                 </div>
               </div>
+              )}
 
               <button
                 onClick={() => { setStep('confirm'); setError(''); }}

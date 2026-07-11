@@ -61,16 +61,37 @@ Deno.serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) throw new Error('Invalid authentication');
 
-    // order_id = internal prepayId stored in DB
+    // order_id = internal prepayId or GEO fallback ID stored in DB
     // user_order_id = Order ID typed by the user from the Binance app
     const { order_id, user_order_id } = await req.json();
 
-    const { data: payment, error: paymentError } = await supabase
+    let payment = null;
+    let paymentError = null;
+
+    // First try by stored order_id
+    const { data: p1, error: e1 } = await supabase
       .from('binance_payments')
       .select('*')
       .eq('order_id', order_id)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
+    payment = p1;
+    paymentError = e1;
+
+    // If not found and user typed an ID, try finding by that ID directly
+    if ((!payment || paymentError) && user_order_id) {
+      const trimmed = user_order_id.trim();
+      const { data: p2, error: e2 } = await supabase
+        .from('binance_payments')
+        .select('*')
+        .eq('order_id', trimmed)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (p2) {
+        payment = p2;
+        paymentError = null;
+      }
+    }
 
     if (paymentError || !payment) throw new Error('Payment not found');
 
@@ -89,8 +110,11 @@ Deno.serve(async (req: Request) => {
 
     const { api_key: apiKey, api_secret: apiSecret } = config;
 
-    // Try querying by our stored prepayId first
-    let result = await queryBinance({ prepayId: order_id }, apiKey, apiSecret);
+    // Try querying by our stored prepayId first (skip for geo-blocked GEO* orders)
+    const isGeoOrder = order_id?.startsWith('GEO');
+    let result = isGeoOrder
+      ? { status: 'FAIL', data: { status: 'UNKNOWN' } }
+      : await queryBinance({ prepayId: order_id }, apiKey, apiSecret);
     console.log('Query by prepayId result:', JSON.stringify(result));
 
     // If user typed a different ID, try it as prepayId and then as merchantTradeNo
