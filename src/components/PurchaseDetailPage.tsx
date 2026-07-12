@@ -38,9 +38,7 @@ interface FullPurchase {
     id: string;
     status: string;
     created_at: string;
-    paid_at?: string;
-    delivered_at?: string;
-    completed_at?: string;
+    updated_at?: string;
     cancelled_at?: string;
     cancellation_reason?: string;
     discount_amount?: number;
@@ -104,7 +102,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
             image_url, category, description, name, price_usdt, seller_id
           ),
           store_orders!user_purchases_order_id_fkey (
-            id, status, created_at, paid_at, delivered_at, completed_at,
+            id, status, created_at, updated_at,
             cancelled_at, cancellation_reason, discount_amount, cashback_used,
             coupon_id, customer_email, customer_name, total_usdt, seller_id, dispute_opened_at
           )
@@ -185,27 +183,27 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
   const accounts = purchase.credentials?.accounts;
   const isMultiAccount = Array.isArray(accounts) && accounts.length > 0;
 
-  // Progress steps
+  // Progress steps based on order status
   const steps = [
     {
       key: 'paid',
       label: lbl('Pagamento', 'Payment', 'Pago'),
       done: isPaid || isCompleted || isDelivered,
-      date: order?.paid_at || order?.created_at,
+      date: order?.created_at,
       icon: DollarSign,
     },
     {
       key: 'delivered',
       label: lbl('Entrega', 'Delivery', 'Entrega'),
       done: isCompleted || isDelivered,
-      date: order?.delivered_at,
+      date: isDelivered || isCompleted ? order?.updated_at : null,
       icon: Truck,
     },
     {
       key: 'completed',
       label: lbl('Finalizado', 'Completed', 'Finalizado'),
       done: isCompleted,
-      date: order?.completed_at,
+      date: isCompleted ? order?.updated_at : null,
       icon: CheckCircle,
     },
   ];

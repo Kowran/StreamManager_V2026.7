@@ -360,6 +360,7 @@ Deno.serve(async (req: Request) => {
       .insert({
         user_id: user.id,
         product_id: product_id,
+        seller_id: product.seller_id || null,
         quantity: quantity,
         total_brl: totalPrice * 5.5,
         total_usdt: totalPrice,
@@ -639,8 +640,21 @@ Deno.serve(async (req: Request) => {
       });
 
     if (creditDeductError) {
-      console.error('Credit deduction error:', creditDeductError);
-      console.warn('Purchase completed but credit transaction failed:', creditDeductError.message);
+      console.warn('Credit transaction log failed:', creditDeductError.message);
+    }
+
+    // Actually deduct the balance from user_credits
+    const { error: balanceUpdateError } = await supabaseAdmin
+      .from('user_credits')
+      .update({ 
+        balance: newBalance, 
+        total_spent: newTotalSpent,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('user_id', user.id);
+
+    if (balanceUpdateError) {
+      console.warn('Balance update failed:', balanceUpdateError.message);
     }
 
     // Deduct used cashback from user_sm_credits
