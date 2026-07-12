@@ -19,6 +19,7 @@ interface UserPurchase {
   expires_at?: string;
   expired?: boolean;
   created_at: string;
+  read_accounts?: number[];
   store_products?: {
     image_url?: string;
     category: string;
@@ -111,6 +112,7 @@ export function UserPurchases() {
   const [selectedPurchase, setSelectedPurchase] = useState<UserPurchase | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [expandedAccounts, setExpandedAccounts] = useState<Record<string, number[]>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const purchasesPerPage = 5;
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -190,6 +192,50 @@ export function UserPurchases() {
     } catch (error) {
       console.error('Error copying text:', error);
     }
+  }
+
+  async function markAccountAsRead(purchaseId: string, accountIndex: number) {
+    setExpandedAccounts(prev => ({
+      ...prev,
+      [purchaseId]: [...new Set([...(prev[purchaseId] || []), accountIndex])]
+    }));
+
+    try {
+      const currentRead = selectedPurchase?.read_accounts || [];
+      if (currentRead.includes(accountIndex)) return;
+
+      const newReadAccounts = [...currentRead, accountIndex];
+      const { error } = await supabase
+        .from('user_purchases')
+        .update({ read_accounts: newReadAccounts })
+        .eq('id', purchaseId);
+
+      if (error) {
+        console.error('Error marking account as read:', error);
+      } else {
+        setSelectedPurchase(prev => prev ? { ...prev, read_accounts: newReadAccounts } : prev);
+      }
+    } catch (err) {
+      console.error('Error in markAccountAsRead:', err);
+    }
+  }
+
+  function toggleAccount(purchaseId: string, accountIndex: number) {
+    setExpandedAccounts(prev => {
+      const current = prev[purchaseId] || [];
+      if (current.includes(accountIndex)) {
+        return { ...prev, [purchaseId]: current.filter(i => i !== accountIndex) };
+      } else {
+        markAccountAsRead(purchaseId, accountIndex);
+        return { ...prev, [purchaseId]: [...current, accountIndex] };
+      }
+    });
+  }
+
+  function isAccountRead(purchaseId: string, accountIndex: number): boolean {
+    const readFromDb = selectedPurchase?.read_accounts || [];
+    const readFromState = expandedAccounts[purchaseId] || [];
+    return readFromDb.includes(accountIndex) || readFromState.includes(accountIndex);
   }
 
   // Pagination logic
@@ -750,23 +796,28 @@ export function UserPurchases() {
               )}
 
               {/* Credentials - Only show if not cancelled */}
-              {!isCancelled(selectedPurchase) && (
-                <div className={`rounded-lg p-4 border ${
-                  isExpired(selectedPurchase.purchase_date)
-                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-                }`}>
+              {!isCancelled(selectedPurchase) && (() => {
+                const accounts = selectedPurchase.credentials.accounts;
+                const isMulti = Array.isArray(accounts) && accounts.length > 0;
+                const expiryWarn = isExpired(selectedPurchase.purchase_date);
+                const containerClass = expiryWarn
+                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                  : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
+                const iconClass = expiryWarn ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
+
+                return (
+                <div className={`rounded-lg p-4 border ${containerClass}`}>
                   <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center">
-                    <CreditCard className={`h-5 w-5 mr-2 ${
-                      isExpired(selectedPurchase.purchase_date)
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-green-600 dark:text-green-400'
-                    }`} />
+                    <CreditCard className={`h-5 w-5 mr-2 ${iconClass}`} />
                     {t.accessCredentials}
+                    {isMulti && (
+                      <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">
+                        ({accounts.length} {t.language === 'pt' ? 'contas' : t.language === 'en' ? 'accounts' : 'cuentas'})
+                      </span>
+                    )}
                   </h4>
-                  
-                  {/* Expiry Warning */}
-                  {isExpired(selectedPurchase.purchase_date) && (
+
+                  {expiryWarn && (
                     <div className="mb-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-3">
                       <div className="flex items-center">
                         <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mr-2" />
@@ -775,77 +826,115 @@ export function UserPurchases() {
                             {t.language === 'pt' ? 'Produto Expirado' : t.language === 'en' ? 'Product Expired' : 'Producto Expirado'}
                           </h5>
                           <p className="text-xs text-red-700 dark:text-red-400 mt-1">
-                            {t.language === 'pt' ? 'Este produto expirou e as credenciais podem não funcionar mais. Entre em contato com o suporte se precisar de ajuda.' :
+                            {t.language === 'pt' ? 'Este produto expirou e as credenciais podem n\u00e3o funcionar mais. Entre em contato com o suporte se precisar de ajuda.' :
                              t.language === 'en' ? 'This product has expired and the credentials may no longer work. Contact support if you need help.' :
-                             'Este producto ha expirado y las credenciales pueden no funcionar más. Contacta soporte si necesitas ayuda.'}
+                             'Este producto ha expirado y las credenciales pueden no funcionar m\u00e1s. Contacta soporte si necesitas ayuda.'}
                           </p>
                         </div>
                       </div>
                     </div>
                   )}
-                  
-                  <div className="bg-white dark:bg-gray-800 rounded-md p-4 border">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                          {t.email}:
-                        </label>
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-sm text-gray-900 dark:text-white">
-                            {selectedPurchase.credentials.email}
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(selectedPurchase.credentials.email)}
-                            className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                            title={t.copyEmail}
-                          >
-                            {copiedText === selectedPurchase.credentials.email ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                          {t.password}:
-                        </label>
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-sm text-gray-900 dark:text-white">
-                            {selectedPurchase.credentials.password}
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(selectedPurchase.credentials.password)}
-                            className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                            title={t.copyPassword}
-                          >
-                            {copiedText === selectedPurchase.credentials.password ? (
-                              <Check className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {selectedPurchase.credentials.instructions && (
-                      <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
-                        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                          {t.instructions}:
-                        </label>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">
-                          {selectedPurchase.credentials.instructions}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
-              {/* Support Info - Updated for cancelled purchases */}
+                  {isMulti ? (
+                    <div className="space-y-2">
+                      {accounts.map((acct: any, idx: number) => {
+                        const expanded = (expandedAccounts[selectedPurchase.id] || []).includes(idx) || (selectedPurchase.read_accounts || []).includes(idx);
+                        const wasRead = isAccountRead(selectedPurchase.id, idx);
+                        return (
+                          <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                            <button
+                              onClick={() => toggleAccount(selectedPurchase.id, idx)}
+                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  {t.language === 'pt' ? 'Conta' : t.language === 'en' ? 'Account' : 'Cuenta'} #{idx + 1}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {!wasRead ? (
+                                  <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-medium">
+                                    <Eye className="h-3 w-3" />
+                                    {t.language === 'pt' ? 'Nova' : t.language === 'en' ? 'New' : 'Nueva'}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium">
+                                    <Check className="h-3 w-3" />
+                                    {t.language === 'pt' ? 'Lida' : t.language === 'en' ? 'Read' : 'Le\u00eddo'}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                            {expanded && (
+                              <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t.email}:</label>
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-mono text-sm text-gray-900 dark:text-white">{acct.email}</span>
+                                      <button onClick={() => copyToClipboard(acct.email)} className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors" title={t.copyEmail}>
+                                        {copiedText === acct.email ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t.password}:</label>
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-mono text-sm text-gray-900 dark:text-white">{acct.password}</span>
+                                      <button onClick={() => copyToClipboard(acct.password)} className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors" title={t.copyPassword}>
+                                        {copiedText === acct.password ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                                {acct.instructions && (
+                                  <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600">
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t.instructions}:</label>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300">{acct.instructions}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="bg-white dark:bg-gray-800 rounded-md p-4 border">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t.email}:</label>
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-sm text-gray-900 dark:text-white">{selectedPurchase.credentials.email}</span>
+                            <button onClick={() => copyToClipboard(selectedPurchase.credentials.email)} className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors" title={t.copyEmail}>
+                              {copiedText === selectedPurchase.credentials.email ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t.password}:</label>
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-sm text-gray-900 dark:text-white">{selectedPurchase.credentials.password}</span>
+                            <button onClick={() => copyToClipboard(selectedPurchase.credentials.password)} className="ml-2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors" title={t.copyPassword}>
+                              {copiedText === selectedPurchase.credentials.password ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      {selectedPurchase.credentials.instructions && (
+                        <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{t.instructions}:</label>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{selectedPurchase.credentials.instructions}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                );
+              })()}
+
+                            {/* Support Info - Updated for cancelled purchases */}
               <div className={`rounded-lg p-4 border ${
                 isCancelled(selectedPurchase)
                   ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'

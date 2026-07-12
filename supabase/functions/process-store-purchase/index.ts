@@ -427,14 +427,14 @@ Deno.serve(async (req: Request) => {
         recharge_data: recharge_data
       };
     } else {
-      // Get available inventory for automatic delivery
+      // Get available inventory for automatic delivery - fetch 'quantity' items
       const { data: inventory, error: inventoryError } = await supabaseAdmin
         .from('product_inventory')
         .select('*')
         .eq('product_id', product_id)
         .eq('status', 'available')
         .order('created_at', { ascending: true })
-        .limit(1);
+        .limit(quantity);
 
       if (inventoryError) {
         console.error('Inventory error:', inventoryError);
@@ -452,15 +452,15 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      if (!inventory || inventory.length < 1) {
-        console.log('No inventory available:', { available: inventory?.length || 0, requested: 1 });
+      if (!inventory || inventory.length < quantity) {
+        console.log('Insufficient inventory:', { available: inventory?.length || 0, requested: quantity });
         // Rollback order
         await supabaseAdmin.from('store_orders').delete().eq('id', order.id);
         return new Response(
           JSON.stringify({
             error: 'Insufficient inventory available',
             available: inventory?.length || 0,
-            requested: 1
+            requested: quantity
           }),
           {
             status: 400,
@@ -469,17 +469,17 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      console.log('Inventory found: 1 item for delivery');
+      console.log(`Inventory found: ${inventory.length} items for delivery (requested: ${quantity})`);
 
-      // Mark the single inventory item as sold
-      const inventoryItem = inventory[0];
+      // Mark all fetched inventory items as sold
+      const inventoryIds = inventory.map((item: any) => item.id);
       const { error: updateInventoryError } = await supabaseAdmin
         .from('product_inventory')
         .update({
           status: 'sold',
           updated_at: new Date().toISOString()
         })
-        .eq('id', inventoryItem.id);
+        .in('id', inventoryIds);
 
       if (updateInventoryError) {
         console.error('Inventory update error:', updateInventoryError);
@@ -497,23 +497,50 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      console.log('Single inventory item marked as sold');
+      console.log(`${inventory.length} inventory items marked as sold`);
 
-      // Prepare delivery content for single item - ensure all fields are strings
-      deliveryContent = {
-        email: String(inventoryItem.email || ''),
-        password: String(inventoryItem.password || ''),
-        instructions: String(inventoryItem.instructions || 'Use estas credenciais para acessar sua conta.'),
-        product_name: productName,
-        purchase_price: totalPrice,
-        original_price: unitPrice * quantity,
-        discount_amount: discountAmount,
-        coupon_code: couponRecord?.code || null,
-        purchase_date: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      };
+      // Build accounts array for multi-account purchases
+      const accounts = inventory.map((item: any, index: number) => ({
+        index,
+        email: String(item.email || ''),
+        password: String(item.password || ''),
+        instructions: String(item.instructions || ''),
+      }));
 
-      console.log('Delivery credentials prepared for single item');
+      if (quantity === 1) {
+        // Single item - use legacy format for backward compatibility
+        const inventoryItem = inventory[0];
+        deliveryContent = {
+          email: String(inventoryItem.email || ''),
+          password: String(inventoryItem.password || ''),
+          instructions: String(inventoryItem.instructions || 'Use estas credenciais para acessar sua conta.'),
+          product_name: productName,
+          purchase_price: totalPrice,
+          original_price: unitPrice * quantity,
+          discount_amount: discountAmount,
+          coupon_code: couponRecord?.code || null,
+          purchase_date: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        };
+      } else {
+        // Multiple items - include accounts array
+        deliveryContent = {
+          email: '',
+          password: '',
+          instructions: '',
+          accounts: accounts,
+          product_name: productName,
+          purchase_price: totalPrice,
+          original_price: unitPrice * quantity,
+          discount_amount: discountAmount,
+          coupon_code: couponRecord?.code || null,
+          purchase_date: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          quantity: quantity
+        };
+      }
+
+      console.log(`Delivery credentials prepared for ${quantity} item(s)`);
     }
 
     // Create delivery record
