@@ -690,8 +690,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             userCredit={userCredit}
             onPurchase={handlePurchase}
             onCardClick={(product) => {
-              setSelectedProduct(product);
-              setShowProductModal(true);
+              window.location.hash = `product/${product.id}`;
             }}
             purchasing={purchasing}
             onViewSellerProfile={(sellerId, sellerSlug) => {
@@ -885,8 +884,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             setSelectedSellerId(null);
           }}
           onProductClick={(product) => {
-            setSelectedProduct(product);
-            setShowProductModal(true);
+            window.location.hash = `product/${product.id}`;
             setShowSellerProfile(false);
           }}
         />

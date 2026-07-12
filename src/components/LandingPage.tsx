@@ -7,7 +7,6 @@ import { useTheme } from './ThemeProvider';
 import { supabase } from '../lib/supabase';
 import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
-import { ProductDetailPage } from './ProductDetailPage';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -135,16 +134,6 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       document.body.style.overflow = 'unset';
     };
   }, [isMobileMenuOpen]);
-
-  if (selectedProduct) {
-    return (
-      <ProductDetailPage
-        product={selectedProduct}
-        onBack={() => setSelectedProduct(null)}
-        onGetStarted={onGetStarted}
-      />
-    );
-  }
 
   function checkAffiliateCode() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -465,7 +454,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   const available = product.manual_delivery || product.stock_quantity > 0;
                   const hasPromo = product.promotion_active && product.promotional_price_usdt;
                   return (
-                    <div key={product.id} onClick={() => setSelectedProduct(product)}
+                    <div key={product.id} onClick={() => {
+                      window.location.hash = `product/${product.id}`;
+                    }}
                       className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1">
                       <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
                         {product.image_url ? (

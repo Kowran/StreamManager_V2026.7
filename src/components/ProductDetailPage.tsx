@@ -1,61 +1,164 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, Package, Check, Truck, ShoppingCart, Star,
-  Sun, Moon, LogIn, Menu, X, AlertCircle, Loader, UserCheck, CreditCard
+  Sun, Moon, LogIn, Menu, X, AlertCircle, Loader, UserCheck, CreditCard,
+  Share2, CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useTheme } from './ThemeProvider';
-import { LanguageSelector } from './LanguageSelector';
-import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthProvider';
+import { supabase, StoreProduct } from '../lib/supabase';
 import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
+import { PurchaseConfirmModal } from './PurchaseConfirmModal';
+import { ProductRatingModal } from './ProductRatingModal';
+import { LanguageSelector } from './LanguageSelector';
 
-interface StoreProduct {
-  id: string;
-  name: string;
-  description: string | null;
-  price_brl: number;
-  price_usdt: number;
-  category: string;
-  image_url: string | null;
-  stock_quantity: number;
-  manual_delivery: boolean;
-  slug: string;
-  promotional_price_usdt: number | null;
-  promotion_active: boolean;
+interface ProductWithSeller extends StoreProduct {
+  seller_info?: {
+    business_name: string;
+    sales_count: number;
+    seller_slug?: string;
+  };
+  is_seller_product?: boolean;
+  seller_application_id?: string;
+  promotional_price_usdt?: number | null;
+  promotion_active?: boolean;
+  manual_delivery?: boolean;
+  slug?: string;
 }
 
-interface StoreConfig {
-  store_name?: string;
-  store_logo_url?: string;
-  store_description?: string;
+interface UserCredit {
+  balance: number;
+  total_recharged: number;
+  total_spent: number;
 }
 
 interface ProductDetailPageProps {
-  product: StoreProduct;
+  productId: string;
   onBack: () => void;
   onGetStarted: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
-export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDetailPageProps) {
+export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate }: ProductDetailPageProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
   const { theme, toggleTheme } = useTheme();
-  const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
+  const { user } = useAuth();
+  const [storeConfig, setStoreConfig] = useState<{ store_name?: string; store_logo_url?: string; store_description?: string } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [relatedProducts, setRelatedProducts] = useState<StoreProduct[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<ProductWithSeller[]>([]);
+  const [product, setProduct] = useState<ProductWithSeller | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userCredit, setUserCredit] = useState<UserCredit | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [pendingRating, setPendingRating] = useState<{ productId: string; productName: string } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [purchaseSuccessData, setPurchaseSuccessData] = useState<{ productName: string; price: number; orderId: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    loadProduct();
     loadStoreConfig();
-    loadRelatedProducts();
-  }, [product.id]);
+  }, [productId]);
+
+  useEffect(() => {
+    if (product) {
+      loadRelatedProducts();
+    }
+  }, [product]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [product.id]);
+  }, [productId]);
+
+  useEffect(() => {
+    if (user) {
+      loadUserCredit();
+    }
+  }, [user]);
+
+  async function loadProduct() {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('store_products')
+        .select('*')
+        .eq('id', productId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data) {
+        setError('Product not found');
+        return;
+      }
+
+      let productData: ProductWithSeller = { ...data } as ProductWithSeller;
+
+      if (data.seller_id) {
+        const { data: sellerData } = await supabase
+          .from('profiles')
+          .select('full_name, seller_slug')
+          .eq('id', data.seller_id)
+          .single();
+        const { count } = await supabase
+          .from('store_orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('seller_id', data.seller_id)
+          .eq('status', 'completed');
+        productData.seller_info = {
+          business_name: sellerData?.full_name || 'Unknown Seller',
+          sales_count: count || 0,
+          seller_slug: sellerData?.seller_slug,
+        };
+      } else {
+        const [{ count }, { data: adminProfile }] = await Promise.all([
+          supabase
+            .from('store_orders')
+            .select('*', { count: 'exact', head: true })
+            .is('seller_id', null)
+            .eq('status', 'completed'),
+          supabase
+            .from('profiles')
+            .select('id, full_name, seller_slug')
+            .eq('role', 'admin')
+            .maybeSingle(),
+        ]);
+        productData.seller_info = {
+          business_name: adminProfile?.full_name || 'Admin',
+          sales_count: count || 0,
+          seller_slug: adminProfile?.seller_slug,
+        };
+      }
+
+      setProduct(productData);
+    } catch (err) {
+      console.error('Error loading product:', err);
+      setError('Failed to load product');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadUserCredit() {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('user_credits')
+        .select('balance, total_recharged, total_spent')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setUserCredit(data);
+    } catch { /* ignore */ }
+  }
 
   async function loadStoreConfig() {
     try {
@@ -69,25 +172,142 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
   }
 
   async function loadRelatedProducts() {
+    if (!product) return;
     try {
       const { data, error } = await supabase
         .from('store_products')
-        .select('id, name, description, price_brl, price_usdt, category, image_url, stock_quantity, manual_delivery, slug, promotional_price_usdt, promotion_active')
+        .select('*')
         .eq('active', true)
         .eq('category', product.category)
         .neq('id', product.id)
         .order('created_at', { ascending: false })
         .limit(4);
-      if (!error && data) setRelatedProducts(data);
+      if (!error && data) setRelatedProducts(data as ProductWithSeller[]);
     } catch { /* ignore */ }
   }
 
-  const hasPromo = product.promotion_active && product.promotional_price_usdt;
-  const effectivePrice = hasPromo ? Number(product.promotional_price_usdt) : Number(product.price_usdt);
-  const isAvailable = product.manual_delivery || product.stock_quantity > 0;
+  async function checkPendingRatings(): Promise<boolean> {
+    if (!user) return false;
+    try {
+      const { data } = await supabase
+        .from('store_orders')
+        .select('id, product_id, products(name)')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .eq('has_rated', false)
+        .limit(1);
+      if (data && data.length > 0) {
+        const item = data[0] as any;
+        setPendingRating({ productId: item.product_id, productName: item.products?.name || '' });
+        return true;
+      }
+      return false;
+    } catch { return false; }
+  }
+
+  const hasPromo = product?.promotion_active && product?.promotional_price_usdt;
+  const effectivePrice = hasPromo ? Number(product!.promotional_price_usdt) : Number(product?.price_usdt ?? 0);
+  const isAvailable = product ? (product.manual_delivery || product.stock_quantity > 0) : false;
 
   function handleBuyNow() {
-    setShowLoginModal(true);
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!userCredit) return;
+
+    checkPendingRatings().then(hasPending => {
+      if (hasPending) {
+        setShowRatingModal(true);
+        return;
+      }
+      const price = hasPromo ? Number(product!.promotional_price_usdt) : product!.price_usdt;
+      if (userCredit.balance < price) {
+        alert(t.language === 'pt' ?
+          `Saldo insuficiente. Voce precisa de ${formatPrice(price)} mas tem apenas ${formatPrice(userCredit.balance)}. Recarregue sua conta primeiro.` :
+          t.language === 'en' ?
+          `Insufficient balance. You need ${formatPrice(price)} but only have ${formatPrice(userCredit.balance)}. Please recharge your account first.` :
+          `Saldo insuficiente. Necesitas ${formatPrice(price)} pero solo tienes ${formatPrice(userCredit.balance)}. Recarga tu cuenta primero.`
+        );
+        return;
+      }
+      setShowConfirmModal(true);
+    });
+  }
+
+  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean) {
+    if (!user || !userCredit || !product) return;
+    setPurchasing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Not authenticated');
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-store-purchase`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          product_id: product.id,
+          quantity: 1,
+          coupon_code: couponCode || null,
+          use_cashback: useCashback || false,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Purchase failed');
+
+      setPurchaseSuccessData({ productName: product.name, price: effectivePrice, orderId: result.order_id || '' });
+      setShowSuccessModal(true);
+      setShowConfirmModal(false);
+      loadUserCredit();
+    } catch (err: any) {
+      alert(err.message || 'Purchase failed');
+    } finally {
+      setPurchasing(false);
+    }
+  }
+
+  function handleShare() {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({ title: product?.name || 'Product', url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  }
+
+  function navigateToProduct(pid: string) {
+    window.location.hash = `product/${pid}`;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+        <Loader className="h-10 w-10 animate-spin text-blue-600 dark:text-blue-400" />
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            {t.language === 'pt' ? 'Produto nao encontrado' : t.language === 'en' ? 'Product not found' : 'Producto no encontrado'}
+          </p>
+          <button onClick={onBack} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+            {t.language === 'pt' ? 'Voltar a loja' : t.language === 'en' ? 'Back to store' : 'Volver a la tienda'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -120,13 +340,31 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
           </div>
 
           <div className="flex items-center space-x-3">
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium"
+              title={t.language === 'pt' ? 'Compartilhar' : t.language === 'en' ? 'Share' : 'Compartir'}
+            >
+              {copied ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Share2 className="h-5 w-5" />}
+              <span className="hidden sm:inline">{copied ? (t.language === 'pt' ? 'Copiado!' : 'Copied!') : (t.language === 'pt' ? 'Compartilhar' : t.language === 'en' ? 'Share' : 'Compartir')}</span>
+            </button>
             <button onClick={toggleTheme} className="hidden md:flex p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </button>
-            <button onClick={onGetStarted} className="hidden md:inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-              <LogIn className="h-4 w-4 mr-2" />
-              <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
-            </button>
+            {user ? (
+              <button
+                onClick={() => onNavigate?.('dashboard')}
+                className="hidden md:inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              >
+                <UserCheck className="h-4 w-4 mr-2" />
+                <span>{t.language === 'pt' ? 'Painel' : t.language === 'en' ? 'Dashboard' : 'Panel'}</span>
+              </button>
+            ) : (
+              <button onClick={onGetStarted} className="hidden md:inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                <LogIn className="h-4 w-4 mr-2" />
+                <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
+              </button>
+            )}
             <LanguageSelector />
             <button
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMobileMenuOpen(!isMobileMenuOpen); }}
@@ -147,11 +385,19 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
                 </span>
                 {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </button>
-              <button onClick={() => { onGetStarted(); setIsMobileMenuOpen(false); }}
-                className="w-full flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-                <LogIn className="h-5 w-5 mr-2" />
-                <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
-              </button>
+              {user ? (
+                <button onClick={() => { onNavigate?.('dashboard'); setIsMobileMenuOpen(false); }}
+                  className="w-full flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                  <UserCheck className="h-5 w-5 mr-2" />
+                  <span>{t.language === 'pt' ? 'Painel' : 'Dashboard'}</span>
+                </button>
+              ) : (
+                <button onClick={() => { onGetStarted(); setIsMobileMenuOpen(false); }}
+                  className="w-full flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
+                  <LogIn className="h-5 w-5 mr-2" />
+                  <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -206,7 +452,13 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
                 ) : (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
                     <Truck className="h-4 w-4 mr-1.5" />
-                    {t.language === 'pt' ? 'Entrega Automática' : t.language === 'en' ? 'Auto Delivery' : 'Entrega Automatica'}
+                    {t.language === 'pt' ? 'Entrega Automatica' : t.language === 'en' ? 'Auto Delivery' : 'Entrega Automatica'}
+                  </span>
+                )}
+                {product.renewable && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                    <Check className="h-4 w-4 mr-1.5" />
+                    {t.language === 'pt' ? 'Renovavel' : t.language === 'en' ? 'Renewable' : 'Renovable'}
                   </span>
                 )}
               </div>
@@ -215,6 +467,23 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-3">
                 {product.name}
               </h1>
+
+              {/* Seller info */}
+              {product.seller_info && (
+                <button
+                  onClick={() => {
+                    if (product.seller_info?.seller_slug) {
+                      window.location.hash = `seller/${product.seller_info.seller_slug}`;
+                    }
+                  }}
+                  className="self-start mb-4 inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  <UserCheck className="h-4 w-4" />
+                  {product.seller_info.business_name}
+                  <span className="text-gray-400">·</span>
+                  <span>{product.seller_info.sales_count} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'}</span>
+                </button>
+              )}
 
               {/* Price */}
               <div className="flex items-baseline gap-3 mb-6">
@@ -237,6 +506,23 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
                     {product.description}
                   </p>
+                </div>
+              )}
+
+              {/* Features */}
+              {product.features && product.features.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 uppercase tracking-wide">
+                    {t.language === 'pt' ? 'Recursos' : t.language === 'en' ? 'Features' : 'Caracteristicas'}
+                  </h3>
+                  <ul className="space-y-2">
+                    {product.features.map((feat, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
+                        <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
@@ -269,28 +555,41 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
               <div className="mt-auto space-y-3">
                 <button
                   onClick={handleBuyNow}
-                  disabled={!isAvailable}
+                  disabled={!isAvailable || purchasing}
                   className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
-                    isAvailable
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-[1.02]'
-                      : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    !isAvailable
+                      ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                      : purchasing
+                      ? 'bg-gray-400 text-white cursor-wait'
+                      : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/30 hover:scale-[1.02]'
                   }`}
                 >
-                  <ShoppingCart className="h-6 w-6" />
+                  {purchasing ? (
+                    <Loader className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <ShoppingCart className="h-6 w-6" />
+                  )}
                   <span>
                     {!isAvailable
                       ? (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado')
+                      : user
+                      ? (t.language === 'pt' ? 'Comprar Agora' : t.language === 'en' ? 'Buy Now' : 'Comprar Ahora')
                       : (t.language === 'pt' ? 'Entrar para Comprar' : t.language === 'en' ? 'Sign In to Buy' : 'Iniciar Sesion para Comprar')
                     }
                   </span>
-                  <ArrowRight className="h-5 w-5" />
+                  {isAvailable && !purchasing && <ArrowRight className="h-5 w-5" />}
                 </button>
                 <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-                  {t.language === 'pt'
-                    ? 'Entre ou cadastre-se para completar sua compra'
-                    : t.language === 'en'
-                    ? 'Sign in or register to complete your purchase'
-                    : 'Inicia sesion o registrate para completar tu compra'}
+                  {user
+                    ? (t.language === 'pt'
+                      ? `Saldo: ${formatPrice(userCredit?.balance || 0)}`
+                      : `Balance: ${formatPrice(userCredit?.balance || 0)}`)
+                    : (t.language === 'pt'
+                      ? 'Entre ou cadastre-se para completar sua compra'
+                      : t.language === 'en'
+                      ? 'Sign in or register to complete your purchase'
+                      : 'Inicia sesion o registrate para completar tu compra')
+                    }
                 </p>
               </div>
             </div>
@@ -309,7 +608,7 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
                   return (
                     <div
                       key={rp.id}
-                      onClick={() => { onBack(); }}
+                      onClick={() => navigateToProduct(rp.id)}
                       className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1"
                     >
                       <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
@@ -357,6 +656,52 @@ export function ProductDetailPage({ product, onBack, onGetStarted }: ProductDeta
         onClose={() => setShowLoginModal(false)}
         onLoginSuccess={onGetStarted}
       />
+
+      {/* Purchase Confirm Modal */}
+      {showConfirmModal && product && (
+        <PurchaseConfirmModal
+          isOpen={showConfirmModal}
+          product={product}
+          userBalance={userCredit?.balance || 0}
+          onConfirm={handleConfirmPurchase}
+          onCancel={() => setShowConfirmModal(false)}
+          isLoading={purchasing}
+        />
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && pendingRating && (
+        <ProductRatingModal
+          isOpen={showRatingModal}
+          onClose={() => { setShowRatingModal(false); setPendingRating(null); }}
+          productId={pendingRating.productId}
+          productName={pendingRating.productName}
+          onRated={() => { setShowRatingModal(false); setPendingRating(null); }}
+        />
+      )}
+
+      {/* Success Modal */}
+      {showSuccessModal && purchaseSuccessData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              {t.language === 'pt' ? 'Compra Realizada!' : t.language === 'en' ? 'Purchase Complete!' : 'Compra Completada!'}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              {t.language === 'pt' ? `Voce comprou ${purchaseSuccessData.productName}` : t.language === 'en' ? `You purchased ${purchaseSuccessData.productName}` : `Compraste ${purchaseSuccessData.productName}`}
+            </p>
+            <button
+              onClick={() => { setShowSuccessModal(false); onNavigate?.('purchases'); }}
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            >
+              {t.language === 'pt' ? 'Ver Minhas Compras' : t.language === 'en' ? 'View My Purchases' : 'Ver Mis Compras'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

@@ -17,6 +17,7 @@ import { ClientsManager } from './components/ClientsManager';
 import { SellersManager } from './components/SellersManager';
 import { ServicesManager } from './components/ServicesManager';
 import { Store } from './components/Store';
+import { ProductDetailPage } from './components/ProductDetailPage';
 import { AdminProductsManager } from './components/AdminProductsManager';
 import { UserPurchases } from './components/UserPurchases';
 import { Package } from 'lucide-react';
@@ -65,7 +66,7 @@ import { AdminCouponsManager } from './components/AdminCouponsManager';
 import { ChatInbox } from './components/ChatInbox';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'dashboard' | 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages';
+type ActiveTab = 'dashboard' | 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
 
 interface StoreConfig {
   store_name?: string;
@@ -77,6 +78,7 @@ function AppContent() {
   const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>('store');
+  const [productDetailId, setProductDetailId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
@@ -189,8 +191,13 @@ function AppContent() {
         const slug = hash.replace('seller/', '');
         setSellerSlug(slug);
         setActiveTab('seller-profile');
+      } else if (hash.startsWith('product/')) {
+        const productId = hash.replace('product/', '');
+        setProductDetailId(productId);
+        setActiveTab('product-detail');
       } else if (hash && hash !== activeTab) {
         setSellerSlug(null);
+        setProductDetailId(null);
         setActiveTab(hash as ActiveTab);
       }
     };
@@ -480,6 +487,37 @@ function AppContent() {
             onProductClick={(product: any) => {
               console.log('Product clicked:', product);
             }}
+          />
+        );
+      case 'product-detail':
+        if (!productDetailId) return <Store onNavigate={setActiveTab} />;
+        return (
+          <ProductDetailPage
+            productId={productDetailId}
+            onBack={() => {
+              setActiveTab('store');
+              setProductDetailId(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onGetStarted={() => {
+              if (subdomain === 'home') {
+                const currentUrl = new URL(window.location.href);
+                const hostname = currentUrl.hostname;
+                const parts = hostname.split('.');
+                if (parts.length > 2 || hostname.includes('localhost')) {
+                  const mainDomain = parts.slice(-2).join('.');
+                  const loginUrl = hostname.includes('localhost')
+                    ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
+                    : `${currentUrl.protocol}//login.${mainDomain}`;
+                  window.location.href = loginUrl;
+                } else {
+                  setShowLanding(false);
+                }
+              } else {
+                setShowLanding(false);
+              }
+            }}
+            onNavigate={setActiveTab}
           />
         );
       case 'email-verifier':
