@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle } from 'lucide-react';
+import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle, LogIn } from 'lucide-react';
 import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
 import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './components/AuthProvider';
@@ -587,6 +587,66 @@ function AppContent() {
               onLoginSuccess={() => setShowLoginModal(false)}
             />
           )}
+        </div>
+      );
+    }
+    // Product detail page takes priority over landing page for logged-in users
+    if (activeTab === 'product-detail' && productDetailId) {
+      return (
+        <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
+          <AnnouncementBar />
+          <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center py-3 sm:py-4 lg:py-6">
+                <div className="flex items-center">
+                  <button
+                    onClick={() => {
+                      setActiveTab('store');
+                      setProductDetailId(null);
+                      window.history.pushState(null, '', '#store');
+                    }}
+                    className="flex items-center hover:opacity-80 transition-opacity"
+                  >
+                    {storeConfig?.store_logo_url ? (
+                      <img src={storeConfig.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ) : null}
+                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+                    </div>
+                    <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                      {storeConfig?.store_name || 'StreamManager'}
+                    </span>
+                  </button>
+                </div>
+                <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+                  <button onClick={toggleTheme}
+                    className="hidden lg:block p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
+                    {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+                  </button>
+                  <div className="hidden lg:block"><CurrencySelector /></div>
+                  <div className="hidden lg:block"><LanguageSelector /></div>
+                  <button onClick={() => { setShowLanding(false); setActiveTab('store'); window.history.pushState(null, '', '#store'); }}
+                    className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                    <LogIn className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">{t.language === 'pt' ? 'Ir para Loja' : t.language === 'en' ? 'Go to Store' : 'Ir a la Tienda'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
+          <ProductDetailPage
+            productId={productDetailId}
+            onBack={() => {
+              setActiveTab('store');
+              setProductDetailId(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onGetStarted={() => {
+              setShowLanding(false);
+            }}
+            onNavigate={setActiveTab}
+          />
         </div>
       );
     }

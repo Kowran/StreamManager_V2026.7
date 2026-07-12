@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, type LucideIcon } from 'lucide-react';
+import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, Store, type LucideIcon } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { LanguageSelector } from './LanguageSelector';
@@ -59,6 +59,9 @@ interface StoreProduct {
   slug: string;
   promotional_price_usdt: number | null;
   promotion_active: boolean;
+  seller_id?: string | null;
+  seller_name?: string | null;
+  seller_slug?: string | null;
 }
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
@@ -186,11 +189,31 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     try {
       const { data, error } = await supabase
         .from('store_products')
-        .select('id, name, description, price_brl, price_usdt, category, image_url, stock_quantity, manual_delivery, slug, promotional_price_usdt, promotion_active')
+        .select('id, name, description, price_brl, price_usdt, category, image_url, stock_quantity, manual_delivery, slug, promotional_price_usdt, promotion_active, seller_id')
         .eq('active', true)
         .order('created_at', { ascending: false });
       if (error) return;
-      const sorted = (data || []).sort((a, b) => {
+
+      // Load seller names for seller products
+      const sellerIds = ([...new Set((data || []).map(p => p.seller_id).filter(Boolean))] as string[]);
+      const sellerMap: Record<string, { name: string; slug: string | null }> = {};
+      if (sellerIds.length > 0) {
+        const { data: sellers } = await supabase
+          .from('profiles')
+          .select('id, full_name, seller_slug')
+          .in('id', sellerIds);
+        for (const s of sellers || []) {
+          sellerMap[s.id] = { name: s.full_name || 'Vendedor', slug: s.seller_slug };
+        }
+      }
+
+      const enriched = (data || []).map(p => ({
+        ...p,
+        seller_name: p.seller_id ? sellerMap[p.seller_id]?.name || null : null,
+        seller_slug: p.seller_id ? sellerMap[p.seller_id]?.slug || null : null,
+      }));
+
+      const sorted = enriched.sort((a, b) => {
         const aAvail = a.manual_delivery || a.stock_quantity > 0;
         const bAvail = b.manual_delivery || b.stock_quantity > 0;
         if (aAvail && !bAvail) return -1;
@@ -496,6 +519,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                             <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">{formatPrice(Number(product.price_usdt))}</span>
                           )}
                         </div>
+                        {product.seller_name && (
+                          <div className="mt-1.5 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                            <Store className="h-3 w-3" />
+                            <span className="truncate">{product.seller_name}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
