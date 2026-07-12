@@ -275,8 +275,6 @@ function AppContent() {
     { id: 'store', name: t.store, icon: CreditCard },
     { id: 'smm', name: t.language === 'pt' ? 'Redes Sociais' : t.language === 'en' ? 'Social Medial' : 'Redes Sociales', icon: TrendingUp },
     { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
-    { id: 'purchases', name: t.myPurchases, icon: Package },
-    { id: 'messages', name: t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes', icon: MessageCircle },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Gerenciador Streaming' : t.language === 'en' ? 'Streaming Manager' : 'Gestor Streaming', icon: Play },
   ];
@@ -794,28 +792,21 @@ function AppContent() {
                 </span>
               </button>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
-              {/* Theme Toggle - Hidden on mobile */}
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* Chat Button */}
               <button
-                onClick={toggleTheme}
-                className="hidden lg:block p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                title={theme === 'light' ? 'Modo escuro' : 'Modo claro'}
+                onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '#messages'); }}
+                className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                title={t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes'}
               >
-                {theme === 'light' ? (
-                  <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
-                ) : (
-                  <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
+                <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                {chatUnreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full">
+                    {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                  </span>
                 )}
               </button>
               <NotificationCenter />
-              {/* Currency Selector - Hidden on mobile */}
-              <div className="hidden lg:block">
-                <CurrencySelector />
-              </div>
-              {/* Language Selector - Hidden on mobile */}
-              <div className="hidden lg:block">
-                <LanguageSelector />
-              </div>
               <UserMenu onNavigate={setActiveTab} />
             </div>
           </div>
@@ -919,32 +910,6 @@ function AppContent() {
                 })}
               </div>
 
-              {/* Theme and Language Controls */}
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                {/* Theme Toggle */}
-                <button
-                  onClick={toggleTheme}
-                  className="w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
-                >
-                  {theme === 'light' ? (
-                    <>
-                      <Moon className="mr-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
-                      <span>{t.language === 'pt' ? 'Modo Escuro' : t.language === 'en' ? 'Dark Mode' : 'Modo Oscuro'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sun className="mr-3 h-4 w-4 text-gray-400 dark:text-gray-500" />
-                      <span>{t.language === 'pt' ? 'Modo Claro' : t.language === 'en' ? 'Light Mode' : 'Modo Claro'}</span>
-                    </>
-                  )}
-                </button>
-
-                {/* Currency Selector */}
-                <CurrencySelector />
-
-                {/* Language Selector */}
-                <LanguageSelector />
-              </div>
             </nav>
 
           </div>
