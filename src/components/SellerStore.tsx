@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  LayoutDashboard, Package, ShoppingCart, MessageCircle, Settings,
+  LayoutDashboard, Package, ShoppingCart, MessageCircle,
   Store, AlertTriangle, Loader2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -10,9 +10,8 @@ import { SellerDashboardOverview } from './SellerDashboardOverview';
 import { SellerProductsManager } from './SellerProductsManager';
 import { SellerOrdersManager } from './SellerOrdersManager';
 import { SellerSupport } from './SellerSupport';
-import { SellerSettings } from './SellerSettings';
 
-type SellerTab = 'dashboard' | 'products' | 'orders' | 'support' | 'settings';
+type SellerTab = 'dashboard' | 'products' | 'orders' | 'support';
 
 export function SellerStore() {
   const { user } = useAuth();
@@ -94,7 +93,6 @@ export function SellerStore() {
     { id: 'products' as SellerTab, name: lbl('Produtos', 'Products', 'Productos'), icon: Package },
     { id: 'orders' as SellerTab, name: lbl('Pedidos', 'Orders', 'Pedidos'), icon: ShoppingCart, badge: pendingOrdersCount },
     { id: 'support' as SellerTab, name: lbl('Suporte', 'Support', 'Soporte'), icon: MessageCircle, badge: openTicketsCount },
-    { id: 'settings' as SellerTab, name: lbl('Configurações', 'Settings', 'Configuración'), icon: Settings },
   ];
 
   if (loading) {
@@ -127,7 +125,6 @@ export function SellerStore() {
       case 'products': return <SellerProductsManager />;
       case 'orders': return <SellerOrdersManager />;
       case 'support': return <SellerSupport />;
-      case 'settings': return <SellerSettings />;
     }
   }
 

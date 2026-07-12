@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Star, RefreshCw } from 'lucide-react';
+import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Star, RefreshCw, HelpCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { ProductRatingModal } from './ProductRatingModal';
 import RenewalPromptModal from './RenewalPromptModal';
+import { PurchaseHelpModal } from './PurchaseHelpModal';
 
 interface UserPurchase {
   id: string;
@@ -121,6 +122,10 @@ export function UserPurchases() {
   const [renewalLoading, setRenewalLoading] = useState<string | null>(null);
   const [showRenewalModal, setShowRenewalModal] = useState(false);
   const [selectedPurchaseForRenewal, setSelectedPurchaseForRenewal] = useState<UserPurchase | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [selectedPurchaseForHelp, setSelectedPurchaseForHelp] = useState<{ id: string; product_id: string; order_id: string; product_name: string; purchase_price: number } | null>(null);
+  const [sellerIdForHelp, setSellerIdForHelp] = useState<string | null>(null);
+  const [helpTicketStatuses, setHelpTicketStatuses] = useState<Record<string, { status: string; escalated: boolean }>>({});
 
   useEffect(() => {
     if (user) {
@@ -128,6 +133,26 @@ export function UserPurchases() {
       loadUserRatings();
     }
   }, [user]);
+
+  async function loadHelpTicketStatuses(purchasesData: any[]) {
+    if (!user || purchasesData.length === 0) return;
+    try {
+      const orderIds = purchasesData.map(p => p.order_id).filter(Boolean);
+      if (orderIds.length === 0) return;
+      const { data } = await supabase
+        .from('seller_support_tickets')
+        .select('order_id, status, escalated')
+        .eq('customer_id', user.id)
+        .in('order_id', orderIds);
+      if (data) {
+        const map: Record<string, { status: string; escalated: boolean }> = {};
+        for (const t of data) {
+          if (t.order_id) map[t.order_id] = { status: t.status, escalated: t.escalated };
+        }
+        setHelpTicketStatuses(map);
+      }
+    } catch { /* ignore */ }
+  }
 
   async function loadUserPurchases() {
     if (!user) return;
@@ -148,7 +173,8 @@ export function UserPurchases() {
             cancellation_reason,
             discount_amount,
             cashback_used,
-            coupon_id
+            coupon_id,
+            seller_id
           )
         `)
         .eq('user_id', user.id)
@@ -156,6 +182,7 @@ export function UserPurchases() {
 
       if (error) throw error;
       setPurchases(data || []);
+      loadHelpTicketStatuses(data || []);
     } catch (error) {
       console.error('Error loading purchases:', error);
     } finally {
@@ -495,7 +522,7 @@ export function UserPurchases() {
               
               {/* Rating Section - Separate row for mobile */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-600">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 flex-wrap">
                   {/* Rating Button */}
                   {!isCancelled(purchase) && !userRatings[purchase.product_id] && (
                     <button
@@ -513,6 +540,44 @@ export function UserPurchases() {
                       <Star className="h-3 w-3 mr-1 fill-current" />
                       {t.language === 'pt' ? 'Avaliado' : t.language === 'en' ? 'Rated' : 'Calificado'}
                     </span>
+                  )}
+
+                  {/* Help Button - Open ticket to seller */}
+                  {!isCancelled(purchase) && purchase.order_id && (purchase.store_orders as any)?.seller_id && (
+                    <button
+                      onClick={() => {
+                        const sellerId = (purchase.store_orders as any)?.seller_id;
+                        const ticketStatus = helpTicketStatuses[purchase.order_id];
+                        setSelectedPurchaseForHelp({
+                          id: purchase.id,
+                          product_id: purchase.product_id,
+                          order_id: purchase.order_id,
+                          product_name: purchase.product_name,
+                          purchase_price: purchase.purchase_price,
+                        });
+                        setSellerIdForHelp(sellerId);
+                        setShowHelpModal(true);
+                      }}
+                      className={`inline-flex items-center px-3 py-1.5 sm:py-2 border text-xs sm:text-sm font-medium rounded-md transition-colors touch-manipulation ${
+                        helpTicketStatuses[purchase.order_id]
+                          ? helpTicketStatuses[purchase.order_id].escalated
+                            ? 'border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30'
+                            : helpTicketStatuses[purchase.order_id].status === 'resolved'
+                            ? 'border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30'
+                            : 'border-yellow-300 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/30'
+                          : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      <HelpCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                      {helpTicketStatuses[purchase.order_id]
+                        ? helpTicketStatuses[purchase.order_id].escalated
+                          ? (t.language === 'pt' ? 'Escalado' : t.language === 'en' ? 'Escalated' : 'Escalado')
+                          : helpTicketStatuses[purchase.order_id].status === 'resolved'
+                          ? (t.language === 'pt' ? 'Resolvido' : t.language === 'en' ? 'Resolved' : 'Resuelto')
+                          : (t.language === 'pt' ? 'Em Andamento' : t.language === 'en' ? 'In Progress' : 'En Progreso')
+                        : (t.language === 'pt' ? 'Preciso de Ajuda' : t.language === 'en' ? 'I Need Help' : 'Necesito Ayuda')
+                      }
+                    </button>
                   )}
                 </div>
                 
@@ -1148,6 +1213,19 @@ export function UserPurchases() {
           isProcessing={renewalLoading === selectedPurchaseForRenewal.id}
         />
       )}
+
+      {/* Purchase Help Modal - Open ticket to seller */}
+      <PurchaseHelpModal
+        isOpen={showHelpModal}
+        onClose={() => {
+          setShowHelpModal(false);
+          setSelectedPurchaseForHelp(null);
+          setSellerIdForHelp(null);
+          if (user) loadUserPurchases();
+        }}
+        purchase={selectedPurchaseForHelp}
+        sellerId={sellerIdForHelp}
+      />
     </div>
   );
 }
