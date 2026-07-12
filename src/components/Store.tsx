@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, type LucideIcon } from 'lucide-react';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -16,6 +16,7 @@ import { PublicSellerProfile } from './PublicSellerProfile';
 import { PurchaseConfirmModal } from './PurchaseConfirmModal';
 import { ProductRatingModal } from './ProductRatingModal';
 import { SellerRequestForm } from './SellerRequestForm';
+import { SMMPanel } from './SMMPanel';
 
 interface UserCredit {
   balance: number;
@@ -393,6 +394,12 @@ export function Store({ onNavigate }: StoreProps = {}) {
     other: { icon: Package, label: language === 'pt' ? 'Outros' : language === 'en' ? 'Other' : 'Otros', color: { activeBg: 'bg-gray-600', activeText: 'text-white', badgeActive: 'bg-gray-700 text-white' } },
   };
 
+  const smmCategoryConfig = {
+    icon: TrendingUp,
+    label: language === 'pt' ? 'Redes Sociais' : language === 'en' ? 'Social Media' : 'Redes Sociales',
+    color: { activeBg: 'bg-pink-500', activeText: 'text-white', badgeActive: 'bg-pink-600 text-white' },
+  };
+
   const categories = useMemo(() => {
     const counts: Record<string, number> = {};
     products.forEach(p => { counts[p.category] = (counts[p.category] || 0) + 1; });
@@ -404,6 +411,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       .sort((a, b) => b.count - a.count);
     return [
       { key: 'all', label: language === 'pt' ? 'Todos' : language === 'en' ? 'All' : 'Todos', icon: LayoutGrid, color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' }, count: products.length },
+      { key: 'smm', label: smmCategoryConfig.label, icon: smmCategoryConfig.icon, color: smmCategoryConfig.color, count: 0 },
       ...cats,
     ];
   }, [products, language]);
@@ -687,6 +695,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       </div>
 
+      {/* SMM Panel - shown when Social Media category is active */}
+      {activeCategory === 'smm' ? (
+        <div className="col-span-full">
+          <SMMPanel onNavigate={onNavigate} />
+        </div>
+      ) : (
+      <>
       {/* Products Grid */}
       <div className="products-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 min-w-0">
         {currentProducts.map((product) => (
@@ -791,6 +806,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
             }
           </p>
         </div>
+      )}
+      </>
       )}
 
       {/* Product Details Modal */}

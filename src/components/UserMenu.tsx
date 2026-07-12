@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
   LogOut, User, ChevronDown, Wallet, DollarSign, Coins, HelpCircle,
-  Settings, ChevronRight, ChevronLeft, Moon, Sun, Package, X
+  Settings, ChevronRight, ChevronLeft, Moon, Sun, Package, X,
+  ShoppingBag, Mail, Shield
 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -13,6 +14,8 @@ import { LanguageSelector } from './LanguageSelector';
 
 interface UserMenuProps {
   onNavigate?: (tab: string) => void;
+  isAdmin?: boolean;
+  isSeller?: boolean;
 }
 
 function UserAvatar() {
@@ -58,14 +61,14 @@ function UserAvatar() {
           }}
         />
       ) : null}
-      <div className={`w-full h-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center ${profile?.avatar_url ? 'hidden' : ''}`}>
+      <div className={`w-full h-full bg-gradient-to-r from-blue-500 to-cyan-600 flex items-center justify-center ${profile?.avatar_url ? 'hidden' : ''}`}>
         <User className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-white" />
       </div>
     </div>
   );
 }
 
-export function UserMenu({ onNavigate }: UserMenuProps) {
+export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
@@ -283,6 +286,41 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
                     <HelpCircle className="h-4 w-4 text-gray-400" />
                     <span>{lbl('Ajuda', 'Help', 'Ayuda')}</span>
                   </button>
+
+                  {/* Seller section */}
+                  {isSeller && (
+                    <button
+                      onClick={() => handleNavigate('seller-store')}
+                      className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
+                    >
+                      <ShoppingBag className="h-4 w-4 text-gray-400" />
+                      <span>{lbl('Minha Loja', 'My Store', 'Mi Tienda')}</span>
+                    </button>
+                  )}
+
+                  {/* Admin section */}
+                  {isAdmin && (
+                    <>
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                      <p className="px-4 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                        {lbl('Administração', 'Administration', 'Administración')}
+                      </p>
+                      <button
+                        onClick={() => handleNavigate('netflix-finder')}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
+                      >
+                        <Mail className="h-4 w-4 text-gray-400" />
+                        <span>{lbl('Código Netflix', 'Netflix Code', 'Código Netflix')}</span>
+                      </button>
+                      <button
+                        onClick={() => handleNavigate('admin-dashboard')}
+                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
+                      >
+                        <Shield className="h-4 w-4 text-gray-400" />
+                        <span>{lbl('Painel Admin', 'Admin Panel', 'Panel Admin')}</span>
+                      </button>
+                    </>
+                  )}
 
                   {/* Settings row */}
                   <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, CreditCard, Users, UserCheck, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react';
+import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle } from 'lucide-react';
 import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
 import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './components/AuthProvider';
@@ -87,10 +87,6 @@ function AppContent() {
   const [subdomain, setSubdomain] = useState<'main' | 'login' | 'home'>('main');
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [sellerSlug, setSellerSlug] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    const saved = localStorage.getItem('sidebarOpen');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
 
   useOnlineHeartbeat(user?.id);
@@ -178,10 +174,6 @@ function AppContent() {
       document.body.style.overflow = 'unset';
     };
   }, [isMobileMenuOpen]);
-
-  useEffect(() => {
-    localStorage.setItem('sidebarOpen', JSON.stringify(isSidebarOpen));
-  }, [isSidebarOpen]);
 
   // Handle URL hash changes
   useEffect(() => {
@@ -271,36 +263,11 @@ function AppContent() {
     }
   }
 
-  const navigation = [
-    { id: 'store', name: t.store, icon: CreditCard },
-    { id: 'smm', name: t.language === 'pt' ? 'Redes Sociais' : t.language === 'en' ? 'Social Medial' : 'Redes Sociales', icon: TrendingUp },
+  const headerNavigation = [
     { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
-    { id: 'accounts', name: t.language === 'pt' ? 'Gerenciador Streaming' : t.language === 'en' ? 'Streaming Manager' : 'Gestor Streaming', icon: Play },
+    { id: 'accounts', name: t.language === 'pt' ? 'Streaming' : t.language === 'en' ? 'Streaming' : 'Streaming', icon: Play },
   ];
-
-  // Add seller-only navigation items
-  if (isSeller) {
-    navigation.push({
-      id: 'seller-store',
-      name: t.language === 'pt' ? 'Minha Loja' : t.language === 'en' ? 'My Store' : 'Mi Tienda',
-      icon: ShoppingBag
-    });
-  }
-
-  // Add admin-only navigation items
-  if (isAdmin) {
-    navigation.push({
-      id: 'netflix-finder',
-      name: t.language === 'pt' ? 'Código Netflix' : t.language === 'en' ? 'Netflix Code' : 'Código Netflix',
-      icon: Mail
-    });
-    navigation.push({
-      id: 'admin-dashboard',
-      name: t.language === 'pt' ? 'Admin' : t.language === 'en' ? 'Admin' : 'Admin',
-      icon: Shield
-    });
-  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -791,6 +758,36 @@ function AppContent() {
                   {storeConfig?.store_name || 'StreamManager'}
                 </span>
               </button>
+
+              {/* Desktop Navigation Buttons */}
+              <nav className="hidden md:flex items-center gap-1 ml-2">
+                {headerNavigation.map((item) => {
+                  const IconComponent = item.icon;
+                  const isActive = activeTab === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveTab(item.id as ActiveTab);
+                        window.history.pushState(null, '', `#${item.id}`);
+                      }}
+                      className={`relative flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <IconComponent className="h-4 w-4" />
+                      <span className="hidden lg:inline">{item.name}</span>
+                      {item.id === 'community' && communityUnreadCount > 0 && (
+                        <span className="flex items-center justify-center min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                          {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2">
               {/* Chat Button */}
@@ -807,7 +804,7 @@ function AppContent() {
                 )}
               </button>
               <NotificationCenter />
-              <UserMenu onNavigate={setActiveTab} />
+              <UserMenu onNavigate={setActiveTab} isAdmin={isAdmin} isSeller={isSeller} />
             </div>
           </div>
         </div>
@@ -873,7 +870,7 @@ function AppContent() {
             
             <nav className="mt-4 px-4">
               <div className="space-y-1 max-h-[calc(100vh-280px)] overflow-y-auto scrollbar-hide">
-                {navigation.map((item) => {
+                {headerNavigation.map((item) => {
                   const IconComponent = item.icon;
                   const isActive = activeTab === item.id;
 
@@ -900,16 +897,34 @@ function AppContent() {
                           {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
                         </span>
                       )}
-                      {item.id === 'messages' && chatUnreadCount > 0 && (
-                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-500 text-white text-xs font-bold rounded-full">
-                          {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
-              </div>
 
+                {/* Messages */}
+                <button
+                  onClick={() => {
+                    setActiveTab('messages');
+                    window.history.pushState(null, '', '#messages');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                    activeTab === 'messages'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <MessageCircle className={`mr-3 h-4 w-4 ${activeTab === 'messages' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                    {t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes'}
+                  </div>
+                  {chatUnreadCount > 0 && (
+                    <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-500 text-white text-xs font-bold rounded-full">
+                      {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </nav>
 
           </div>
@@ -931,70 +946,9 @@ function AppContent() {
             onNavigate={setActiveTab}
           />
         ) : (
-        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 min-w-0">
-          {/* Sidebar Navigation - hidden on product-detail page */}
-          {activeTab !== 'product-detail' && (
-          <aside className={`hidden lg:flex flex-col flex-shrink-0 transition-all duration-300 ${isSidebarOpen ? 'lg:w-52 xl:w-56' : 'lg:w-16 xl:w-16'}`}>
-            <div className="flex items-center justify-end mb-2">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-                title={isSidebarOpen ? 'Ocultar menu' : 'Abrir menu'}
-              >
-                {isSidebarOpen ? (
-                  <ChevronLeft className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-
-            <nav className="space-y-0.5">
-              {navigation.map((item) => {
-                const IconComponent = item.icon;
-                const isActive = activeTab === item.id;
-
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveTab(item.id as ActiveTab);
-                      window.history.pushState(null, '', `#${item.id}`);
-                    }}
-                    className={`w-full flex items-center justify-between px-2.5 lg:px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                    }`}
-                    title={!isSidebarOpen ? item.name : ''}
-                  >
-                    <div className="flex items-center min-w-0">
-                      <IconComponent className={`mr-2 lg:mr-2.5 h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
-                      {isSidebarOpen && <span className="truncate text-sm">{item.name}</span>}
-                    </div>
-                    {isSidebarOpen && item.id === 'community' && communityUnreadCount > 0 && (
-                      <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                        {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
-                      </span>
-                    )}
-                    {isSidebarOpen && item.id === 'messages' && chatUnreadCount > 0 && (
-                      <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-500 text-white text-xs font-bold rounded-full">
-                        {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
-                      </span>
-                    )}
-                    {!isSidebarOpen && item.id === 'community' && communityUnreadCount > 0 && (
-                      <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-
-          </aside>
-          )}
-
-          {/* Main Content */}
-          <main className="flex-1 min-w-0 max-w-full">
+        <div className="min-w-0">
+          {/* Main Content - full width, no sidebar */}
+          <main className="min-w-0 max-w-full">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 lg:p-6 transition-colors min-w-0 overflow-x-hidden">
               {renderContent()}
             </div>
