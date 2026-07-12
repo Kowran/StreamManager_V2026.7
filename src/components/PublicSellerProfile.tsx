@@ -84,128 +84,83 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
       setLoading(true);
       setError(null);
 
+      // Fetch profile: null sellerId means admin
+      let profileData: SellerProfile | null = null;
       if (!sellerId) {
-        const { data: adminData } = await supabase
+        const { data } = await supabase
           .from('profiles')
           .select('*')
           .eq('role', 'admin')
           .order('created_at', { ascending: true })
           .limit(1)
           .maybeSingle();
-        if (adminData) {
-          setProfile({ ...adminData, full_name: adminData.full_name || 'Admin' });
-          await loadAdminStats(adminData.id);
-        } else {
-          setError('Perfil não encontrado');
-        }
+        if (data) profileData = { ...data, full_name: data.full_name || 'Admin' };
       } else {
-        const { data: profileData, error: profileError } = await supabase
+        const { data, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', sellerId)
           .maybeSingle();
         if (profileError) { setError('Erro ao carregar perfil'); return; }
-        if (profileData) {
-          setProfile(profileData);
-          await loadSellerStats(sellerId);
-          await loadSellerProducts(sellerId);
-          await loadSellerRatings(sellerId);
-        } else {
-          setError('Perfil não encontrado');
-        }
+        profileData = data;
       }
-    } catch {
-      setError('Erro ao carregar dados');
-    } finally {
-      setLoading(false);
-    }
-  }
 
-  async function loadAdminStats(adminId: string) {
-    try {
-      const { count: totalSales } = await supabase
-        .from('store_orders')
-        .select('*', { count: 'exact', head: true })
-        .is('seller_id', null)
-        .in('status', ['delivered', 'paid', 'processing']);
-      const { count: activeProducts } = await supabase
+      if (!profileData) { setError('Perfil não encontrado'); return; }
+      setProfile(profileData);
+
+      const targetId = profileData.id;
+      const isAdmin = !sellerId;
+
+      // Sales count via SECURITY DEFINER RPC (bypasses RLS for regular users)
+      const { data: salesCount } = isAdmin
+        ? await supabase.rpc('get_admin_sales_count')
+        : await supabase.rpc('get_seller_sales_count', { seller_uuid: targetId });
+
+      // Active products count
+      const productQuery = supabase
         .from('store_products')
         .select('*', { count: 'exact', head: true })
         .eq('active', true);
-      const { data: ratingsData } = await supabase
-        .from('product_ratings')
-        .select('rating');
+      if (!isAdmin) productQuery.eq('seller_id', targetId);
+      const { count: activeProducts } = await productQuery;
+
+      // Ratings
+      const ratingsQuery = supabase.from('product_ratings').select('rating');
+      const { data: ratingsData } = await ratingsQuery;
       const avgRating = ratingsData && ratingsData.length > 0
         ? ratingsData.reduce((s: number, r: any) => s + r.rating, 0) / ratingsData.length : 0;
 
-      const { data: adminProfile } = await supabase
-        .from('profiles').select('created_at').eq('id', adminId).maybeSingle();
-      const memberDays = adminProfile?.created_at
-        ? Math.floor((Date.now() - new Date(adminProfile.created_at).getTime()) / 86400000) : 0;
+      const memberDays = profileData.created_at
+        ? Math.floor((Date.now() - new Date(profileData.created_at).getTime()) / 86400000) : 0;
 
-      setStats({ total_sales: totalSales || 0, active_products: activeProducts || 0, average_rating: avgRating, total_reviews: ratingsData?.length || 0, member_since_days: memberDays });
+      setStats({
+        total_sales: Number(salesCount) || 0,
+        active_products: activeProducts || 0,
+        average_rating: avgRating,
+        total_reviews: ratingsData?.length || 0,
+        member_since_days: memberDays,
+      });
 
-      // Load all admin products and ratings
-      const { data: prods } = await supabase
-        .from('store_products').select('*').eq('active', true)
+      // Products list
+      const prodsQuery = supabase
+        .from('store_products')
+        .select('*')
+        .eq('active', true)
         .order('created_at', { ascending: false });
+      if (!isAdmin) prodsQuery.eq('seller_id', targetId);
+      const { data: prods } = await prodsQuery;
       setProducts(prods || []);
 
-      const { data: revs } = await supabase
-        .from('product_ratings')
-        .select('*, store_products!inner(name), profiles!product_ratings_user_id_fkey(full_name)')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (revs) {
-        setRatings(revs.map((r: any) => ({
-          id: r.id, rating: r.rating, comment: r.comment || '',
-          created_at: r.created_at,
-          buyer_name: r.profiles?.full_name || 'Anônimo',
-          product_name: r.store_products?.name || '',
-        })));
-      }
-    } catch { /* ignore */ }
-  }
-
-  async function loadSellerStats(id: string) {
-    try {
-      const { count: totalSales } = await supabase
-        .from('store_orders').select('*', { count: 'exact', head: true })
-        .eq('seller_id', id).in('status', ['delivered', 'paid', 'processing']);
-      const { count: activeProducts } = await supabase
-        .from('store_products').select('*', { count: 'exact', head: true })
-        .eq('seller_id', id).eq('active', true);
-      const { data: ratingsData } = await supabase
-        .from('product_ratings').select('rating, store_products!inner(seller_id)')
-        .eq('store_products.seller_id', id);
-      const avgRating = ratingsData && ratingsData.length > 0
-        ? ratingsData.reduce((s: number, r: any) => s + r.rating, 0) / ratingsData.length : 0;
-      const memberDays = profile?.created_at
-        ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / 86400000) : 0;
-      setStats({ total_sales: totalSales || 0, active_products: activeProducts || 0, average_rating: avgRating, total_reviews: ratingsData?.length || 0, member_since_days: memberDays });
-    } catch { /* ignore */ }
-  }
-
-  async function loadSellerProducts(id: string) {
-    try {
-      const { data } = await supabase
-        .from('store_products').select('*')
-        .eq('seller_id', id).eq('active', true)
-        .order('created_at', { ascending: false });
-      setProducts(data || []);
-    } catch { /* ignore */ }
-  }
-
-  async function loadSellerRatings(id: string) {
-    try {
-      const { data } = await supabase
+      // Reviews
+      const revsQuery = supabase
         .from('product_ratings')
         .select('*, store_products!inner(name, seller_id), profiles!product_ratings_user_id_fkey(full_name)')
-        .eq('store_products.seller_id', id)
         .order('created_at', { ascending: false })
         .limit(20);
-      if (data) {
-        setRatings(data.map((r: any) => ({
+      if (!isAdmin) revsQuery.eq('store_products.seller_id', targetId);
+      const { data: revs } = await revsQuery;
+      if (revs) {
+        setRatings(revs.map((r: any) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment || '',
@@ -214,7 +169,11 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
           product_name: r.store_products?.name || '',
         })));
       }
-    } catch { /* ignore */ }
+    } catch {
+      setError('Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const themeColor = profile?.theme_color || '#3b82f6';

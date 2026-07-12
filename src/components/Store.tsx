@@ -127,50 +127,56 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       if (error) throw error;
 
+      // Fetch admin profile and both sales counts once (not per product)
+      const [{ data: adminProfile }, { data: adminSalesCount }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, seller_slug').eq('role', 'admin').maybeSingle(),
+        supabase.rpc('get_admin_sales_count'),
+      ]);
+
+      // Cache seller counts to avoid duplicate RPC calls for the same seller
+      const sellerCountCache: Record<string, number> = {};
+
       const productsWithSellers = await Promise.all(
         (data || []).map(async (product) => {
           if (product.seller_id) {
+            if (sellerCountCache[product.seller_id] === undefined) {
+              const { data: sellerData } = await supabase
+                .from('profiles')
+                .select('full_name, seller_slug')
+                .eq('id', product.seller_id)
+                .maybeSingle();
+              const { data: cnt } = await supabase.rpc('get_seller_sales_count', { seller_uuid: product.seller_id });
+              sellerCountCache[product.seller_id] = Number(cnt) || 0;
+              return {
+                ...product,
+                seller_info: {
+                  business_name: sellerData?.full_name || 'Unknown Seller',
+                  sales_count: sellerCountCache[product.seller_id],
+                  seller_slug: sellerData?.seller_slug,
+                }
+              };
+            }
             const { data: sellerData } = await supabase
               .from('profiles')
               .select('full_name, seller_slug')
               .eq('id', product.seller_id)
-              .single();
-
-            const { count } = await supabase
-              .from('store_orders')
-              .select('*', { count: 'exact', head: true })
-              .eq('seller_id', product.seller_id)
-              .in('status', ['delivered', 'paid', 'processing']);
-
+              .maybeSingle();
             return {
               ...product,
               seller_info: {
                 business_name: sellerData?.full_name || 'Unknown Seller',
-                sales_count: count || 0,
-                seller_slug: sellerData?.seller_slug
+                sales_count: sellerCountCache[product.seller_id],
+                seller_slug: sellerData?.seller_slug,
               }
             };
           }
-
-          const [{ count }, { data: adminProfile }] = await Promise.all([
-            supabase
-              .from('store_orders')
-              .select('*', { count: 'exact', head: true })
-              .is('seller_id', null)
-              .in('status', ['delivered', 'paid', 'processing']),
-            supabase
-              .from('profiles')
-              .select('id, full_name, seller_slug')
-              .eq('role', 'admin')
-              .maybeSingle(),
-          ]);
 
           return {
             ...product,
             seller_id: adminProfile?.id ?? null,
             seller_info: {
               business_name: adminProfile?.full_name || 'Admin',
-              sales_count: count || 0,
+              sales_count: Number(adminSalesCount) || 0,
               seller_slug: adminProfile?.seller_slug,
             }
           };

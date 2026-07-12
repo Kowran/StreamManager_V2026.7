@@ -102,37 +102,23 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       let productData: ProductWithSeller = { ...data } as ProductWithSeller;
 
       if (data.seller_id) {
-        const { data: sellerData } = await supabase
-          .from('profiles')
-          .select('full_name, seller_slug')
-          .eq('id', data.seller_id)
-          .single();
-        const { count } = await supabase
-          .from('store_orders')
-          .select('*', { count: 'exact', head: true })
-          .eq('seller_id', data.seller_id)
-          .in('status', ['delivered', 'paid', 'processing']);
+        const [{ data: sellerData }, { data: cnt }] = await Promise.all([
+          supabase.from('profiles').select('full_name, seller_slug').eq('id', data.seller_id).maybeSingle(),
+          supabase.rpc('get_seller_sales_count', { seller_uuid: data.seller_id }),
+        ]);
         productData.seller_info = {
           business_name: sellerData?.full_name || 'Unknown Seller',
-          sales_count: count || 0,
+          sales_count: Number(cnt) || 0,
           seller_slug: sellerData?.seller_slug,
         };
       } else {
-        const [{ count }, { data: adminProfile }] = await Promise.all([
-          supabase
-            .from('store_orders')
-            .select('*', { count: 'exact', head: true })
-            .is('seller_id', null)
-            .in('status', ['delivered', 'paid', 'processing']),
-          supabase
-            .from('profiles')
-            .select('id, full_name, seller_slug')
-            .eq('role', 'admin')
-            .maybeSingle(),
+        const [{ data: cnt }, { data: adminProfile }] = await Promise.all([
+          supabase.rpc('get_admin_sales_count'),
+          supabase.from('profiles').select('id, full_name, seller_slug').eq('role', 'admin').maybeSingle(),
         ]);
         productData.seller_info = {
           business_name: adminProfile?.full_name || 'Admin',
-          sales_count: count || 0,
+          sales_count: Number(cnt) || 0,
           seller_slug: adminProfile?.seller_slug,
         };
       }
