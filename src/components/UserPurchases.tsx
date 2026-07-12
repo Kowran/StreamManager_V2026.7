@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Star, RefreshCw, HelpCircle } from 'lucide-react';
+import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, ExternalLink } from 'lucide-react';
+import { PurchaseDetailPage } from './PurchaseDetailPage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -112,6 +113,8 @@ export function UserPurchases() {
   const [loading, setLoading] = useState(true);
   const [selectedPurchase, setSelectedPurchase] = useState<UserPurchase | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [showDetailPage, setShowDetailPage] = useState(false);
+  const [detailPageId, setDetailPageId] = useState<string | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [expandedAccounts, setExpandedAccounts] = useState<Record<string, number[]>>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -355,6 +358,19 @@ export function UserPurchases() {
     );
   }
 
+  if (showDetailPage && detailPageId) {
+    return (
+      <PurchaseDetailPage
+        purchaseId={detailPageId}
+        onBack={() => {
+          setShowDetailPage(false);
+          setDetailPageId(null);
+          loadUserPurchases();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
@@ -500,8 +516,8 @@ export function UserPurchases() {
                   )}
                   <button
                     onClick={() => {
-                      setSelectedPurchase(purchase);
-                      setShowDetails(true);
+                      setDetailPageId(purchase.id);
+                      setShowDetailPage(true);
                     }}
                     className={`inline-flex items-center px-3 py-1.5 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation w-full sm:w-auto justify-center ${
                       isCancelled(purchase)
@@ -511,7 +527,7 @@ export function UserPurchases() {
                         : 'text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40'
                     }`}
                   >
-                    <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    <ExternalLink className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                     {isCancelled(purchase) ?
                       (t.language === 'pt' ? 'Ver Detalhes' : t.language === 'en' ? 'View Details' : 'Ver Detalles') :
                       t.viewCredentials
@@ -520,6 +536,53 @@ export function UserPurchases() {
                 </div>
               </div>
               
+              {/* Sale Progress Tracker */}
+              {!isCancelled(purchase) && (() => {
+                const orderStatus = (purchase.store_orders as any)?.status;
+                const isPaid = ['paid', 'delivered', 'completed', 'disputed'].includes(orderStatus || '');
+                const isDelivered = ['delivered', 'completed'].includes(orderStatus || '');
+                const isCompleted = orderStatus === 'completed';
+                const steps = [
+                  { done: isPaid, label: t.language === 'pt' ? 'Pago' : t.language === 'en' ? 'Paid' : 'Pagado', icon: DollarSign },
+                  { done: isDelivered, label: t.language === 'pt' ? 'Entregue' : t.language === 'en' ? 'Delivered' : 'Entregado', icon: Truck },
+                  { done: isCompleted, label: t.language === 'pt' ? 'Finalizado' : t.language === 'en' ? 'Completed' : 'Finalizado', icon: CheckCircle },
+                ];
+                return (
+                  <div className="mt-3 mb-1">
+                    <div className="flex items-center gap-1">
+                      {steps.map((step, idx) => {
+                        const isLast = idx === steps.length - 1;
+                        return (
+                          <React.Fragment key={idx}>
+                            <div className="flex flex-col items-center">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
+                                step.done
+                                  ? 'bg-green-500 border-green-500 text-white'
+                                  : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
+                              }`}>
+                                {step.done ? <Check className="h-3 w-3" /> : <step.icon className="h-3 w-3" />}
+                              </div>
+                              <span className={`text-xs mt-0.5 font-medium ${step.done ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                {step.label}
+                              </span>
+                            </div>
+                            {!isLast && (
+                              <div className={`flex-1 h-0.5 mb-4 ${
+                                step.done && steps[idx + 1]?.done
+                                  ? 'bg-green-400 dark:bg-green-500'
+                                  : step.done
+                                  ? 'bg-gradient-to-r from-green-400 to-gray-200 dark:from-green-500 dark:to-gray-600'
+                                  : 'bg-gray-200 dark:bg-gray-600'
+                              }`} />
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Rating Section - Separate row for mobile */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-600">
                 <div className="flex items-center space-x-2 flex-wrap">

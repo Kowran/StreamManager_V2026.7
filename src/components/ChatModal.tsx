@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Loader2, User, Circle } from 'lucide-react';
+import { X, Send, Loader2, User, Circle, ImagePlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -18,6 +18,7 @@ interface Message {
   chat_id: string;
   sender_id: string;
   content: string;
+  image_url?: string | null;
   read_at: string | null;
   created_at: string;
 }
@@ -36,6 +37,9 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const imgInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -61,7 +65,6 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
             return [...prev, payload.new as Message];
           });
           setTimeout(() => scrollToBottom(), 50);
-          // Mark as read if we're the recipient
           if (payload.new.sender_id !== user?.id) {
             markMessagesRead(chatId);
           }
@@ -74,7 +77,7 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
 
   useEffect(() => {
     if (messages.length > 0) scrollToBottom(false);
-  }, [messages.length === 1]);
+  }, [messages.length]);
 
   async function initChat() {
     if (!user) return;
@@ -108,7 +111,6 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
     const u1 = uid < oid ? uid : oid;
     const u2 = uid < oid ? oid : uid;
 
-    // Try to find existing chat
     const { data: existing } = await supabase
       .from('direct_chats')
       .select('id')
@@ -118,7 +120,6 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
 
     if (existing) return existing.id;
 
-    // Create new chat
     const { data: created, error } = await supabase
       .from('direct_chats')
       .insert({ user1_id: u1, user2_id: u2 })
@@ -147,7 +148,6 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
       .neq('sender_id', user.id)
       .is('read_at', null);
 
-    // Reset unread count for current user
     const uid = user.id;
     const oid = otherUserId;
     const isUser1 = uid < oid;
@@ -157,35 +157,58 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
       .eq('id', id);
   }
 
+  async function uploadChatImg(file: File): Promise<string | null> {
+    const fileName = `chat/${user!.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+    const bucket = 'support-images';
+    const { error } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: true });
+    if (error) return null;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
+    return data.publicUrl;
+  }
+
+  async function handleImgChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImg(true);
+    try {
+      const url = await uploadChatImg(file);
+      if (url) setImageUrl(url);
+    } finally {
+      setUploadingImg(false);
+      if (imgInputRef.current) imgInputRef.current.value = '';
+    }
+  }
+
   async function sendMessage() {
-    if (!input.trim() || !chatId || !user || sending) return;
+    if ((!input.trim() && !imageUrl) || !chatId || !user || sending) return;
     const content = input.trim();
+    const imgToSend = imageUrl;
     setInput('');
+    setImageUrl(null);
     setSending(true);
 
     try {
       const { error } = await supabase
         .from('direct_messages')
-        .insert({ chat_id: chatId, sender_id: user.id, content });
+        .insert({ chat_id: chatId, sender_id: user.id, content, image_url: imgToSend });
 
       if (error) throw error;
 
-      // Update chat preview
       const uid = user.id;
       const oid = otherUserId;
       const isUser1 = uid < oid;
-      const preview = content.length > 60 ? content.slice(0, 60) + '…' : content;
+      const preview = content.length > 60 ? content.slice(0, 60) + '…' : (imgToSend ? '📷 Image' : '');
       await supabase
         .from('direct_chats')
         .update({ last_message: preview, last_message_at: new Date().toISOString() })
         .eq('id', chatId);
 
-      // Increment recipient's unread count
       const col = isUser1 ? 'user2_unread' : 'user1_unread';
       await supabase.rpc('increment_chat_unread', { p_chat_id: chatId, p_column: col });
     } catch (err) {
       console.error('Error sending message:', err);
       setInput(content);
+      setImageUrl(imgToSend);
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -227,13 +250,11 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end sm:p-4 pointer-events-none">
-      {/* Backdrop (mobile only) */}
       <div
         className="absolute inset-0 bg-black/40 sm:hidden pointer-events-auto"
         onClick={onClose}
       />
 
-      {/* Chat window */}
       <div className="relative pointer-events-auto w-full sm:w-96 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
         style={{ height: 'min(580px, 90dvh)' }}>
 
@@ -242,7 +263,6 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
           className="flex items-center gap-3 px-4 py-3 shrink-0"
           style={{ background: `linear-gradient(135deg, ${themeColor}dd, ${themeColor}aa)` }}
         >
-          {/* Avatar */}
           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-white/20 flex items-center justify-center">
             {otherUser?.avatar_url ? (
               <img src={otherUser.avatar_url} alt="" className="w-full h-full object-cover" />
@@ -293,13 +313,11 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
           ) : (
             groupMessages().map(group => (
               <div key={group.date}>
-                {/* Date separator */}
                 <div className="flex items-center gap-2 my-3">
                   <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
                   <span className="text-xs text-gray-400 capitalize">{group.date}</span>
                   <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
                 </div>
-                {/* Messages in group */}
                 {group.messages.map((msg, i) => {
                   const isMine = msg.sender_id === user?.id;
                   const prev = group.messages[i - 1];
@@ -318,7 +336,15 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
                           }`}
                           style={isMine ? { backgroundColor: themeColor } : {}}
                         >
-                          {msg.content}
+                          {msg.content && <p>{msg.content}</p>}
+                          {msg.image_url && (
+                            <img
+                              src={msg.image_url}
+                              alt="Image"
+                              className="mt-1 rounded-xl max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(msg.image_url!, '_blank')}
+                            />
+                          )}
                         </div>
                         <span className="text-[10px] text-gray-400 mt-0.5 px-1">{formatTime(msg.created_at)}</span>
                       </div>
@@ -333,7 +359,27 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
 
         {/* Input area */}
         <div className="px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0">
+          {imageUrl && (
+            <div className="relative mb-2">
+              <img src={imageUrl} alt="Preview" className="rounded-xl max-h-28 w-full object-cover border border-gray-200 dark:border-gray-700" />
+              <button
+                onClick={() => setImageUrl(null)}
+                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2 bg-gray-50 dark:bg-gray-800 rounded-2xl px-3 py-2">
+            <input ref={imgInputRef} type="file" accept="image/*" onChange={handleImgChange} className="hidden" />
+            <button
+              onClick={() => imgInputRef.current?.click()}
+              disabled={uploadingImg}
+              className="shrink-0 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-40 mb-0.5"
+              title={language === 'pt' ? 'Enviar imagem' : 'Send image'}
+            >
+              {uploadingImg ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+            </button>
             <textarea
               ref={inputRef}
               value={input}
@@ -347,9 +393,9 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
             />
             <button
               onClick={sendMessage}
-              disabled={!input.trim() || sending}
+              disabled={(!input.trim() && !imageUrl) || sending}
               className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ backgroundColor: input.trim() ? themeColor : undefined }}
+              style={{ backgroundColor: (input.trim() || imageUrl) ? themeColor : undefined }}
             >
               {sending
                 ? <Loader2 className="h-4 w-4 animate-spin text-white" />

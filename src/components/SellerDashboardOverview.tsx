@@ -104,7 +104,7 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
         activeProducts: activeProducts.length,
         totalStock: products.reduce((sum, p) => sum + (p.stock_quantity || 0), 0),
         lowStockProducts: lowStock.length,
-        avgOrderValue: orders.length > 0 ? totalRevenue / completed.length : 0,
+        avgOrderValue: completed.length > 0 ? totalRevenue / completed.length : 0,
         conversionRate: orders.length > 0 ? (completed.length / orders.length) * 100 : 0,
       });
 

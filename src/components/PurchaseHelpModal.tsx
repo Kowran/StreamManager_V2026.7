@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   X, MessageCircle, Send, Clock, AlertTriangle, RefreshCw, DollarSign,
-  CheckCircle, ArrowLeft, Shield, Loader2, Package
+  CheckCircle, ArrowLeft, Shield, Loader2, Package, ImagePlus, Image as ImageIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -54,10 +54,16 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
   const [creating, setCreating] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [escalating, setEscalating] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const replyFileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [issueType, setIssueType] = useState<'replace' | 'refund'>('replace');
   const [issueDescription, setIssueDescription] = useState('');
+  const [issueImageUrl, setIssueImageUrl] = useState<string | null>(null);
+  const [issueImageFile, setIssueImageFile] = useState<File | null>(null);
+  const [replyImageUrl, setReplyImageUrl] = useState<string | null>(null);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es, [language]);
@@ -111,11 +117,47 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
     }
   }
 
+  async function uploadSupportImage(file: File): Promise<string | null> {
+    const fileName = `${user!.id}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+    const { error } = await supabase.storage.from('support-images').upload(fileName, file, { upsert: true });
+    if (error) return null;
+    const { data: urlData } = supabase.storage.from('support-images').getPublicUrl(fileName);
+    return urlData.publicUrl;
+  }
+
+  async function handleIssueImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIssueImageFile(file);
+    setIssueImageUrl(URL.createObjectURL(file));
+  }
+
+  async function handleReplyImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const url = await uploadSupportImage(file);
+      if (url) setReplyImageUrl(url);
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
   async function createTicket() {
     if (!purchase || !user || !sellerId) return;
     if (!issueDescription.trim()) return;
+    if (!issueImageFile && !issueImageUrl) {
+      alert(lbl('É obrigatório enviar uma imagem do problema', 'An image of the problem is required', 'Se requiere una imagen del problema'));
+      return;
+    }
     setCreating(true);
     try {
+      let uploadedImageUrl: string | null = null;
+      if (issueImageFile) {
+        uploadedImageUrl = await uploadSupportImage(issueImageFile);
+      }
+
       const { data: ticketNumData } = await supabase.rpc('generate_seller_ticket_number');
       const ticketNumber = ticketNumData || `ST${Date.now().toString().slice(-6)}`;
 
@@ -123,7 +165,7 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
         ? lbl('Substituir conta - ', 'Replace account - ', 'Reemplazar cuenta - ') + purchase.product_name
         : lbl('Solicitar reembolso - ', 'Request refund - ', 'Solicitar reembolso - ') + purchase.product_name;
 
-      const { data, error } = await supabase
+      const { data, error: ticketError } = await supabase
         .from('seller_support_tickets')
         .insert({
           ticket_number: ticketNumber,
@@ -135,6 +177,7 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
           order_id: purchase.order_id,
           subject,
           message: issueDescription.trim(),
+          image_url: uploadedImageUrl,
           status: 'open',
           priority: 'high',
           deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
@@ -142,12 +185,23 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
         .select('*')
         .maybeSingle();
 
-      if (error) throw error;
+      if (ticketError) throw ticketError;
+
+      // Update order status to disputed
+      if (purchase.order_id) {
+        await supabase
+          .from('store_orders')
+          .update({ status: 'disputed', dispute_opened_at: new Date().toISOString() })
+          .eq('id', purchase.order_id)
+          .not('status', 'in', '("cancelled","refunded","disputed")');
+      }
 
       if (data) {
         setExistingTicket(data);
         await loadMessages(data.id);
         setIssueDescription('');
+        setIssueImageUrl(null);
+        setIssueImageFile(null);
         setIssueType('replace');
       }
     } catch (error) {
@@ -159,7 +213,7 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
   }
 
   async function sendReply() {
-    if (!replyText.trim() || !existingTicket || !user) return;
+    if ((!replyText.trim() && !replyImageUrl) || !existingTicket || !user) return;
     try {
       const { error } = await supabase
         .from('seller_support_messages')
@@ -168,11 +222,14 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
           sender_id: user.id,
           sender_type: 'customer',
           message: replyText.trim(),
+          image_url: replyImageUrl || null,
         });
 
       if (error) throw error;
 
       setReplyText('');
+      setReplyImageUrl(null);
+      if (replyFileInputRef.current) replyFileInputRef.current.value = '';
       await loadMessages(existingTicket.id);
     } catch (error) {
       console.error('Error sending reply:', error);
@@ -354,6 +411,9 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
                   <div className="max-w-[85%] bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">{lbl('Você', 'You', 'Tú')}</p>
                     <p className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap">{existingTicket.message}</p>
+                    {(existingTicket as any).image_url && (
+                      <img src={(existingTicket as any).image_url} alt="Attachment" className="mt-2 rounded-lg max-h-40 w-full object-cover cursor-pointer" onClick={() => window.open((existingTicket as any).image_url, '_blank')} />
+                    )}
                     <p className="text-xs text-gray-400 mt-1">{formatDate(existingTicket.created_at)}</p>
                   </div>
                 </div>
@@ -368,6 +428,9 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
                         {msg.sender_type === 'customer' ? lbl('Você', 'You', 'Tú') : lbl('Vendedor', 'Seller', 'Vendedor')}
                       </p>
                       <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                      {(msg as any).image_url && (
+                        <img src={(msg as any).image_url} alt="Attachment" className="mt-2 rounded-lg max-h-40 w-full object-cover cursor-pointer" onClick={() => window.open((msg as any).image_url, '_blank')} />
+                      )}
                       <p className={`text-xs mt-1 ${msg.sender_type === 'customer' ? 'text-blue-200' : 'text-gray-400'}`}>
                         {formatDate(msg.created_at)}
                       </p>
@@ -378,19 +441,39 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
 
               {/* Reply input (only if not resolved) */}
               {existingTicket.status !== 'resolved' && !existingTicket.escalated && (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') sendReply(); }}
-                    placeholder={lbl('Digite uma mensagem...', 'Type a message...', 'Escribe un mensaje...')}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
-                  />
-                  <button onClick={sendReply} disabled={!replyText.trim()}
-                    className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50">
-                    <Send className="h-4 w-4" />
-                  </button>
+                <div className="space-y-2">
+                  {replyImageUrl && (
+                    <div className="relative">
+                      <img src={replyImageUrl} alt="Reply preview" className="rounded-lg max-h-32 w-full object-cover border border-gray-200 dark:border-gray-600" />
+                      <button
+                        onClick={() => { setReplyImageUrl(null); if (replyFileInputRef.current) replyFileInputRef.current.value = ''; }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                      ><X className="h-3 w-3" /></button>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input ref={replyFileInputRef} type="file" accept="image/*" onChange={handleReplyImageChange} className="hidden" />
+                    <button
+                      onClick={() => replyFileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="px-2.5 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md text-gray-500 dark:text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors disabled:opacity-50"
+                      title={lbl('Adicionar imagem', 'Add image', 'Agregar imagen')}
+                    >
+                      {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                    </button>
+                    <input
+                      type="text"
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') sendReply(); }}
+                      placeholder={lbl('Digite uma mensagem...', 'Type a message...', 'Escribe un mensaje...')}
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button onClick={sendReply} disabled={!replyText.trim() && !replyImageUrl}
+                      className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50">
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -479,12 +562,38 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
                   )}
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                 />
+
+                {/* Image Upload - Mandatory */}
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {lbl('Foto do problema', 'Photo of the problem', 'Foto del problema')}
+                    <span className="text-red-500 ml-1">* {lbl('(obrigatório)', '(required)', '(requerido)')}</span>
+                  </label>
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleIssueImageChange} className="hidden" />
+                  {issueImageUrl ? (
+                    <div className="relative mt-1">
+                      <img src={issueImageUrl} alt="Preview" className="rounded-lg max-h-40 w-full object-cover border border-gray-200 dark:border-gray-600" />
+                      <button
+                        onClick={() => { setIssueImageUrl(null); setIssueImageFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                      ><X className="h-3 w-3" /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="mt-1 flex w-full items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-red-300 dark:border-red-700 rounded-lg text-sm text-red-500 dark:text-red-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                      {lbl('Clique para adicionar foto do problema', 'Click to add a photo of the problem', 'Haz clic para agregar foto del problema')}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Submit */}
               <button
                 onClick={createTicket}
-                disabled={creating || !issueDescription.trim()}
+                disabled={creating || !issueDescription.trim() || (!issueImageFile && !issueImageUrl)}
                 className="w-full px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {creating ? (
