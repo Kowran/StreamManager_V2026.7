@@ -247,28 +247,28 @@ export function Store({ onNavigate }: StoreProps = {}) {
         .from('store_orders')
         .select('id, product_id')
         .eq('user_id', user.id)
-        .in('status', ['delivered', 'paid']);
+        .in('status', ['delivered', 'paid'])
+        .order('created_at', { ascending: false })
+        .limit(1);
       if (error || !orders || orders.length === 0) return false;
 
-      const productIds = [...new Set(orders.map(o => o.product_id).filter(Boolean))];
-      if (productIds.length === 0) return false;
+      const lastOrder = orders[0];
+      if (!lastOrder.product_id) return false;
 
-      const { data: ratings } = await supabase
+      const { data: rating } = await supabase
         .from('product_ratings')
-        .select('product_id')
+        .select('id')
         .eq('user_id', user.id)
-        .in('product_id', productIds);
+        .eq('product_id', lastOrder.product_id)
+        .maybeSingle();
 
-      const ratedIds = new Set((ratings || []).map(r => r.product_id));
-      const unrated = orders.find(o => o.product_id && !ratedIds.has(o.product_id));
-
-      if (unrated && unrated.product_id) {
+      if (!rating) {
         const { data: prod } = await supabase
           .from('store_products')
           .select('name')
-          .eq('id', unrated.product_id)
+          .eq('id', lastOrder.product_id)
           .single();
-        setPendingRating({ productId: unrated.product_id, productName: prod?.name || 'Produto' });
+        setPendingRating({ productId: lastOrder.product_id, productName: prod?.name || 'Produto' });
         return true;
       }
       return false;

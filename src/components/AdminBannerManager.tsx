@@ -49,7 +49,7 @@ export function AdminBannerManager() {
 
   const emptyForm = {
     title: '', subtitle: '', image_url: '', link_url: '', link_text: '',
-    bg_color: '#1e40af', text_color: '#ffffff', text_position: 'left',
+    bg_color: 'transparent', text_color: '#ffffff', text_position: 'left',
     is_active: true, display_order: 0,
   };
   const [form, setForm] = useState(emptyForm);
@@ -83,7 +83,7 @@ export function AdminBannerManager() {
     setForm({
       title: b.title, subtitle: b.subtitle || '', image_url: b.image_url || '',
       link_url: b.link_url || '', link_text: b.link_text || '',
-      bg_color: b.bg_color, text_color: b.text_color, text_position: b.text_position,
+      bg_color: b.bg_color || 'transparent', text_color: b.text_color, text_position: b.text_position,
       is_active: b.is_active, display_order: b.display_order,
     });
     setShowModal(true);
@@ -94,7 +94,7 @@ export function AdminBannerManager() {
     setError(null);
     try {
       const payload = {
-        title: form.title,
+        title: form.title || '',
         subtitle: form.subtitle || null,
         image_url: form.image_url || null,
         link_url: form.link_url || null,
@@ -212,7 +212,7 @@ export function AdminBannerManager() {
                 style={{ backgroundColor: b.bg_color }}
               >
                 {b.image_url && (
-                  <img src={b.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                  <img src={b.image_url} alt="" className={`absolute inset-0 w-full h-full object-cover ${b.bg_color && b.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'}`} />
                 )}
                 <div className={`relative flex flex-col gap-1 max-w-md ${posClasses[b.text_position] || ''}`} style={{ color: b.text_color }}>
                   <h3 className="text-lg font-bold">{b.title}</h3>
@@ -271,7 +271,7 @@ export function AdminBannerManager() {
             <div className="p-6 space-y-5">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t.bannerTitle}</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t.bannerTitle} <span className="text-gray-400 text-xs font-normal">(opcional)</span></label>
                 <input
                   type="text"
                   value={form.title}
@@ -329,8 +329,15 @@ export function AdminBannerManager() {
 
               {/* Colors */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t.presets}</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t.presets} <span className="text-gray-400 text-xs font-normal">(opcional)</span></label>
                 <div className="flex flex-wrap gap-2 mb-3">
+                  <button
+                    onClick={() => update('bg_color', 'transparent')}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-all bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    style={{ borderColor: form.bg_color === 'transparent' ? '#3b82f6' : '#d1d5db' }}
+                  >
+                    Transparente
+                  </button>
                   {PRESET_COLORS.map(p => (
                     <button
                       key={p.name}
@@ -344,14 +351,24 @@ export function AdminBannerManager() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t.bgColor}</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t.bgColor} <span className="text-gray-400 text-xs font-normal">(opcional)</span></label>
                     <div className="flex items-center gap-2">
-                      <input type="color" value={form.bg_color} onChange={e => update('bg_color', e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600" />
-                      <input type="text" value={form.bg_color} onChange={e => update('bg_color', e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono" />
+                      <input
+                        type="color"
+                        value={form.bg_color === 'transparent' ? '#ffffff' : form.bg_color}
+                        onChange={e => update('bg_color', e.target.value)}
+                        className="w-10 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+                      />
+                      <input
+                        type="text"
+                        value={form.bg_color}
+                        onChange={e => update('bg_color', e.target.value)}
+                        className="flex-1 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono"
+                      />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t.textColor}</label>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t.textColor} <span className="text-gray-400 text-xs font-normal">(opcional)</span></label>
                     <div className="flex items-center gap-2">
                       <input type="color" value={form.text_color} onChange={e => update('text_color', e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-gray-300 dark:border-gray-600" />
                       <input type="text" value={form.text_color} onChange={e => update('text_color', e.target.value)} className="flex-1 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono" />
@@ -384,7 +401,7 @@ export function AdminBannerManager() {
                   style={{ backgroundColor: form.bg_color }}
                 >
                   {form.image_url && (
-                    <img src={form.image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <img src={form.image_url} alt="" className={`absolute inset-0 w-full h-full object-cover ${form.bg_color && form.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'}`} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   )}
                   <div className={`relative flex flex-col gap-1 max-w-md ${posClasses[form.text_position] || ''}`} style={{ color: form.text_color }}>
                     <h3 className="text-lg font-bold">{form.title || 'Seu título...'}</h3>
@@ -419,7 +436,7 @@ export function AdminBannerManager() {
               <button onClick={() => setShowModal(false)} disabled={saving} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors">
                 {t.cancel}
               </button>
-              <button onClick={handleSave} disabled={saving || !form.title} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-50">
+              <button onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors disabled:opacity-50">
                 {saving ? '...' : t.save}
               </button>
             </div>

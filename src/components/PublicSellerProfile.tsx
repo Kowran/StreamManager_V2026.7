@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Star, Package, ShoppingBag, TrendingUp,
-  Award, CheckCircle, User, MessageCircle, Calendar
+  Award, CheckCircle, User, MessageCircle, Calendar, Shield
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
@@ -89,7 +89,7 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
           .maybeSingle();
         if (adminData) {
           setProfile({ ...adminData, full_name: adminData.full_name || 'Admin' });
-          await loadAdminStats();
+          await loadAdminStats(adminData.id);
         } else {
           setError('Perfil não encontrado');
         }
@@ -116,25 +116,49 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
     }
   }
 
-  async function loadAdminStats() {
+  async function loadAdminStats(adminId: string) {
     try {
       const { count: totalSales } = await supabase
         .from('store_orders')
         .select('*', { count: 'exact', head: true })
         .is('seller_id', null)
-        .eq('status', 'completed');
+        .in('status', ['delivered', 'paid', 'processing']);
       const { count: activeProducts } = await supabase
         .from('store_products')
         .select('*', { count: 'exact', head: true })
-        .is('seller_id', null)
         .eq('active', true);
       const { data: ratingsData } = await supabase
         .from('product_ratings')
-        .select('rating, store_products!inner(seller_id)')
-        .is('store_products.seller_id', null);
+        .select('rating');
       const avgRating = ratingsData && ratingsData.length > 0
         ? ratingsData.reduce((s: number, r: any) => s + r.rating, 0) / ratingsData.length : 0;
-      setStats({ total_sales: totalSales || 0, active_products: activeProducts || 0, average_rating: avgRating, total_reviews: ratingsData?.length || 0, member_since_days: 0 });
+
+      const { data: adminProfile } = await supabase
+        .from('profiles').select('created_at').eq('id', adminId).maybeSingle();
+      const memberDays = adminProfile?.created_at
+        ? Math.floor((Date.now() - new Date(adminProfile.created_at).getTime()) / 86400000) : 0;
+
+      setStats({ total_sales: totalSales || 0, active_products: activeProducts || 0, average_rating: avgRating, total_reviews: ratingsData?.length || 0, member_since_days: memberDays });
+
+      // Load all admin products and ratings
+      const { data: prods } = await supabase
+        .from('store_products').select('*').eq('active', true)
+        .order('created_at', { ascending: false });
+      setProducts(prods || []);
+
+      const { data: revs } = await supabase
+        .from('product_ratings')
+        .select('*, store_products!inner(name), profiles!product_ratings_user_id_fkey(full_name)')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (revs) {
+        setRatings(revs.map((r: any) => ({
+          id: r.id, rating: r.rating, comment: r.comment || '',
+          created_at: r.created_at,
+          buyer_name: r.profiles?.full_name || 'Anônimo',
+          product_name: r.store_products?.name || '',
+        })));
+      }
     } catch { /* ignore */ }
   }
 
@@ -142,7 +166,7 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
     try {
       const { count: totalSales } = await supabase
         .from('store_orders').select('*', { count: 'exact', head: true })
-        .eq('seller_id', id).eq('status', 'completed');
+        .eq('seller_id', id).in('status', ['delivered', 'paid', 'processing']);
       const { count: activeProducts } = await supabase
         .from('store_products').select('*', { count: 'exact', head: true })
         .eq('seller_id', id).eq('active', true);
@@ -229,12 +253,8 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                 }}
               />
             )}
-          </div>
-
-          {/* Avatar + header info */}
-          <div className="px-6 pb-4">
-            <div className="flex items-end justify-between -mt-10 mb-3">
-              {/* Avatar */}
+            {/* Avatar anchored to bottom of cover */}
+            <div className="absolute -bottom-10 left-6 z-10">
               <div
                 className="w-20 h-20 rounded-2xl border-4 border-white dark:border-gray-900 shadow-lg overflow-hidden flex items-center justify-center"
                 style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}88)` }}
@@ -245,6 +265,14 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                   <User className="h-8 w-8 text-white" />
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Header info — padded to clear the protruding avatar */}
+          <div className="px-6 pb-4 pt-12">
+            <div className="flex items-center justify-between mb-3">
+              {/* spacer so chat button doesn't overlap avatar area */}
+              <div />
 
               {/* Chat button */}
               {user && profile && user.id !== profile.id && (
