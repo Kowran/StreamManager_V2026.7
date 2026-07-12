@@ -60,6 +60,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [purchaseSuccessData, setPurchaseSuccessData] = useState<{ productName: string; price: number; orderId: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     loadProduct();
@@ -218,13 +219,14 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         setShowRatingModal(true);
         return;
       }
-      const price = hasPromo ? Number(product!.promotional_price_usdt) : product!.price_usdt;
-      if (userCredit.balance < price) {
+      const unitPrice = hasPromo ? Number(product!.promotional_price_usdt) : product!.price_usdt;
+      const totalPrice = unitPrice * quantity;
+      if (userCredit.balance < totalPrice) {
         alert(t.language === 'pt' ?
-          `Saldo insuficiente. Voce precisa de ${formatPrice(price)} mas tem apenas ${formatPrice(userCredit.balance)}. Recarregue sua conta primeiro.` :
+          `Saldo insuficiente. Voce precisa de ${formatPrice(totalPrice)} mas tem apenas ${formatPrice(userCredit.balance)}. Recarregue sua conta primeiro.` :
           t.language === 'en' ?
-          `Insufficient balance. You need ${formatPrice(price)} but only have ${formatPrice(userCredit.balance)}. Please recharge your account first.` :
-          `Saldo insuficiente. Necesitas ${formatPrice(price)} pero solo tienes ${formatPrice(userCredit.balance)}. Recarga tu cuenta primero.`
+          `Insufficient balance. You need ${formatPrice(totalPrice)} but only have ${formatPrice(userCredit.balance)}. Please recharge your account first.` :
+          `Saldo insuficiente. Necesitas ${formatPrice(totalPrice)} pero solo tienes ${formatPrice(userCredit.balance)}. Recarga tu cuenta primero.`
         );
         return;
       }
@@ -247,7 +249,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         },
         body: JSON.stringify({
           product_id: product.id,
-          quantity: 1,
+          quantity: quantity,
           coupon_code: couponCode || null,
           use_cashback: useCashback || false,
         }),
@@ -256,7 +258,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Purchase failed');
 
-      setPurchaseSuccessData({ productName: product.name, price: effectivePrice, orderId: result.order_id || '' });
+      setPurchaseSuccessData({ productName: product.name, price: effectivePrice * quantity, orderId: result.order_id || '' });
       setShowSuccessModal(true);
       setShowConfirmModal(false);
       loadUserCredit();
@@ -412,7 +414,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               )}
 
               {/* Price */}
-              <div className="flex items-baseline gap-3 mb-6">
+              <div className="flex items-baseline gap-3 mb-4">
                 {hasPromo && (
                   <span className="text-2xl text-gray-400 line-through">
                     {formatPrice(Number(product.price_usdt))}
@@ -421,6 +423,11 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                 <span className={`text-4xl font-bold ${hasPromo ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
                   {formatPrice(effectivePrice)}
                 </span>
+                {quantity > 1 && (
+                  <span className="text-lg text-gray-500 dark:text-gray-400">
+                    {t.language === 'pt' ? `Total: ${formatPrice(effectivePrice * quantity)}` : t.language === 'en' ? `Total: ${formatPrice(effectivePrice * quantity)}` : `Total: ${formatPrice(effectivePrice * quantity)}`}
+                  </span>
+                )}
               </div>
 
               {/* Description */}
@@ -477,6 +484,51 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                 <ProductRatingsDisplay productId={product.id} showTitle={true} compact={false} />
               </div>
 
+              {/* Quantity Selector */}
+              {isAvailable && (
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">
+                    {t.language === 'pt' ? 'Quantidade' : t.language === 'en' ? 'Quantity' : 'Cantidad'}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="text-xl font-bold">−</span>
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      max={product.manual_delivery ? 999 : product.stock_quantity}
+                      value={quantity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) || 1;
+                        const max = product.manual_delivery ? 999 : product.stock_quantity;
+                        setQuantity(Math.max(1, Math.min(val, max)));
+                      }}
+                      className="w-20 text-center text-lg font-bold rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        const max = product.manual_delivery ? 999 : product.stock_quantity;
+                        setQuantity(Math.min(max, quantity + 1));
+                      }}
+                      disabled={quantity >= (product.manual_delivery ? 999 : product.stock_quantity)}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <span className="text-xl font-bold">+</span>
+                    </button>
+                    {!product.manual_delivery && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                        {t.language === 'pt' ? `${product.stock_quantity} disponiveis` : t.language === 'en' ? `${product.stock_quantity} available` : `${product.stock_quantity} disponibles`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="mt-auto space-y-3">
                 <button
@@ -499,7 +551,9 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                     {!isAvailable
                       ? (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado')
                       : user
-                      ? (t.language === 'pt' ? 'Comprar Agora' : t.language === 'en' ? 'Buy Now' : 'Comprar Ahora')
+                      ? (quantity > 1
+                        ? (t.language === 'pt' ? `Comprar ${quantity}x — ${formatPrice(effectivePrice * quantity)}` : t.language === 'en' ? `Buy ${quantity}x — ${formatPrice(effectivePrice * quantity)}` : `Comprar ${quantity}x — ${formatPrice(effectivePrice * quantity)}`)
+                        : (t.language === 'pt' ? 'Comprar Agora' : t.language === 'en' ? 'Buy Now' : 'Comprar Ahora'))
                       : (t.language === 'pt' ? 'Entrar para Comprar' : t.language === 'en' ? 'Sign In to Buy' : 'Iniciar Sesion para Comprar')
                     }
                   </span>

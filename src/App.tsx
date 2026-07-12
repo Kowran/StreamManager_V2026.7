@@ -40,7 +40,6 @@ import { AdminSalesManager } from './components/AdminSalesManager';
 import { AdminEmailVerifier } from './components/AdminEmailVerifier';
 import { NetflixEmailFinder } from './components/NetflixEmailFinder';
 import { Footer } from './components/Footer';
-import { Dashboard } from './components/Dashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import { SMMPanel } from './components/SMMPanel';
 import { AdminSMMManager } from './components/AdminSMMManager';
@@ -67,7 +66,7 @@ import { AdminCouponsManager } from './components/AdminCouponsManager';
 import { ChatInbox } from './components/ChatInbox';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'dashboard' | 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
 
 interface StoreConfig {
   store_name?: string;
@@ -132,6 +131,7 @@ function AppContent() {
     if (parts.length > 2 || hostname.includes('localhost')) {
       const sub = parts[0];
       if (sub === 'login' || sub === 'painel' || sub === 'panel' || sub === 'dashboard') {
+        if (sub === 'dashboard') { window.location.hash = '#store'; return; }
         setSubdomain('login');
         setShowLanding(false);
       } else if (sub === 'home' || sub === 'www' || hostname.includes('localhost')) {
@@ -308,8 +308,6 @@ function AppContent() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard onTabChange={setActiveTab} isAdmin={isAdmin} />;
       case 'admin-dashboard':
         return (
           <AdminGuard>
@@ -502,7 +500,7 @@ function AppContent() {
           </AdminGuard>
         );
       default:
-        return <Dashboard onTabChange={setActiveTab} isAdmin={isAdmin} />;
+        return <Store onNavigate={setActiveTab} />;
     }
   };
 
