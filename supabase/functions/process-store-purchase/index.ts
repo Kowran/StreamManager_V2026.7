@@ -693,6 +693,16 @@ Deno.serve(async (req: Request) => {
 
     console.log('Purchase completed successfully. Status:', (isManualDelivery || isAccountRecharge) ? 'paid (will trigger chat)' : 'delivered');
 
+    // Update user and seller levels
+    try {
+      await supabaseAdmin.rpc('update_user_level', { target_user: user.id });
+      if (product.seller_id) {
+        await supabaseAdmin.rpc('update_seller_level', { target_seller: product.seller_id });
+      }
+    } catch (levelErr) {
+      console.error('Level update error (non-fatal):', levelErr);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,

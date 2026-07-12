@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { LogOut, User, ChevronDown, Wallet, DollarSign, Coins, HelpCircle } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { LevelBadge } from './LevelBadge';
 
 interface UserMenuProps {
   onNavigate?: (tab: string) => void;
@@ -10,7 +11,7 @@ interface UserMenuProps {
 
 function UserAvatar() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<{ avatar_url?: string } | null>(null);
+  const [profile, setProfile] = useState<{ avatar_url?: string; user_level?: number; full_name?: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ function UserAvatar() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('avatar_url')
+        .select('avatar_url, user_level, full_name')
         .eq('id', user.id)
         .single();
 
@@ -139,8 +140,13 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <p className="text-xs text-gray-500 dark:text-gray-400">{t.loggedAs}</p>
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                {user.email}
+                {profile?.full_name || user.email}
               </p>
+              {profile?.user_level != null && profile.user_level > 1 && (
+                <div className="mt-1">
+                  <LevelBadge level={profile.user_level} type="user" size="xs" showLabel />
+                </div>
+              )}
             </div>
 
             {/* Balance summary */}

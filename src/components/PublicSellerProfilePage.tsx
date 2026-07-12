@@ -6,6 +6,7 @@ import { useAuth } from './AuthProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { OnlineBadge } from './OnlineBadge';
 import { ChatModal } from './ChatModal';
+import { LevelBadge } from './LevelBadge';
 
 interface PublicSellerProfilePageProps {
   sellerSlug: string;
@@ -28,6 +29,8 @@ interface SellerProfile {
   last_seen_at?: string;
   login_count?: number;
   last_login_at?: string;
+  seller_level?: number;
+  seller_xp?: number;
 }
 
 interface SellerStats {
@@ -350,6 +353,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                 <Store className="w-3 h-3 inline mr-1" />
                 {getRoleLabel(profile.role)}
               </span>
+              {profile.seller_level != null && profile.seller_level > 1 && (
+                <LevelBadge level={profile.seller_level} type="seller" size="xs" showLabel />
+              )}
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
               <Award className="h-3.5 w-3.5" />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageCircle, Plus, Search, Clock, CheckCircle, AlertTriangle, ArrowLeft, Send, Eye, User, Package, Calendar, HelpCircle, CreditCard, Settings, Shield } from 'lucide-react';
+import { LevelBadge, getLevelTier } from './LevelBadge';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -1148,6 +1149,9 @@ export function SupportSystem() {
         )}
       </div>
 
+      {/* Level System Help */}
+      <LevelSystemHelp language={t.language} />
+
       {/* Help Section */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 sm:p-6 text-white">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
@@ -1179,6 +1183,185 @@ export function SupportSystem() {
             <div className="bg-white bg-opacity-20 p-3 rounded-lg">
               <MessageCircle className="h-8 w-8" />
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LevelSystemHelp({ language }: { language: string }) {
+  const pt = language === 'pt';
+  const en = language === 'en';
+
+  const tiers = [
+    { range: '1-49', name: pt ? 'Iniciante' : en ? 'Beginner' : 'Principiante', color: '#6b7280' },
+    { range: '50-99', name: pt ? 'Intermediário' : en ? 'Intermediate' : 'Intermedio', color: '#06b6d4' },
+    { range: '100-299', name: pt ? 'Avançado' : en ? 'Advanced' : 'Avanzado', color: '#10b981' },
+    { range: '300-499', name: pt ? 'Veterano' : en ? 'Veteran' : 'Veterano', color: '#3b82f6' },
+    { range: '500-699', name: 'Elite', color: '#8b5cf6' },
+    { range: '700-899', name: pt ? 'Mestre' : en ? 'Master' : 'Maestro', color: '#ef4444' },
+    { range: '900-1000', name: pt ? 'Lendário' : en ? 'Legendary' : 'Legendario', color: '#f59e0b' },
+  ];
+
+  const milestones = [
+    { level: 1, xp: 0, label: pt ? 'Início da jornada' : en ? 'Journey begins' : 'Inicio del viaje' },
+    { level: 10, xp: 100, label: pt ? 'Primeiros passos' : en ? 'First steps' : 'Primeros pasos' },
+    { level: 50, xp: 1626, label: pt ? 'Intermediário' : en ? 'Intermediate' : 'Intermedio' },
+    { level: 100, xp: 6310, label: pt ? 'Avançado' : en ? 'Advanced' : 'Avanzado' },
+    { level: 250, xp: 27855, label: pt ? 'Veterano' : en ? 'Veteran' : 'Veterano' },
+    { level: 500, xp: 110200, label: 'Elite' },
+    { level: 750, xp: 244866, label: pt ? 'Mestre' : en ? 'Master' : 'Maestro' },
+    { level: 1000, xp: 447100, label: pt ? 'Lendário' : en ? 'Legendary' : 'Legendario' },
+  ];
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <HelpCircle className="h-5 w-5 text-blue-500" />
+          {pt ? 'Sistema de Níveis' : en ? 'Level System' : 'Sistema de Niveles'}
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          {pt
+            ? 'Quanto mais você compra e vende, mais sobe de nível. Alcance o nível máximo de 1000!'
+            : en
+            ? 'The more you buy and sell, the higher your level. Reach the maximum level of 1000!'
+            : 'Cuanto más compras y vendes, más subes de nivel. ¡Alcanza el nivel máximo de 1000!'}
+        </p>
+      </div>
+
+      <div className="p-6 space-y-6">
+        {/* How it works */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            {pt ? 'Como funciona' : en ? 'How it works' : 'Cómo funciona'}
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 mb-2">
+                <LevelBadge level={50} type="user" size="sm" />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {pt ? 'Nível de Usuário' : en ? 'User Level' : 'Nivel de Usuario'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {pt
+                  ? 'Ganhe 10 XP por cada dólar gasto em compras concluídas. Quanto mais compras, maior seu nível.'
+                  : en
+                  ? 'Earn 10 XP for each dollar spent on completed purchases. The more you buy, the higher your level.'
+                  : 'Gana 10 XP por cada dólar gastado en compras completadas. Cuanto más compras, más alto tu nivel.'}
+              </p>
+            </div>
+            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center gap-2 mb-2">
+                <LevelBadge level={50} type="seller" size="sm" />
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {pt ? 'Nível de Vendedor' : en ? 'Seller Level' : 'Nivel de Vendedor'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {pt
+                  ? 'Ganhe 15 XP por cada dólar em vendas concluídas. Vendedores ganham mais XP por venda.'
+                  : en
+                  ? 'Earn 15 XP for each dollar in completed sales. Sellers earn more XP per sale.'
+                  : 'Gana 15 XP por cada dólar en ventas completadas. Los vendedores ganan más XP por venta.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Tiers */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            {pt ? 'Faixas de Nível' : en ? 'Level Tiers' : 'Rangos de Nivel'}
+          </h4>
+          <div className="space-y-2">
+            {tiers.map((tier) => (
+              <div key={tier.range} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tier.color }} />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{tier.name}</span>
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">Nv {tier.range}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* XP curve */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            {pt ? 'Progressão de XP' : en ? 'XP Progression' : 'Progresión de XP'}
+          </h4>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            {pt
+              ? 'A curva é exponencial: cada nível requer mais XP que o anterior. A fórmula é 100 × (nível - 1)^1.8.'
+              : en
+              ? 'The curve is exponential: each level requires more XP than the last. The formula is 100 × (level - 1)^1.8.'
+              : 'La curva es exponencial: cada nivel requiere más XP que el anterior. La fórmula es 100 × (nivel - 1)^1.8.'}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {pt ? 'Nível' : en ? 'Level' : 'Nivel'}
+                  </th>
+                  <th className="text-right py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">XP Total</th>
+                  <th className="text-left py-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {pt ? 'Marco' : en ? 'Milestone' : 'Hito'}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {milestones.map((m) => {
+                  const tier = getLevelTier(m.level);
+                  return (
+                    <tr key={m.level} className="border-b border-gray-100 dark:border-gray-700/50">
+                      <td className="py-2 px-3">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: tier.color }} />
+                          <span className="font-medium text-gray-900 dark:text-white">{m.level}</span>
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right font-mono text-gray-600 dark:text-gray-400">
+                        {m.xp.toLocaleString()}
+                      </td>
+                      <td className="py-2 px-3 text-gray-500 dark:text-gray-400">{m.label}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Example */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            {pt ? 'Exemplo Prático' : en ? 'Practical Example' : 'Ejemplo Práctico'}
+          </h4>
+          <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-4 space-y-2 text-xs text-gray-600 dark:text-gray-400">
+            <p>
+              {pt ? 'Um usuário que comprou $50 em produtos:' : en ? 'A user who spent $50 on products:' : 'Un usuario que gastó $50 en productos:'}
+            </p>
+            <p className="font-mono text-gray-900 dark:text-white pl-4">
+              50 × 10 XP = 500 XP → {pt ? 'Nível' : en ? 'Level' : 'Nivel'} 6
+            </p>
+            <p className="pt-1">
+              {pt ? 'Um vendedor que vendeu $200:' : en ? 'A seller who sold $200:' : 'Un vendedor que vendió $200:'}
+            </p>
+            <p className="font-mono text-gray-900 dark:text-white pl-4">
+              200 × 15 XP = 3000 XP → {pt ? 'Nível' : en ? 'Level' : 'Nivel'} 75
+            </p>
+            <p className="pt-1">
+              {pt
+                ? 'Para alcançar o nível 1000, um usuário precisaria acumular ~447.100 XP (aproximadamente $44.710 em compras).'
+                : en
+                ? 'To reach level 1000, a user would need ~447,100 XP (approximately $44,710 in purchases).'
+                : 'Para alcanzar el nivel 1000, un usuario necesitaría acumular ~447.100 XP (aproximadamente $44.710 en compras).'}
+            </p>
           </div>
         </div>
       </div>

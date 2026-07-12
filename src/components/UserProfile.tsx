@@ -7,6 +7,7 @@ import { useNotificationContext } from './NotificationProvider';
 import { SellerRequestForm } from './SellerRequestForm';
 import { OnlineBadge } from './OnlineBadge';
 import { PasswordChangeModal } from './PasswordChangeModal';
+import { LevelBadge, LevelProgressBar } from './LevelBadge';
 
 interface UserProfileData {
   id: string;
@@ -503,6 +504,16 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               {profile.email}
             </p>
 
+            {/* Level Badges */}
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {profile.user_level != null && (
+                <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
+              )}
+              {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
+                <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel />
+              )}
+            </div>
+
             {/* Bio */}
             {editing ? (
               <div className="mt-2">
@@ -541,6 +552,16 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
             <div className="text-xs text-gray-500 dark:text-gray-400">{language === 'pt' ? 'Último acesso' : 'Last login'}</div>
           </div>
         </div>
+        {/* Level Progress */}
+        <div className="px-6 pb-5 space-y-3">
+          {profile.user_level != null && (
+            <LevelProgressBar level={profile.user_level} xp={profile.user_xp || 0} type="user" />
+          )}
+          {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
+            <LevelProgressBar level={profile.seller_level} xp={profile.seller_xp || 0} type="seller" />
+          )}
+        </div>
+
         {/* Online status strip */}
         <div className="px-6 pb-5">
           <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl py-2.5">
