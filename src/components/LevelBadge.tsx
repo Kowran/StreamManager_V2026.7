@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Star, Crown, Shield, Award, Flame } from 'lucide-react';
+import { Zap, Star, Crown, Shield, Award, Flame, ShoppingBag } from 'lucide-react';
 
 export type LevelType = 'user' | 'seller';
 
@@ -36,6 +36,11 @@ const sizeMap = {
   lg: { badge: 'text-base px-3 py-1.5 gap-1.5', icon: 'h-5 w-5', text: 'text-base' },
 };
 
+const typeLabels: Record<LevelType, { pt: string; en: string }> = {
+  user: { pt: 'Comprador', en: 'Buyer' },
+  seller: { pt: 'Vendedor', en: 'Seller' },
+};
+
 export function LevelBadge({ level, type = 'user', size = 'sm', showLabel = false }: LevelBadgeProps) {
   const tier = getLevelTier(level);
   const Icon = tier.icon;
@@ -43,7 +48,7 @@ export function LevelBadge({ level, type = 'user', size = 'sm', showLabel = fals
 
   return (
     <span className={`inline-flex items-center rounded-full font-semibold ${s.badge} ${tier.bgColor} ${tier.textColor}`} style={{ border: `1px solid ${tier.color}40` }}>
-      <Icon className={s.icon} style={{ color: tier.color }} />
+      {type === 'seller' ? <ShoppingBag className={s.icon} style={{ color: tier.color }} /> : <Icon className={s.icon} style={{ color: tier.color }} />}
       <span>Nv {level}</span>
       {showLabel && <span className="opacity-70">· {tier.name}</span>}
     </span>
@@ -54,23 +59,29 @@ interface LevelProgressBarProps {
   level: number;
   xp: number;
   type?: LevelType;
+  language?: string;
 }
 
-export function LevelProgressBar({ level, xp, type = 'user' }: LevelProgressBarProps) {
+export function LevelProgressBar({ level, xp, type = 'user', language = 'pt' }: LevelProgressBarProps) {
   const tier = getLevelTier(level);
   const Icon = tier.icon;
   const progress = getLevelProgress(level, xp);
   const isMax = level >= 1000;
+  const typeLabel = language === 'pt' ? typeLabels[type].pt : typeLabels[type].en;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ backgroundColor: `${tier.color}20` }}>
-            <Icon className="h-4 w-4" style={{ color: tier.color }} />
+            {type === 'seller'
+              ? <ShoppingBag className="h-4 w-4" style={{ color: tier.color }} />
+              : <Icon className="h-4 w-4" style={{ color: tier.color }} />
+            }
           </div>
           <div>
             <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{typeLabel}</span>
               <span className="text-sm font-bold text-gray-900 dark:text-white">Nível {level}</span>
               <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${tier.color}20`, color: tier.color }}>
                 {tier.name}
@@ -94,7 +105,7 @@ export function LevelProgressBar({ level, xp, type = 'user' }: LevelProgressBarP
       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${progress.percent}%`, backgroundColor: tier.color }}
+          style={{ width: `${progress.percent}%`, backgroundColor: '#39ff14', boxShadow: '0 0 6px #39ff14, 0 0 12px #39ff1480' }}
         />
       </div>
     </div>

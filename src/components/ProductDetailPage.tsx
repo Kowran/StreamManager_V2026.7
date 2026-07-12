@@ -111,7 +111,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           .from('store_orders')
           .select('*', { count: 'exact', head: true })
           .eq('seller_id', data.seller_id)
-          .eq('status', 'completed');
+          .in('status', ['delivered', 'paid', 'processing']);
         productData.seller_info = {
           business_name: sellerData?.full_name || 'Unknown Seller',
           sales_count: count || 0,
@@ -123,7 +123,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
             .from('store_orders')
             .select('*', { count: 'exact', head: true })
             .is('seller_id', null)
-            .eq('status', 'completed'),
+            .in('status', ['delivered', 'paid', 'processing']),
           supabase
             .from('profiles')
             .select('id, full_name, seller_slug')
@@ -485,50 +485,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               </div>
 
               {/* Quantity Selector */}
-              {isAvailable && (
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">
-                    {t.language === 'pt' ? 'Quantidade' : t.language === 'en' ? 'Quantity' : 'Cantidad'}
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      disabled={quantity <= 1}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <span className="text-xl font-bold">−</span>
-                    </button>
-                    <input
-                      type="number"
-                      min={1}
-                      max={product.manual_delivery ? 999 : product.stock_quantity}
-                      value={quantity}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value) || 1;
-                        const max = product.manual_delivery ? 999 : product.stock_quantity;
-                        setQuantity(Math.max(1, Math.min(val, max)));
-                      }}
-                      className="w-20 text-center text-lg font-bold rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      onClick={() => {
-                        const max = product.manual_delivery ? 999 : product.stock_quantity;
-                        setQuantity(Math.min(max, quantity + 1));
-                      }}
-                      disabled={quantity >= (product.manual_delivery ? 999 : product.stock_quantity)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                      <span className="text-xl font-bold">+</span>
-                    </button>
-                    {!product.manual_delivery && (
-                      <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
-                        {t.language === 'pt' ? `${product.stock_quantity} disponiveis` : t.language === 'en' ? `${product.stock_quantity} available` : `${product.stock_quantity} disponibles`}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Action Buttons */}
               <div className="mt-auto space-y-3">
                 <button
@@ -551,9 +507,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                     {!isAvailable
                       ? (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado')
                       : user
-                      ? (quantity > 1
-                        ? (t.language === 'pt' ? `Comprar ${quantity}x — ${formatPrice(effectivePrice * quantity)}` : t.language === 'en' ? `Buy ${quantity}x — ${formatPrice(effectivePrice * quantity)}` : `Comprar ${quantity}x — ${formatPrice(effectivePrice * quantity)}`)
-                        : (t.language === 'pt' ? 'Comprar Agora' : t.language === 'en' ? 'Buy Now' : 'Comprar Ahora'))
+                      ? (t.language === 'pt' ? 'Comprar Agora' : t.language === 'en' ? 'Buy Now' : 'Comprar Ahora')
                       : (t.language === 'pt' ? 'Entrar para Comprar' : t.language === 'en' ? 'Sign In to Buy' : 'Iniciar Sesion para Comprar')
                     }
                   </span>

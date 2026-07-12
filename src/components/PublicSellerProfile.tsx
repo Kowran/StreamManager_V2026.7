@@ -9,6 +9,7 @@ import { useAuth } from './AuthProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { OnlineBadge } from './OnlineBadge';
 import { ChatModal } from './ChatModal';
+import { LevelBadge, LevelProgressBar } from './LevelBadge';
 
 interface PublicSellerProfileProps {
   sellerId: string | null;
@@ -27,6 +28,10 @@ interface SellerProfile {
   created_at: string;
   role: string;
   last_seen_at?: string | null;
+  user_level?: number | null;
+  user_xp?: number | null;
+  seller_level?: number | null;
+  seller_xp?: number | null;
 }
 
 interface SellerStats {
@@ -317,6 +322,18 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                 </div>
               )}
 
+              {/* Level Badges */}
+              {profile && (profile.user_level != null || profile.seller_level != null) && (
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  {profile.user_level != null && (
+                    <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
+                  )}
+                  {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
+                    <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel />
+                  )}
+                </div>
+              )}
+
               {/* Online status */}
               {profile && (
                 <OnlineBadge
@@ -340,6 +357,18 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                   <Calendar className="h-3.5 w-3.5" />
                   {lbl('Membro desde', 'Member since', 'Miembro desde')} {new Date(profile.created_at).toLocaleDateString(language === 'pt' ? 'pt-BR' : language === 'en' ? 'en-US' : 'es-ES', { month: 'short', year: 'numeric' })}
                 </p>
+              )}
+
+              {/* Level Progress Bars */}
+              {profile && (profile.user_level != null || profile.seller_level != null) && (
+                <div className="mt-3 space-y-2 w-full">
+                  {profile.user_level != null && (
+                    <LevelProgressBar level={profile.user_level} xp={profile.user_xp || 0} type="user" language={language} />
+                  )}
+                  {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
+                    <LevelProgressBar level={profile.seller_level} xp={profile.seller_xp || 0} type="seller" language={language} />
+                  )}
+                </div>
               )}
             </div>
           </div>

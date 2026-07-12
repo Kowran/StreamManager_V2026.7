@@ -555,10 +555,10 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
         {/* Level Progress */}
         <div className="px-6 pb-5 space-y-3">
           {profile.user_level != null && (
-            <LevelProgressBar level={profile.user_level} xp={profile.user_xp || 0} type="user" />
+            <LevelProgressBar level={profile.user_level} xp={profile.user_xp || 0} type="user" language={language} />
           )}
           {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
-            <LevelProgressBar level={profile.seller_level} xp={profile.seller_xp || 0} type="seller" />
+            <LevelProgressBar level={profile.seller_level} xp={profile.seller_xp || 0} type="seller" language={language} />
           )}
         </div>
 

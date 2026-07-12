@@ -140,7 +140,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               .from('store_orders')
               .select('*', { count: 'exact', head: true })
               .eq('seller_id', product.seller_id)
-              .eq('status', 'completed');
+              .in('status', ['delivered', 'paid', 'processing']);
 
             return {
               ...product,
@@ -157,7 +157,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               .from('store_orders')
               .select('*', { count: 'exact', head: true })
               .is('seller_id', null)
-              .eq('status', 'completed'),
+              .in('status', ['delivered', 'paid', 'processing']),
             supabase
               .from('profiles')
               .select('id, full_name, seller_slug')
