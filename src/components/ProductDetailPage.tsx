@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, Package, Check, Truck, ShoppingCart, Star,
-  Sun, Moon, LogIn, Menu, X, AlertCircle, Loader, UserCheck, CreditCard,
+  AlertCircle, Loader, UserCheck, CreditCard,
   Share2, CheckCircle2
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
-import { useTheme } from './ThemeProvider';
 import { useAuth } from './AuthProvider';
 import { supabase, StoreProduct } from '../lib/supabase';
 import { LoginModal } from './LoginModal';
@@ -14,7 +13,6 @@ import { Footer } from './Footer';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { PurchaseConfirmModal } from './PurchaseConfirmModal';
 import { ProductRatingModal } from './ProductRatingModal';
-import { LanguageSelector } from './LanguageSelector';
 
 interface ProductWithSeller extends StoreProduct {
   seller_info?: {
@@ -46,7 +44,6 @@ interface ProductDetailPageProps {
 export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate }: ProductDetailPageProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
-  const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const [storeConfig, setStoreConfig] = useState<{ store_name?: string; store_logo_url?: string; store_description?: string } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -312,99 +309,28 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/20 dark:border-gray-700/20 px-4 sm:px-6 lg:px-8 py-4 transition-all duration-300">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="hidden sm:inline text-sm font-medium">
-                {t.language === 'pt' ? 'Voltar' : t.language === 'en' ? 'Back' : 'Volver'}
-              </span>
-            </button>
-            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
-            {storeConfig?.store_logo_url ? (
-              <img src={storeConfig.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : null}
-            <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-              <CreditCard className="h-5 w-5 text-white" />
-            </div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white hidden sm:block">
-              {storeConfig?.store_name || 'StreamManager'}
-            </h1>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-2 px-3 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium"
-              title={t.language === 'pt' ? 'Compartilhar' : t.language === 'en' ? 'Share' : 'Compartir'}
-            >
-              {copied ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Share2 className="h-5 w-5" />}
-              <span className="hidden sm:inline">{copied ? (t.language === 'pt' ? 'Copiado!' : 'Copied!') : (t.language === 'pt' ? 'Compartilhar' : t.language === 'en' ? 'Share' : 'Compartir')}</span>
-            </button>
-            <button onClick={toggleTheme} className="hidden md:flex p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-              {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </button>
-            {user ? (
-              <button
-                onClick={() => onNavigate?.('dashboard')}
-                className="hidden md:inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-              >
-                <UserCheck className="h-4 w-4 mr-2" />
-                <span>{t.language === 'pt' ? 'Painel' : t.language === 'en' ? 'Dashboard' : 'Panel'}</span>
-              </button>
-            ) : (
-              <button onClick={onGetStarted} className="hidden md:inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-                <LogIn className="h-4 w-4 mr-2" />
-                <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
-              </button>
-            )}
-            <LanguageSelector />
-            <button
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMobileMenuOpen(!isMobileMenuOpen); }}
-              className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
-        </div>
-
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg animate-slide-down z-50">
-            <div className="px-4 py-4 space-y-3">
-              <button onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }}
-                className="w-full flex items-center justify-between p-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                <span className="font-medium">
-                  {theme === 'light' ? (t.language === 'pt' ? 'Modo Escuro' : 'Dark Mode') : (t.language === 'pt' ? 'Modo Claro' : 'Light Mode')}
-                </span>
-                {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-              </button>
-              {user ? (
-                <button onClick={() => { onNavigate?.('dashboard'); setIsMobileMenuOpen(false); }}
-                  className="w-full flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-                  <UserCheck className="h-5 w-5 mr-2" />
-                  <span>{t.language === 'pt' ? 'Painel' : 'Dashboard'}</span>
-                </button>
-              ) : (
-                <button onClick={() => { onGetStarted(); setIsMobileMenuOpen(false); }}
-                  className="w-full flex items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors">
-                  <LogIn className="h-5 w-5 mr-2" />
-                  <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </header>
+      {/* Back + Share bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="text-sm font-medium">
+            {t.language === 'pt' ? 'Voltar a loja' : t.language === 'en' ? 'Back to store' : 'Volver a la tienda'}
+          </span>
+        </button>
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-2 px-3 py-1.5 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium"
+        >
+          {copied ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Share2 className="h-5 w-5" />}
+          <span className="hidden sm:inline">{copied ? (t.language === 'pt' ? 'Copiado!' : 'Copied!') : (t.language === 'pt' ? 'Compartilhar' : t.language === 'en' ? 'Share' : 'Compartir')}</span>
+        </button>
+      </div>
 
       {/* Product Detail Content */}
-      <main className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+      <main className="pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
             {/* Product Image */}

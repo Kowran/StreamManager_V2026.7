@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './components/AuthProvider';
 import { LanguageProvider, useLanguage } from './components/LanguageProvider';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { LanguageSelector } from './components/LanguageSelector';
+import { LoginModal } from './components/LoginModal';
 import { CurrencySelector } from './components/CurrencySelector';
 import { CurrencyProvider } from './components/CurrencyProvider';
 import { UserMenu } from './components/UserMenu';
@@ -79,6 +80,7 @@ function AppContent() {
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>('store');
   const [productDetailId, setProductDetailId] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
@@ -528,8 +530,68 @@ function AppContent() {
   if (!user) {
     if (activeTab === 'product-detail' && productDetailId) {
       return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
           <AnnouncementBar />
+          <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex justify-between items-center py-3 sm:py-4 lg:py-6">
+                <div className="flex items-center">
+                  <button
+                    onClick={() => {
+                      setActiveTab('store');
+                      setProductDetailId(null);
+                      window.history.pushState(null, '', '#store');
+                    }}
+                    className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
+                  >
+                    {storeConfig?.store_logo_url ? (
+                      <img src={storeConfig.store_logo_url} alt="Logo" className="h-6 w-6 object-cover rounded-lg mr-2"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ) : (
+                      <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
+                        <CreditCard className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                    <span className="text-sm font-bold text-gray-900 dark:text-white">
+                      {storeConfig?.store_name || 'StreamManager'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('store');
+                      setProductDetailId(null);
+                      window.history.pushState(null, '', '#store');
+                    }}
+                    className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
+                  >
+                    {storeConfig?.store_logo_url ? (
+                      <img src={storeConfig.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ) : null}
+                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+                    </div>
+                    <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                      {storeConfig?.store_name || 'StreamManager'}
+                    </span>
+                  </button>
+                </div>
+                <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+                  <button onClick={toggleTheme}
+                    className="hidden lg:block p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
+                    {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+                  </button>
+                  <div className="hidden lg:block"><CurrencySelector /></div>
+                  <div className="hidden lg:block"><LanguageSelector /></div>
+                  <button onClick={() => setShowLoginModal(true)}
+                    className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                    <LogIn className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
           <ProductDetailPage
             productId={productDetailId}
             onBack={() => {
@@ -557,6 +619,13 @@ function AppContent() {
             }}
             onNavigate={setActiveTab}
           />
+          {showLoginModal && (
+            <LoginModal
+              isOpen={showLoginModal}
+              onClose={() => setShowLoginModal(false)}
+              onLoginSuccess={() => setShowLoginModal(false)}
+            />
+          )}
         </div>
       );
     }
@@ -610,8 +679,8 @@ function AppContent() {
     );
   }
 
-  // Product detail page: render standalone, no app header/sidebar
-  if (activeTab === 'product-detail' && productDetailId) {
+  // Product detail page for logged-out users: render with app-style header
+  if (!user && activeTab === 'product-detail' && productDetailId) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
         <AnnouncementBar />
@@ -892,8 +961,23 @@ function AppContent() {
       )}
 
       <div className="flex-1 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8 w-full min-w-0">
+        {activeTab === 'product-detail' && productDetailId ? (
+          <ProductDetailPage
+            productId={productDetailId}
+            onBack={() => {
+              setActiveTab('store');
+              setProductDetailId(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onGetStarted={() => {
+              setShowLanding(false);
+            }}
+            onNavigate={setActiveTab}
+          />
+        ) : (
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 min-w-0">
-          {/* Sidebar Navigation */}
+          {/* Sidebar Navigation - hidden on product-detail page */}
+          {activeTab !== 'product-detail' && (
           <aside className={`hidden lg:flex flex-col flex-shrink-0 transition-all duration-300 ${isSidebarOpen ? 'lg:w-64 xl:w-72' : 'lg:w-20 xl:w-20'}`}>
             <div className="flex items-center justify-end mb-4">
               <button
@@ -948,6 +1032,7 @@ function AppContent() {
             </nav>
 
           </aside>
+          )}
 
           {/* Main Content */}
           <main className="flex-1 min-w-0 max-w-full">
@@ -956,6 +1041,7 @@ function AppContent() {
             </div>
           </main>
         </div>
+        )}
       </div>
 
       {/* Footer */}
