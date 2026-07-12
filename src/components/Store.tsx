@@ -303,7 +303,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     });
   }
 
-  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean) {
+  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number) {
     if (!user || !userCredit || !productToConfirm) return;
 
     const product = productToConfirm;
@@ -324,7 +324,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
         },
         body: JSON.stringify({
           product_id: product.id,
-          quantity: 1,
+          quantity: quantity || 1,
           coupon_code: couponCode,
           recharge_data: rechargeData,
           use_cashback: useCashback || false
@@ -532,7 +532,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             </button>
           ) : null}
           <button
-            onClick={() => setShowRechargeModal(true)}
+            onClick={() => onNavigate?.('credits')}
             className="flex-1 sm:flex-initial bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 px-3 sm:px-6 py-2.5 sm:py-3 group"
           >
           <div className="flex items-center space-x-2 sm:space-x-3">

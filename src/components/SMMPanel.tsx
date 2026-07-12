@@ -45,7 +45,11 @@ interface SMMOrder {
   service_name?: string;
 }
 
-export function SMMPanel() {
+interface SMMPanelProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export function SMMPanel({ onNavigate }: SMMPanelProps = {}) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -392,7 +396,7 @@ export function SMMPanel() {
             </p>
           </div>
           <button
-            onClick={() => setShowAmountSelector(true)}
+            onClick={() => onNavigate?.('credits')}
             className="bg-white bg-opacity-20 p-4 rounded-lg hover:bg-opacity-30 transition-all cursor-pointer group"
             title={t.language === 'pt' ? 'Clique para recarregar' : t.language === 'en' ? 'Click to recharge' : 'Haz clic para recargar'}
           >

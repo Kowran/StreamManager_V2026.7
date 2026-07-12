@@ -17,7 +17,7 @@ interface PurchaseConfirmModalProps {
   };
   userBalance: number;
   cashbackBalance?: number;
-  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean) => void;
+  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -52,11 +52,14 @@ export function PurchaseConfirmModal({
   const [rechargeExtraData, setRechargeExtraData] = useState('');
   const [rechargeError, setRechargeError] = useState<string | null>(null);
   const [useCashback, setUseCashback] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const hasPromo = product.promotion_active && product.promotional_price_usdt;
   const basePrice = hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt;
-  const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-  const priceAfterCoupon = appliedCoupon ? appliedCoupon.finalPrice : basePrice;
+  const unitPrice = basePrice;
+  const totalPrice = unitPrice * quantity;
+  const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount * quantity : 0;
+  const priceAfterCoupon = appliedCoupon ? appliedCoupon.finalPrice * quantity : totalPrice;
   const cashbackToUse = useCashback ? Math.min(cashbackBalance, priceAfterCoupon) : 0;
   const effectivePrice = Math.max(0, priceAfterCoupon - cashbackToUse);
   const remainingBalance = userBalance - effectivePrice;
@@ -183,9 +186,9 @@ export function PurchaseConfirmModal({
         email: rechargeEmail.trim(),
         password: rechargePassword.trim(),
         extra_data: rechargeExtraData.trim(),
-      }, useCashback);
+      }, useCashback, quantity);
     } else {
-      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback);
+      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback, quantity);
     }
   }
 
@@ -314,9 +317,31 @@ export function PurchaseConfirmModal({
 
               <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
                 {/* Original Price */}
+                {/* Quantity Selector */}
+                {!product.manual_delivery && (
+                  <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {t.language === 'pt' ? 'Quantidade:' : t.language === 'en' ? 'Quantity:' : 'Cantidad:'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors font-bold"
+                      >−</button>
+                      <span className="w-10 text-center text-sm font-bold text-gray-900 dark:text-white">{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors font-bold"
+                      >+</button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {t.language === 'pt' ? 'Preco:' : t.language === 'en' ? 'Price:' : 'Precio:'}
+                    {t.language === 'pt' ? 'Preço unitário:' : t.language === 'en' ? 'Unit price:' : 'Precio unitario:'}
                   </span>
                   <div className="flex items-center gap-2">
                     {hasPromo && (
@@ -329,6 +354,17 @@ export function PurchaseConfirmModal({
                     </span>
                   </div>
                 </div>
+
+                {quantity > 1 && (
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {t.language === 'pt' ? 'Total (' + quantity + 'x):' : t.language === 'en' ? 'Total (' + quantity + 'x):' : 'Total (' + quantity + 'x):'}
+                    </span>
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                      {formatPrice(totalPrice)}
+                    </span>
+                  </div>
+                )}
 
                 {/* Coupon Discount */}
                 {appliedCoupon && (

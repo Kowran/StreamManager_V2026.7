@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, CreditCard, Users, UserCheck, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart3, CreditCard, Users, UserCheck, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, ChevronLeft, ChevronRight, HelpCircle } from 'lucide-react';
 import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
 import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './components/AuthProvider';
@@ -11,7 +11,7 @@ import { CurrencySelector } from './components/CurrencySelector';
 import { CurrencyProvider } from './components/CurrencyProvider';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
-import { NotificationProvider, useNotificationContext } from './components/NotificationProvider';
+import { NotificationProvider } from './components/NotificationProvider';
 import { LoginForm } from './components/LoginForm';
 import { AccountsManager } from './components/AccountsManager';
 import { ClientsManager } from './components/ClientsManager';
@@ -92,7 +92,7 @@ function AppContent() {
     return saved !== null ? JSON.parse(saved) : true;
   });
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
-  const { unreadCount: notificationsUnreadCount } = useNotificationContext();
+
   useOnlineHeartbeat(user?.id);
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -275,10 +275,8 @@ function AppContent() {
     { id: 'store', name: t.store, icon: CreditCard },
     { id: 'smm', name: t.language === 'pt' ? 'Redes Sociais' : t.language === 'en' ? 'Social Medial' : 'Redes Sociales', icon: TrendingUp },
     { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
-    { id: 'notifications', name: t.language === 'pt' ? 'Notificações' : t.language === 'en' ? 'Notifications' : 'Notificaciones', icon: Bell },
     { id: 'purchases', name: t.myPurchases, icon: Package },
     { id: 'messages', name: t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes', icon: MessageCircle },
-    { id: 'support', name: t.language === 'pt' ? 'Suporte' : t.language === 'en' ? 'Support' : 'Soporte', icon: MessageCircle },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Gerenciador Streaming' : t.language === 'en' ? 'Streaming Manager' : 'Gestor Streaming', icon: Play },
   ];
@@ -335,7 +333,7 @@ function AppContent() {
       case 'store':
         return <Store onNavigate={setActiveTab} />;
       case 'smm':
-        return <SMMPanel />;
+        return <SMMPanel onNavigate={(tab) => setActiveTab(tab as ActiveTab)} />;
       case 'admin-smm-providers':
         return (
           <AdminGuard page="admin-smm-providers">
@@ -911,11 +909,6 @@ function AppContent() {
                           {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
                         </span>
                       )}
-                      {item.id === 'notifications' && notificationsUnreadCount > 0 && (
-                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                          {notificationsUnreadCount > 99 ? '99+' : notificationsUnreadCount}
-                        </span>
-                      )}
                       {item.id === 'messages' && chatUnreadCount > 0 && (
                         <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-500 text-white text-xs font-bold rounded-full">
                           {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
@@ -976,22 +969,22 @@ function AppContent() {
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 min-w-0">
           {/* Sidebar Navigation - hidden on product-detail page */}
           {activeTab !== 'product-detail' && (
-          <aside className={`hidden lg:flex flex-col flex-shrink-0 transition-all duration-300 ${isSidebarOpen ? 'lg:w-64 xl:w-72' : 'lg:w-20 xl:w-20'}`}>
-            <div className="flex items-center justify-end mb-4">
+          <aside className={`hidden lg:flex flex-col flex-shrink-0 transition-all duration-300 ${isSidebarOpen ? 'lg:w-52 xl:w-56' : 'lg:w-16 xl:w-16'}`}>
+            <div className="flex items-center justify-end mb-2">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                 title={isSidebarOpen ? 'Ocultar menu' : 'Abrir menu'}
               >
                 {isSidebarOpen ? (
-                  <ChevronLeft className="h-5 w-5" />
+                  <ChevronLeft className="h-4 w-4" />
                 ) : (
-                  <ChevronRight className="h-5 w-5" />
+                  <ChevronRight className="h-4 w-4" />
                 )}
               </button>
             </div>
 
-            <nav className="space-y-1">
+            <nav className="space-y-0.5">
               {navigation.map((item) => {
                 const IconComponent = item.icon;
                 const isActive = activeTab === item.id;
@@ -1003,26 +996,29 @@ function AppContent() {
                       setActiveTab(item.id as ActiveTab);
                       window.history.pushState(null, '', `#${item.id}`);
                     }}
-                    className={`w-full flex items-center justify-between px-3 lg:px-4 py-2.5 lg:py-3 text-sm font-medium rounded-lg transition-colors ${
+                    className={`w-full flex items-center justify-between px-2.5 lg:px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
                         : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                     }`}
                     title={!isSidebarOpen ? item.name : ''}
                   >
                     <div className="flex items-center min-w-0">
-                      <IconComponent className={`mr-2 lg:mr-3 h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0 ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
-                      {isSidebarOpen && <span className="truncate">{item.name}</span>}
+                      <IconComponent className={`mr-2 lg:mr-2.5 h-4 w-4 flex-shrink-0 ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                      {isSidebarOpen && <span className="truncate text-sm">{item.name}</span>}
                     </div>
                     {isSidebarOpen && item.id === 'community' && communityUnreadCount > 0 && (
-                      <span className="flex items-center justify-center min-w-[22px] h-6 px-2 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
+                      <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
                         {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
                       </span>
                     )}
                     {isSidebarOpen && item.id === 'messages' && chatUnreadCount > 0 && (
-                      <span className="flex items-center justify-center min-w-[22px] h-6 px-2 bg-blue-500 text-white text-xs font-bold rounded-full animate-pulse">
+                      <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-blue-500 text-white text-xs font-bold rounded-full">
                         {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
                       </span>
+                    )}
+                    {!isSidebarOpen && item.id === 'community' && communityUnreadCount > 0 && (
+                      <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
                     )}
                   </button>
                 );

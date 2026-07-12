@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogOut, User, ChevronDown, Wallet, DollarSign, Coins } from 'lucide-react';
+import { LogOut, User, ChevronDown, Wallet, DollarSign, Coins, HelpCircle } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 
@@ -192,6 +192,18 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
                 <span>{t.myCredits}</span>
               </button>
             </div>
+
+            {/* Ajuda */}
+            <button
+              onClick={() => {
+                onNavigate?.('support');
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
+            >
+              <HelpCircle className="h-4 w-4 text-gray-400" />
+              <span>{t.language === 'pt' ? 'Ajuda' : t.language === 'en' ? 'Help' : 'Ayuda'}</span>
+            </button>
 
             {/* Logout */}
             <button
