@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, CreditCard, RefreshCw, Plus, Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight, Wallet } from 'lucide-react';
+import { DollarSign, CreditCard, RefreshCw, Plus, Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight, Wallet, TrendingUp, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';

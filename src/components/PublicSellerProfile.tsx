@@ -9,7 +9,7 @@ import { useAuth } from './AuthProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { OnlineBadge } from './OnlineBadge';
 import { ChatModal } from './ChatModal';
-import { LevelBadge, LevelProgressBar } from './LevelBadge';
+import { LevelBadge } from './LevelBadge';
 
 interface PublicSellerProfileProps {
   sellerId: string | null;
@@ -318,17 +318,6 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                 </p>
               )}
 
-              {/* Level Progress Bars */}
-              {profile && (profile.user_level != null || profile.seller_level != null) && (
-                <div className="mt-3 space-y-2 w-full">
-                  {profile.user_level != null && (
-                    <LevelProgressBar level={profile.user_level} xp={profile.user_xp || 0} type="user" language={language} />
-                  )}
-                  {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
-                    <LevelProgressBar level={profile.seller_level} xp={profile.seller_xp || 0} type="seller" language={language} />
-                  )}
-                </div>
-              )}
             </div>
           </div>
 

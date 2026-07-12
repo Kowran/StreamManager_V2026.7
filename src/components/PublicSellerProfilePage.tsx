@@ -29,8 +29,10 @@ interface SellerProfile {
   last_seen_at?: string;
   login_count?: number;
   last_login_at?: string;
-  seller_level?: number;
-  seller_xp?: number;
+  user_level?: number | null;
+  user_xp?: number | null;
+  seller_level?: number | null;
+  seller_xp?: number | null;
 }
 
 interface SellerStats {
@@ -119,13 +121,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
   async function loadSellerStats(sellerId: string) {
     try {
-      const { count: totalSales, error: salesError } = await supabase
-        .from('store_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('seller_id', sellerId)
-        .eq('status', 'completed');
-
-      if (salesError) console.error('Error loading sales:', salesError);
+      // Use SECURITY DEFINER RPC so regular users get the real count (RLS blocks direct count)
+      const { data: salesCountData } = await supabase
+        .rpc('get_seller_sales_count', { seller_uuid: sellerId });
+      const totalSales = Number(salesCountData) || 0;
 
       const { count: activeProducts, error: productsError } = await supabase
         .from('store_products')
@@ -151,7 +150,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         : 0;
 
       setStats({
-        total_sales: totalSales || 0,
+        total_sales: totalSales,
         active_products: activeProducts || 0,
         average_rating: avgRating,
         total_reviews: ratingsData?.length || 0,
@@ -353,8 +352,11 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                 <Store className="w-3 h-3 inline mr-1" />
                 {getRoleLabel(profile.role)}
               </span>
-              {profile.seller_level != null && profile.seller_level > 1 && (
-                <LevelBadge level={profile.seller_level} type="seller" size="xs" showLabel />
+              {profile.user_level != null && (
+                <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
+              )}
+              {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
+                <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel />
               )}
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
