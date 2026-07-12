@@ -76,12 +76,29 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [creditBalance, setCreditBalance] = useState(0);
+  const [profile, setProfile] = useState<{ avatar_url?: string; user_level?: number; full_name?: string } | null>(null);
 
   useEffect(() => {
     if (user) {
       loadBalances();
+      loadProfile();
     }
   }, [user, isOpen]);
+
+  async function loadProfile() {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('avatar_url, user_level, full_name')
+        .eq('id', user.id)
+        .single();
+      if (error && error.code !== 'PGRST116') throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  }
 
   async function loadBalances() {
     if (!user) return;
