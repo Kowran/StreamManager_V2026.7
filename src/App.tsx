@@ -489,37 +489,6 @@ function AppContent() {
             }}
           />
         );
-      case 'product-detail':
-        if (!productDetailId) return <Store onNavigate={setActiveTab} />;
-        return (
-          <ProductDetailPage
-            productId={productDetailId}
-            onBack={() => {
-              setActiveTab('store');
-              setProductDetailId(null);
-              window.history.pushState(null, '', '#store');
-            }}
-            onGetStarted={() => {
-              if (subdomain === 'home') {
-                const currentUrl = new URL(window.location.href);
-                const hostname = currentUrl.hostname;
-                const parts = hostname.split('.');
-                if (parts.length > 2 || hostname.includes('localhost')) {
-                  const mainDomain = parts.slice(-2).join('.');
-                  const loginUrl = hostname.includes('localhost')
-                    ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
-                    : `${currentUrl.protocol}//login.${mainDomain}`;
-                  window.location.href = loginUrl;
-                } else {
-                  setShowLanding(false);
-                }
-              } else {
-                setShowLanding(false);
-              }
-            }}
-            onNavigate={setActiveTab}
-          />
-        );
       case 'email-verifier':
         // Redirect to external URL
         window.open('https://streammanager.online/', '_blank');
@@ -557,6 +526,40 @@ function AppContent() {
   }
 
   if (!user) {
+    if (activeTab === 'product-detail' && productDetailId) {
+      return (
+        <div className="min-h-screen flex flex-col">
+          <AnnouncementBar />
+          <ProductDetailPage
+            productId={productDetailId}
+            onBack={() => {
+              setActiveTab('store');
+              setProductDetailId(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onGetStarted={() => {
+              if (subdomain === 'home') {
+                const currentUrl = new URL(window.location.href);
+                const hostname = currentUrl.hostname;
+                const parts = hostname.split('.');
+                if (parts.length > 2 || hostname.includes('localhost')) {
+                  const mainDomain = parts.slice(-2).join('.');
+                  const loginUrl = hostname.includes('localhost')
+                    ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
+                    : `${currentUrl.protocol}//login.${mainDomain}`;
+                  window.location.href = loginUrl;
+                } else {
+                  setShowLanding(false);
+                }
+              } else {
+                setShowLanding(false);
+              }
+            }}
+            onNavigate={setActiveTab}
+          />
+        </div>
+      );
+    }
     if (subdomain === 'home' || (subdomain === 'main' && showLanding)) {
       return (
         <div className="min-h-screen flex flex-col">
@@ -603,6 +606,42 @@ function AppContent() {
         setShowLanding(true);
       }
     }} />
+      </div>
+    );
+  }
+
+  // Product detail page: render standalone, no app header/sidebar
+  if (activeTab === 'product-detail' && productDetailId) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
+        <AnnouncementBar />
+        <ProductDetailPage
+          productId={productDetailId}
+          onBack={() => {
+            setActiveTab('store');
+            setProductDetailId(null);
+            window.history.pushState(null, '', '#store');
+          }}
+          onGetStarted={() => {
+            if (subdomain === 'home') {
+              const currentUrl = new URL(window.location.href);
+              const hostname = currentUrl.hostname;
+              const parts = hostname.split('.');
+              if (parts.length > 2 || hostname.includes('localhost')) {
+                const mainDomain = parts.slice(-2).join('.');
+                const loginUrl = hostname.includes('localhost')
+                  ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
+                  : `${currentUrl.protocol}//login.${mainDomain}`;
+                window.location.href = loginUrl;
+              } else {
+                setShowLanding(false);
+              }
+            } else {
+              setShowLanding(false);
+            }
+          }}
+          onNavigate={setActiveTab}
+        />
       </div>
     );
   }
