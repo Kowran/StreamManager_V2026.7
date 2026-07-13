@@ -3,12 +3,13 @@ import {
   ArrowLeft, Package, CreditCard, Calendar, User, Store, Copy, Check,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, ShoppingBag,
   ChevronRight, Star, RefreshCw, HelpCircle, Shield, ShieldAlert, ExternalLink,
-  DollarSign, Tag, Zap, CheckCheck
+  DollarSign, Tag, Zap, CheckCheck, MessageCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
+import { ChatModal } from './ChatModal';
 
 interface PurchaseDetailProps {
   purchaseId: string;
@@ -84,6 +85,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
   const [userRated, setUserRated] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [showChat, setShowChat] = useState(false);
 
   const lang = (t as any).language || 'pt';
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -561,6 +563,13 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
               </a>
             )}
           </div>
+          <button
+            onClick={() => setShowChat(true)}
+            className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" />
+            {lbl('Conversar com vendedor', 'Chat with seller', 'Chatear con vendedor')}
+          </button>
         </div>
       )}
 
@@ -707,6 +716,21 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
             </span>
           )}
         </div>
+      )}
+
+      {showChat && seller && order && (
+        <ChatModal
+          otherUserId={seller.id}
+          onClose={() => setShowChat(false)}
+          orderContext={{
+            orderId: order.id,
+            productName: purchase?.product_name || product?.name || lbl('Produto', 'Product', 'Producto'),
+            productImage: product?.image_url || purchase?.store_products?.image_url || undefined,
+            quantity: purchase?.quantity || 1,
+            totalUsdt: order.total_usdt || 0,
+            customerName: order.customer_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || '',
+          }}
+        />
       )}
     </div>
   );

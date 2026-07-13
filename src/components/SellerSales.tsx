@@ -83,6 +83,17 @@ export function SellerSales() {
     applyFilters();
   }, [sales, searchTerm, statusFilter, dateFilter]);
 
+  useEffect(() => {
+    function handleOpenOrderDetail(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (!detail?.orderId) return;
+      const sale = sales.find(s => s.id === detail.orderId);
+      if (sale) setSelectedSale(sale);
+    }
+    window.addEventListener('open-order-detail', handleOpenOrderDetail);
+    return () => window.removeEventListener('open-order-detail', handleOpenOrderDetail);
+  }, [sales]);
+
   async function loadSales() {
     if (!user) return;
 

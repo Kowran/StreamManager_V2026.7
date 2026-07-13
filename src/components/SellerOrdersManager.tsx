@@ -56,6 +56,41 @@ export function SellerOrdersManager() {
   }, [user]);
 
   useEffect(() => {
+    function handleOpenOrderDetail(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (!detail?.orderId) return;
+      const order = orders.find(o => o.id === detail.orderId);
+      if (order) {
+        setSelectedOrder(order);
+      } else {
+        supabase
+          .from('seller_orders_view')
+          .select(`id, product_id, quantity, total_usdt, total_brl, status, customer_name, delivered_at, created_at, updated_at, store_products (name), store_deliveries (delivery_content, delivery_method, delivery_status, delivered_at)`)
+          .eq('id', detail.orderId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data) {
+              const o = data as any;
+              const deliveredAccounts = (o.store_deliveries || [])
+                .filter((d: any) => d.delivery_content)
+                .flatMap((d: any) => {
+                  try { return JSON.parse(d.delivery_content); } catch { return []; }
+                });
+              setSelectedOrder({
+                ...o,
+                product_name: o.store_products?.name || '',
+                delivered_accounts: deliveredAccounts,
+                delivered_at: o.delivered_at || o.store_deliveries?.[0]?.delivered_at,
+              } as SellerOrder);
+            }
+          });
+      }
+    }
+    window.addEventListener('open-order-detail', handleOpenOrderDetail);
+    return () => window.removeEventListener('open-order-detail', handleOpenOrderDetail);
+  }, [orders]);
+
+  useEffect(() => {
     applyFilters();
   }, [orders, searchTerm, statusFilter, dateFilter]);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert } from 'lucide-react';
+import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -21,14 +21,25 @@ interface Message {
   image_url?: string | null;
   read_at: string | null;
   created_at: string;
+  metadata?: any;
+}
+
+interface OrderContext {
+  orderId: string;
+  productName: string;
+  productImage?: string;
+  quantity: number;
+  totalUsdt: number;
+  customerName: string;
 }
 
 interface ChatModalProps {
   otherUserId: string;
   onClose: () => void;
+  orderContext?: OrderContext;
 }
 
-export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
+export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
@@ -39,9 +50,11 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
   const [sending, setSending] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [pendingOrderContext, setPendingOrderContext] = useState<OrderContext | null>(orderContext || null);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const contextSentRef = useRef(false);
 
   const scrollToBottom = useCallback((smooth = true) => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' });
@@ -88,11 +101,38 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
       setChatId(id);
       await loadMessages(id);
       await markMessagesRead(id);
+      if (pendingOrderContext && !contextSentRef.current) {
+        contextSentRef.current = true;
+        await sendOrderCitation(id, pendingOrderContext);
+      }
     } finally {
       setLoading(false);
     }
     setTimeout(() => scrollToBottom(false), 100);
     inputRef.current?.focus();
+  }
+
+  async function sendOrderCitation(chatId: string, ctx: OrderContext) {
+    if (!user) return;
+    const citation = `[order_ref:${ctx.orderId}:${ctx.productName}]`;
+    const { error } = await supabase
+      .from('direct_messages')
+      .insert({ chat_id: chatId, sender_id: user.id, content: citation, image_url: null, metadata: { orderContext: ctx } });
+    if (error) return;
+
+    const uid = user.id;
+    const oid = otherUserId;
+    const isUser1 = uid < oid;
+    const col = isUser1 ? 'user2_unread' : 'user1_unread';
+    const preview = language === 'pt' ? `Pedido: ${ctx.productName}` : language === 'en' ? `Order: ${ctx.productName}` : `Pedido: ${ctx.productName}`;
+    await supabase
+      .from('direct_chats')
+      .update({ last_message: preview, last_message_at: new Date().toISOString() })
+      .eq('id', chatId);
+    await supabase.rpc('increment_chat_unread', { p_chat_id: chatId, p_column: col });
+    setPendingOrderContext(null);
+    await loadMessages(chatId);
+    setTimeout(() => scrollToBottom(true), 100);
   }
 
   async function loadOtherUser() {
@@ -334,30 +374,60 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
                   const isMine = msg.sender_id === user?.id;
                   const prev = group.messages[i - 1];
                   const sameAsPrev = prev?.sender_id === msg.sender_id;
+                  const orderCtx = msg.metadata?.orderContext as OrderContext | undefined;
+                  const isOrderCitation = !!orderCtx || msg.content?.startsWith('[order_ref:');
                   return (
                     <div
                       key={msg.id}
                       className={`flex ${isMine ? 'justify-end' : 'justify-start'} ${sameAsPrev ? 'mt-0.5' : 'mt-2'}`}
                     >
-                      <div className={`max-w-[75%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
-                        <div
-                          className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                            isMine
-                              ? 'text-white rounded-br-sm'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
-                          }`}
-                          style={isMine ? { backgroundColor: themeColor } : {}}
-                        >
-                          {msg.content && <p>{msg.content}</p>}
-                          {msg.image_url && (
-                            <img
-                              src={msg.image_url}
-                              alt="Image"
-                              className="mt-1 rounded-xl max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => window.open(msg.image_url!, '_blank')}
-                            />
-                          )}
-                        </div>
+                      <div className={`max-w-[80%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
+                        {isOrderCitation && orderCtx ? (
+                          <button
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent('open-order-detail', { detail: { orderId: orderCtx.orderId } }));
+                            }}
+                            className="flex items-center gap-3 p-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-left max-w-full"
+                          >
+                            {orderCtx.productImage ? (
+                              <img src={orderCtx.productImage} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
+                                <Package className="h-6 w-6 text-white" />
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                                <ShoppingBag className="h-3 w-3" />
+                                {language === 'pt' ? 'Referência de Pedido' : language === 'en' ? 'Order Reference' : 'Referencia de Pedido'}
+                              </span>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{orderCtx.productName}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {orderCtx.quantity}x · ${orderCtx.totalUsdt.toFixed(2)} · #{orderCtx.orderId.slice(0, 8)}
+                              </p>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                          </button>
+                        ) : (
+                          <div
+                            className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                              isMine
+                                ? 'text-white rounded-br-sm'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
+                            }`}
+                            style={isMine ? { backgroundColor: themeColor } : {}}
+                          >
+                            {msg.content && <p>{msg.content}</p>}
+                            {msg.image_url && (
+                              <img
+                                src={msg.image_url}
+                                alt="Image"
+                                className="mt-1 rounded-xl max-h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(msg.image_url!, '_blank')}
+                              />
+                            )}
+                          </div>
+                        )}
                         <span className="text-[10px] text-gray-400 mt-0.5 px-1">{formatTime(msg.created_at)}</span>
                       </div>
                     </div>
