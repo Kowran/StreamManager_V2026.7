@@ -128,45 +128,42 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       if (error) throw error;
 
-      // Fetch admin profile and both sales counts once (not per product)
-      const [{ data: adminProfile }, { data: adminSalesCount }] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, seller_slug').eq('role', 'admin').maybeSingle(),
-        supabase.rpc('get_admin_sales_count'),
-      ]);
+      // Fetch admin profile once
+      const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, seller_slug')
+        .eq('role', 'admin')
+        .maybeSingle();
 
-      // Cache seller counts to avoid duplicate RPC calls for the same seller
-      const sellerCountCache: Record<string, number> = {};
+      // Cache seller profiles to avoid duplicate queries for the same seller
+      const sellerProfileCache: Record<string, { business_name: string; seller_slug: string }> = {};
 
       const productsWithSellers = await Promise.all(
         (data || []).map(async (product) => {
+          // Fetch per-product sales count
+          const { data: productSalesCount } = await supabase.rpc('get_product_sales_count', { product_uuid: product.id });
+          const salesCount = Number(productSalesCount) || 0;
+
           if (product.seller_id) {
-            if (sellerCountCache[product.seller_id] === undefined) {
-              const { data: sellerData } = await supabase
+            let sellerData: { full_name: string; seller_slug: string } | null = null;
+            if (sellerProfileCache[product.seller_id]) {
+              sellerData = sellerProfileCache[product.seller_id];
+            } else {
+              const { data: sd } = await supabase
                 .from('profiles')
                 .select('full_name, seller_slug')
                 .eq('id', product.seller_id)
                 .maybeSingle();
-              const { data: cnt } = await supabase.rpc('get_seller_sales_count', { seller_uuid: product.seller_id });
-              sellerCountCache[product.seller_id] = Number(cnt) || 0;
-              return {
-                ...product,
-                seller_info: {
-                  business_name: sellerData?.full_name || 'Unknown Seller',
-                  sales_count: sellerCountCache[product.seller_id],
-                  seller_slug: sellerData?.seller_slug,
-                }
-              };
+              sellerData = sd;
+              if (sd) {
+                sellerProfileCache[product.seller_id] = { business_name: sd.full_name, seller_slug: sd.seller_slug };
+              }
             }
-            const { data: sellerData } = await supabase
-              .from('profiles')
-              .select('full_name, seller_slug')
-              .eq('id', product.seller_id)
-              .maybeSingle();
             return {
               ...product,
               seller_info: {
                 business_name: sellerData?.full_name || 'Unknown Seller',
-                sales_count: sellerCountCache[product.seller_id],
+                sales_count: salesCount,
                 seller_slug: sellerData?.seller_slug,
               }
             };
@@ -177,7 +174,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             seller_id: adminProfile?.id ?? null,
             seller_info: {
               business_name: adminProfile?.full_name || 'Admin',
-              sales_count: Number(adminSalesCount) || 0,
+              sales_count: salesCount,
               seller_slug: adminProfile?.seller_slug,
             }
           };

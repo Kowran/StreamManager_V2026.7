@@ -221,27 +221,103 @@ Deno.serve(async (req: Request) => {
     console.log('User credit balance updated');
 
     // 5. Handle inventory based on return_to_stock option
-    if (return_to_stock && sale.credentials?.email && sale.credentials?.password) {
-      // Return account to stock
-      const { error: inventoryError } = await supabaseAdmin
-        .from('product_inventory')
-        .insert({
-          product_id: sale.product_id,
-          email: sale.credentials.email,
-          password: sale.credentials.password,
-          instructions: sale.credentials.instructions || 'Use estas credenciais para acessar sua conta.',
-          status: 'available'
-        });
+    if (return_to_stock) {
+      const credentials = sale.credentials || {};
 
-      if (inventoryError) {
-        console.error('Error returning account to stock:', inventoryError);
-        // Don't fail the entire operation, just log the error
-        console.warn('Account could not be returned to stock, but cancellation will proceed');
+      // Get product info to check delivery type
+      const { data: productInfo } = await supabaseAdmin
+        .from('store_products')
+        .select('manual_delivery')
+        .eq('id', sale.product_id)
+        .maybeSingle();
+
+      const isManualDelivery = productInfo?.manual_delivery === true;
+
+      if (Array.isArray(credentials.accounts) && credentials.accounts.length > 0) {
+        // Multi-item purchase: return each account to inventory
+        const inventoryRows = credentials.accounts.map((acc: any) => ({
+          product_id: sale.product_id,
+          email: String(acc.email || ''),
+          password: String(acc.password || ''),
+          instructions: String(acc.instructions || ''),
+          status: 'available',
+        }));
+
+        const { error: inventoryError } = await supabaseAdmin
+          .from('product_inventory')
+          .insert(inventoryRows);
+
+        if (inventoryError) {
+          console.error('Error returning accounts to stock:', inventoryError);
+          console.warn('Accounts could not be returned to stock, but cancellation will proceed');
+        } else {
+          console.log(`${inventoryRows.length} accounts returned to stock successfully`);
+        }
+
+        // For manual delivery products, also increment stock_quantity directly
+        if (isManualDelivery) {
+          const { error: stockError } = await supabaseAdmin
+            .from('store_products')
+            .update({
+              stock_quantity: (productInfo?.stock_quantity || 0) + credentials.accounts.length,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', sale.product_id);
+          if (stockError) console.error('Error updating manual delivery stock:', stockError);
+        }
+      } else if (credentials.email && credentials.password) {
+        // Single-item purchase with credentials
+        if (!isManualDelivery) {
+          const { error: inventoryError } = await supabaseAdmin
+            .from('product_inventory')
+            .insert({
+              product_id: sale.product_id,
+              email: credentials.email,
+              password: credentials.password,
+              instructions: credentials.instructions || 'Use estas credenciais para acessar sua conta.',
+              status: 'available'
+            });
+
+          if (inventoryError) {
+            console.error('Error returning account to stock:', inventoryError);
+            console.warn('Account could not be returned to stock, but cancellation will proceed');
+          } else {
+            console.log('Account returned to stock successfully');
+          }
+        } else {
+          // Manual delivery: increment stock directly
+          const { error: stockError } = await supabaseAdmin
+            .from('store_products')
+            .update({
+              stock_quantity: (productInfo?.stock_quantity || 0) + 1,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', sale.product_id);
+          if (stockError) {
+            console.error('Error updating manual delivery stock:', stockError);
+          } else {
+            console.log('Manual delivery stock incremented successfully');
+          }
+        }
       } else {
-        console.log('Account returned to stock successfully');
+        // No credentials (e.g. manual delivery without stored credentials)
+        // Increment stock_quantity directly by order quantity
+        const orderQuantity = order.quantity || 1;
+        const { error: stockError } = await supabaseAdmin
+          .from('store_products')
+          .update({
+            stock_quantity: (productInfo?.stock_quantity || 0) + orderQuantity,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', sale.product_id);
+        if (stockError) {
+          console.error('Error updating stock directly:', stockError);
+        } else {
+          console.log(`Stock incremented by ${orderQuantity} for manual delivery product`);
+        }
       }
     } else {
-      console.log('Account not returned to stock (admin choice or missing credentials)');
+      console.log('Account not returned to stock (admin choice)');
     }
 
     // 6. Log admin action

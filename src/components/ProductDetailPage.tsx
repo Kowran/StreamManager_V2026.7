@@ -101,24 +101,30 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
       let productData: ProductWithSeller = { ...data } as ProductWithSeller;
 
+      // Fetch per-product sales count
+      const { data: productSalesCount } = await supabase.rpc('get_product_sales_count', { product_uuid: data.id });
+      const salesCount = Number(productSalesCount) || 0;
+
       if (data.seller_id) {
-        const [{ data: sellerData }, { data: cnt }] = await Promise.all([
-          supabase.from('profiles').select('full_name, seller_slug').eq('id', data.seller_id).maybeSingle(),
-          supabase.rpc('get_seller_sales_count', { seller_uuid: data.seller_id }),
-        ]);
+        const { data: sellerData } = await supabase
+          .from('profiles')
+          .select('full_name, seller_slug')
+          .eq('id', data.seller_id)
+          .maybeSingle();
         productData.seller_info = {
           business_name: sellerData?.full_name || 'Unknown Seller',
-          sales_count: Number(cnt) || 0,
+          sales_count: salesCount,
           seller_slug: sellerData?.seller_slug,
         };
       } else {
-        const [{ data: cnt }, { data: adminProfile }] = await Promise.all([
-          supabase.rpc('get_admin_sales_count'),
-          supabase.from('profiles').select('id, full_name, seller_slug').eq('role', 'admin').maybeSingle(),
-        ]);
+        const { data: adminProfile } = await supabase
+          .from('profiles')
+          .select('id, full_name, seller_slug')
+          .eq('role', 'admin')
+          .maybeSingle();
         productData.seller_info = {
           business_name: adminProfile?.full_name || 'Admin',
-          sales_count: Number(cnt) || 0,
+          sales_count: salesCount,
           seller_slug: adminProfile?.seller_slug,
         };
       }
