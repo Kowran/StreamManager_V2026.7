@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Package, CreditCard, Calendar, User, Store, Copy, Check,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, ShoppingBag,
-  ChevronRight, Star, RefreshCw, HelpCircle, Shield, ExternalLink,
-  DollarSign, Tag, Zap, Phone, MessageCircle, CheckCheck
+  ChevronRight, Star, RefreshCw, HelpCircle, Shield, ShieldAlert, ExternalLink,
+  DollarSign, Tag, Zap, CheckCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
