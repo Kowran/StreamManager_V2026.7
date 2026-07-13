@@ -310,7 +310,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     });
   }
 
-  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number) {
+  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number, customerContact?: string) {
     if (!user || !userCredit || !productToConfirm) return;
 
     const product = productToConfirm;
@@ -334,7 +334,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
           quantity: quantity || 1,
           coupon_code: couponCode,
           recharge_data: rechargeData,
-          use_cashback: useCashback || false
+          use_cashback: useCashback || false,
+          customer_contact: customerContact
         })
       });
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap, Phone } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { supabase } from '../lib/supabase';
@@ -17,7 +17,7 @@ interface PurchaseConfirmModalProps {
   };
   userBalance: number;
   cashbackBalance?: number;
-  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number) => void;
+  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number, customerContact?: string) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -53,6 +53,18 @@ export function PurchaseConfirmModal({
   const [rechargeError, setRechargeError] = useState<string | null>(null);
   const [useCashback, setUseCashback] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [customerContact, setCustomerContact] = useState('');
+  const [savedPhone, setSavedPhone] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('profiles').select('phone_number').eq('id', (await supabase.auth.getUser()).data.user?.id).maybeSingle();
+      if (data?.phone_number) {
+        setSavedPhone(data.phone_number);
+        setCustomerContact(data.phone_number);
+      }
+    })();
+  }, []);
 
   const hasPromo = product.promotion_active && product.promotional_price_usdt;
   const basePrice = hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt;
@@ -188,13 +200,13 @@ export function PurchaseConfirmModal({
         extra_data: rechargeExtraData.trim(),
       }, useCashback, quantity);
     } else {
-      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback, quantity);
+      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback, quantity, customerContact.trim() || undefined);
     }
   }
 
   const canConfirm = isAccountRecharge
-    ? !isLoading && remainingBalance >= 0 && rechargeEmail.trim() && rechargePassword.trim()
-    : !isLoading && remainingBalance >= 0;
+    ? !isLoading && remainingBalance >= 0 && rechargeEmail.trim() && rechargePassword.trim() && customerContact.trim()
+    : !isLoading && remainingBalance >= 0 && customerContact.trim();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -231,6 +243,35 @@ export function PurchaseConfirmModal({
                 />
               </div>
             )}
+
+            {/* Customer Contact */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
+                  {t.language === 'pt' ? 'Contato (WhatsApp/Telefone)' : t.language === 'en' ? 'Contact (WhatsApp/Phone)' : 'Contacto (WhatsApp/Teléfono)'}
+                </p>
+              </div>
+              <p className="text-xs text-blue-700 dark:text-blue-400">
+                {t.language === 'pt' ? 'Necessário para que o vendedor possa entrar em contato sobre sua entrega.' : t.language === 'en' ? 'Required so the seller can contact you about your delivery.' : 'Necesario para que el vendedor pueda contactarte sobre tu entrega.'}
+              </p>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={customerContact}
+                  onChange={(e) => setCustomerContact(e.target.value)}
+                  placeholder={t.language === 'pt' ? '+55 11 99999-9999' : t.language === 'en' ? '+1 555 123-4567' : '+34 600 123 456'}
+                  disabled={isLoading}
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm disabled:opacity-50"
+                />
+              </div>
+              {savedPhone && (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  {t.language === 'pt' ? 'Pré-preenchido com seu telefone cadastrado' : t.language === 'en' ? 'Pre-filled with your registered phone' : 'Precargado con tu telefono registrado'}
+                </p>
+              )}
+            </div>
 
             {/* Account Recharge Form */}
             {isAccountRecharge && (

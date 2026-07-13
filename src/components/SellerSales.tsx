@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download, ShieldAlert } from 'lucide-react';
+import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download, ShieldAlert, X, Phone, MessageCircle, CreditCard, ExternalLink, Clock, CheckCircle, Truck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -17,6 +17,10 @@ interface SellerSale {
   customer_name: string;
   created_at: string;
   updated_at: string;
+  customer_contact?: string;
+  delivered_at?: string;
+  delivered_accounts?: { email: string; password: string; instructions?: string }[];
+  test_days_left?: number;
 }
 
 interface SalesStats {
@@ -32,6 +36,8 @@ export function SellerSales() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
+  const lang = (t as any).language || 'pt';
+  const lbl = (pt: string, en: string, es: string) => lang === 'en' ? en : lang === 'es' ? es : pt;
   const [sales, setSales] = useState<SellerSale[]>([]);
   const [filteredSales, setFilteredSales] = useState<SellerSale[]>([]);
   const [stats, setStats] = useState<SalesStats>({
@@ -46,6 +52,7 @@ export function SellerSales() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [selectedSale, setSelectedSale] = useState<SellerSale | null>(null);
 
   useEffect(() => {
     loadSales();
@@ -94,10 +101,18 @@ export function SellerSales() {
           status,
           customer_email,
           customer_name,
+          customer_contact,
+          delivered_at,
           created_at,
           updated_at,
           store_products (
             name
+          ),
+          store_deliveries (
+            delivery_content,
+            delivery_method,
+            delivery_status,
+            delivered_at
           )
         `)
         .eq('seller_id', user.id)
@@ -105,19 +120,39 @@ export function SellerSales() {
 
       if (error) throw error;
 
-      const salesData: SellerSale[] = (ordersData || []).map(order => ({
-        id: order.id,
-        product_id: order.product_id,
-        product_name: (order.store_products as any)?.name || 'Produto desconhecido',
-        quantity: order.quantity,
-        total_brl: order.total_brl,
-        total_usdt: order.total_usdt,
-        status: order.status,
-        customer_email: order.customer_email,
-        customer_name: order.customer_name,
-        created_at: order.created_at,
-        updated_at: order.updated_at
-      }));
+      const salesData: SellerSale[] = (ordersData || []).map(order => {
+        const accounts: { email: string; password: string; instructions?: string }[] = [];
+        (order as any).store_deliveries?.forEach((d: any) => {
+          const content = d.delivery_content;
+          if (content) {
+            if (Array.isArray(content.accounts)) {
+              content.accounts.forEach((a: any) => accounts.push({ email: a.email || '', password: a.password || '', instructions: a.instructions }));
+            } else if (content.email) {
+              accounts.push({ email: content.email, password: content.password || '', instructions: content.instructions });
+            }
+          }
+        });
+        const purchaseDate = new Date(order.created_at);
+        const testEnd = new Date(purchaseDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const daysLeft = Math.max(0, Math.ceil((testEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+        return {
+          id: order.id,
+          product_id: order.product_id,
+          product_name: (order.store_products as any)?.name || 'Produto desconhecido',
+          quantity: order.quantity,
+          total_brl: order.total_brl,
+          total_usdt: order.total_usdt,
+          status: order.status,
+          customer_email: order.customer_email,
+          customer_name: order.customer_name,
+          customer_contact: order.customer_contact || '',
+          delivered_at: order.delivered_at,
+          test_days_left: daysLeft,
+          delivered_accounts: accounts,
+          created_at: order.created_at,
+          updated_at: order.updated_at
+        };
+      });
 
       setSales(salesData);
       calculateStats(salesData);
@@ -405,6 +440,9 @@ export function SellerSales() {
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {lbl('Ações', 'Actions', 'Acciones')}
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -438,6 +476,15 @@ export function SellerSales() {
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(sale.status)}
                   </td>
+                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-right">
+                    <button
+                      onClick={() => setSelectedSale(sale)}
+                      className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 transition-colors"
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" />
+                      {lbl('Detalhes', 'Details', 'Detalles')}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -454,6 +501,133 @@ export function SellerSales() {
               ? 'Você ainda não realizou nenhuma venda'
               : 'Nenhuma venda corresponde aos filtros selecionados'}
           </p>
+        </div>
+      )}
+    </div>
+
+      {/* Sale Detail Modal */}
+      {selectedSale && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {lbl('Detalhes da Venda', 'Sale Details', 'Detalles de Venta')}
+              </h3>
+              <button onClick={() => setSelectedSale(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Product Info */}
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{lbl('Produto', 'Product', 'Producto')}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{selectedSale.product_name}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Cliente', 'Customer', 'Cliente')}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{selectedSale.customer_name || selectedSale.customer_email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Data', 'Date', 'Fecha')}</span>
+                <span className="text-sm text-gray-900 dark:text-white">{formatDate(selectedSale.created_at)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Valor', 'Amount', 'Valor')}</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{formatPrice(selectedSale.total_usdt)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Status', 'Status', 'Estado')}</span>
+                {getStatusBadge(selectedSale.status)}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Quantidade', 'Quantity', 'Cantidad')}</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{selectedSale.quantity}</span>
+              </div>
+
+              {/* Test Period Indicator */}
+              {!['cancelled', 'refunded', 'completed'].includes(selectedSale.status) && (
+                <div className="flex items-center justify-between py-2 border-t border-gray-200 dark:border-gray-700">
+                  <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    {lbl('Período de Teste', 'Test Period', 'Período de Prueba')}
+                  </span>
+                  <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                    (selectedSale.test_days_left || 0) > 0
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                  }`}>
+                    {(selectedSale.test_days_left || 0) > 0
+                      ? lbl(`${selectedSale.test_days_left}d restante${(selectedSale.test_days_left || 0) > 1 ? 's' : ''}`, `${selectedSale.test_days_left}d left`, `${selectedSale.test_days_left}d restante${(selectedSale.test_days_left || 0) > 1 ? 's' : ''}`)
+                      : lbl('Encerrado', 'Ended', 'Terminado')}
+                  </span>
+                </div>
+              )}
+
+              {/* Delivery Confirmed Info */}
+              {selectedSale.delivered_at && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  <span className="text-xs text-green-700 dark:text-green-400">
+                    {lbl('Recebimento confirmado em', 'Delivery confirmed on', 'Recepción confirmada el')} {formatDate(selectedSale.delivered_at)}
+                  </span>
+                </div>
+              )}
+
+              {/* Customer Contact */}
+              {selectedSale.customer_contact && (
+                <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    {lbl('Contato do Cliente', 'Customer Contact', 'Contacto del Cliente')}
+                  </span>
+                  <a
+                    href={`https://wa.me/${selectedSale.customer_contact.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="text-sm font-medium text-green-800 dark:text-green-300">{selectedSale.customer_contact}</span>
+                    </div>
+                    <ExternalLink className="h-4 w-4 text-green-500" />
+                  </a>
+                </div>
+              )}
+
+              {/* Delivered Accounts */}
+              {selectedSale.delivered_accounts && selectedSale.delivered_accounts.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <CreditCard className="h-4 w-4 text-gray-400" />
+                    {lbl('Contas Entregues', 'Delivered Accounts', 'Cuentas Entregadas')}
+                    <span className="text-xs text-gray-500 dark:text-gray-400">({selectedSale.delivered_accounts.length})</span>
+                  </span>
+                  <div className="space-y-1.5">
+                    {selectedSale.delivered_accounts.map((acct, idx) => (
+                      <div key={idx} className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-mono text-gray-700 dark:text-gray-300">{acct.email}</span>
+                          <span className="font-mono text-gray-500 dark:text-gray-400 ml-2">{acct.password}</span>
+                        </div>
+                        {acct.instructions && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{acct.instructions}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-5 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setSelectedSale(null)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+              >
+                {lbl('Fechar', 'Close', 'Cerrar')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

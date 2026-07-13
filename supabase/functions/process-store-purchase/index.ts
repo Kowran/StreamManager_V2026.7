@@ -12,6 +12,7 @@ interface PurchaseRequest {
   coupon_code?: string;
   recharge_data?: { email: string; password: string; extra_data?: string };
   use_cashback?: boolean;
+  customer_contact?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -370,7 +371,8 @@ Deno.serve(async (req: Request) => {
       coupon_id: couponId,
       discount_amount: discountAmount,
       cashback_used: cashbackUsed,
-      recharge_data: isAccountRecharge ? recharge_data : null
+      recharge_data: isAccountRecharge ? recharge_data : null,
+      customer_contact: body.customer_contact || null
     };
 
     let order: any = null;

@@ -3,7 +3,7 @@ import {
   ArrowLeft, Package, CreditCard, Calendar, User, Store, Copy, Check,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, ShoppingBag,
   ChevronRight, Star, RefreshCw, HelpCircle, Shield, ExternalLink,
-  DollarSign, Tag, Zap
+  DollarSign, Tag, Zap, Phone, MessageCircle, CheckCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -46,9 +46,11 @@ interface FullPurchase {
     coupon_id?: string;
     customer_email?: string;
     customer_name?: string;
+    customer_contact?: string;
     total_usdt?: number;
     seller_id?: string;
     dispute_opened_at?: string;
+    delivered_at?: string;
   };
 }
 
@@ -58,6 +60,7 @@ interface SellerProfile {
   avatar_url?: string;
   seller_slug?: string;
   theme_color?: string;
+  phone_number?: string;
 }
 
 function calculateExpiryDate(purchaseDate: string): Date {
@@ -81,6 +84,8 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [expandedAccounts, setExpandedAccounts] = useState<number[]>([]);
   const [userRated, setUserRated] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const lang = (t as any).language || 'pt';
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -104,7 +109,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
           store_orders!user_purchases_order_id_fkey (
             id, status, created_at, updated_at,
             cancelled_at, cancellation_reason, discount_amount, cashback_used,
-            coupon_id, customer_email, customer_name, total_usdt, seller_id, dispute_opened_at
+            coupon_id, customer_email, customer_name, customer_contact, total_usdt, seller_id, dispute_opened_at, delivered_at
           )
         `)
         .eq('id', purchaseId)
@@ -120,7 +125,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
       if (sellerId) {
         const { data: sellerData } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, seller_slug, theme_color')
+          .select('id, full_name, avatar_url, seller_slug, theme_color, phone_number')
           .eq('id', sellerId)
           .maybeSingle();
         if (sellerData) setSeller(sellerData);
@@ -147,6 +152,36 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
       setCopiedText(text);
       setTimeout(() => setCopiedText(null), 2000);
     } catch { /* ignore */ }
+  }
+
+  async function confirmDelivery() {
+    if (!purchase?.store_orders?.id) return;
+    setConfirming(true);
+    setConfirmError(null);
+    try {
+      const { data, error } = await supabase.rpc('confirm_customer_delivery', {
+        p_order_id: purchase.store_orders.id,
+      });
+      if (error) throw error;
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Failed to confirm delivery');
+      }
+      // Refresh purchase data
+      await loadPurchase();
+    } catch (err: any) {
+      setConfirmError(err.message || 'Error confirming delivery');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  function getTestPeriodDaysRemaining(): number {
+    const order = purchase?.store_orders;
+    if (!order?.created_at) return 0;
+    const purchaseDate = new Date(order.created_at);
+    const testEnd = new Date(purchaseDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const diff = testEnd.getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   }
 
   function toggleAccount(idx: number) {
@@ -339,6 +374,135 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* 3-Day Test Period & Delivery Confirmation */}
+      {!isCancelled && !isCompleted && (
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+              <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-300">
+                {lbl('Período de Teste (3 dias)', 'Test Period (3 days)', 'Período de Prueba (3 días)')}
+              </h3>
+              <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                {lbl(
+                  'Você tem 3 dias para testar o produto. Confirme o recebimento das contas para finalizar o pedido.',
+                  'You have 3 days to test the product. Confirm account delivery to finalize the order.',
+                  'Tienes 3 días para probar el producto. Confirma la entrega de cuentas para finalizar el pedido.'
+                )}
+              </p>
+              {(() => {
+                const daysLeft = getTestPeriodDaysRemaining();
+                return (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-700">
+                    <Clock className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                      {daysLeft > 0
+                        ? lbl(`${daysLeft} dia${daysLeft > 1 ? 's' : ''} restante${daysLeft > 1 ? 's' : ''}`, `${daysLeft} day${daysLeft > 1 ? 's' : ''} remaining`, `${daysLeft} día${daysLeft > 1 ? 's' : ''} restante${daysLeft > 1 ? 's' : ''}`)
+                        : lbl('Período encerrado', 'Period ended', 'Período terminado')}
+                    </span>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {confirmError && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+              <span className="text-xs text-red-700 dark:text-red-400">{confirmError}</span>
+            </div>
+          )}
+
+          <button
+            onClick={confirmDelivery}
+            disabled={confirming}
+            className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-lg shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {confirming ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                {lbl('Confirmando...', 'Confirming...', 'Confirmando...')}
+              </>
+            ) : (
+              <>
+                <CheckCheck className="h-5 w-5" />
+                {lbl('Confirmar Recebimento das Contas', 'Confirm Account Delivery', 'Confirmar Recepción de Cuentas')}
+              </>
+            )}
+          </button>
+          <p className="text-xs text-blue-600 dark:text-blue-400 text-center">
+            {lbl(
+              'Ao confirmar, o pedido será finalizado. O saldo do vendedor será liberado após 3 dias da compra.',
+              'By confirming, the order will be finalized. The seller balance will be released 3 days after purchase.',
+              'Al confirmar, el pedido será finalizado. El saldo del vendedor se liberará 3 días después de la compra.'
+            )}
+          </p>
+        </div>
+      )}
+
+      {/* Delivery Confirmed Info */}
+      {!isCancelled && isCompleted && order?.delivered_at && (
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800 shadow-sm p-4 flex items-center gap-3">
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-green-800 dark:text-green-300">
+              {lbl('Recebimento Confirmado', 'Delivery Confirmed', 'Recepción Confirmada')}
+            </p>
+            <p className="text-xs text-green-600 dark:text-green-400">
+              {lbl('Confirmado em', 'Confirmed on', 'Confirmado el')} {new Date(order.delivered_at).toLocaleString(lang === 'pt' ? 'pt-BR' : lang === 'en' ? 'en-US' : 'es-ES')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Seller Contact */}
+      {seller && (seller.phone_number || order?.customer_contact) && !isCancelled && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <Phone className="h-4 w-4 text-gray-500" />
+            {lbl('Contato do Vendedor', 'Seller Contact', 'Contacto del Vendedor')}
+          </h2>
+          <div className="space-y-2">
+            {seller.phone_number && (
+              <a
+                href={`https://wa.me/${seller.phone_number.replace(/\\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between px-4 py-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <MessageCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  <div>
+                    <p className="text-sm font-medium text-green-800 dark:text-green-300">{seller.phone_number}</p>
+                    <p className="text-xs text-green-600 dark:text-green-400">{lbl('WhatsApp do Vendedor', 'Seller WhatsApp', 'WhatsApp del Vendedor')}</p>
+                  </div>
+                </div>
+                <ExternalLink className="h-4 w-4 text-green-500" />
+              </a>
+            )}
+            {order?.customer_contact && !seller.phone_number && (
+              <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-gray-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{order.customer_contact}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{lbl('Seu Contato', 'Your Contact', 'Tu Contacto')}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => copyToClipboard(order.customer_contact!)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  {copiedText === order.customer_contact ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

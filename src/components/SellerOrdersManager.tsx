@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Calendar, Package, Download, Eye, Truck, CheckCircle,
-  Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert, AlertTriangle
+  Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert, AlertTriangle,
+  Phone, CreditCard, ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -21,6 +22,9 @@ interface SellerOrder {
   created_at: string;
   updated_at: string;
   delivered_accounts?: { email: string; password: string; instructions?: string }[];
+  customer_contact?: string;
+  delivered_at?: string;
+  test_days_left?: number;
 }
 
 export function SellerOrdersManager() {
@@ -65,27 +69,48 @@ export function SellerOrdersManager() {
         .from('store_orders')
         .select(`
           id, product_id, quantity, total_usdt, total_brl, status,
-          customer_email, customer_name, created_at, updated_at,
-          store_products (name)
+          customer_email, customer_name, customer_contact, delivered_at, created_at, updated_at,
+          store_products (name),
+          store_deliveries (delivery_content, delivery_method, delivery_status, delivered_at)
         `)
         .eq('seller_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const mapped = (data || []).map(o => ({
-        id: o.id,
-        product_id: o.product_id,
-        product_name: (o.store_products as any)?.name || 'Unknown',
-        quantity: o.quantity,
-        total_usdt: o.total_usdt || 0,
-        total_brl: o.total_brl || 0,
-        status: o.status,
-        customer_email: o.customer_email || '',
-        customer_name: o.customer_name || '',
-        created_at: o.created_at,
-        updated_at: o.updated_at,
-      }));
+      const mapped = (data || []).map((o: any) => {
+        const accounts: { email: string; password: string; instructions?: string }[] = [];
+        (o.store_deliveries || []).forEach((d: any) => {
+          const content = d.delivery_content;
+          if (content) {
+            if (Array.isArray(content.accounts)) {
+              content.accounts.forEach((a: any) => accounts.push({ email: a.email || '', password: a.password || '', instructions: a.instructions }));
+            } else if (content.email) {
+              accounts.push({ email: content.email, password: content.password || '', instructions: content.instructions });
+            }
+          }
+        });
+        const purchaseDate = new Date(o.created_at);
+        const testEnd = new Date(purchaseDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+        const daysLeft = Math.max(0, Math.ceil((testEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+        return {
+          id: o.id,
+          product_id: o.product_id,
+          product_name: (o.store_products as any)?.name || 'Unknown',
+          quantity: o.quantity,
+          total_usdt: o.total_usdt || 0,
+          total_brl: o.total_brl || 0,
+          status: o.status,
+          customer_email: o.customer_email || '',
+          customer_name: o.customer_name || '',
+          customer_contact: o.customer_contact || '',
+          delivered_at: o.delivered_at,
+          test_days_left: daysLeft,
+          delivered_accounts: accounts,
+          created_at: o.created_at,
+          updated_at: o.updated_at,
+        };
+      });
       setOrders(mapped);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -377,6 +402,71 @@ export function SellerOrdersManager() {
                 <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Quantidade', 'Quantity', 'Cantidad')}</span>
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">{selectedOrder.quantity}</span>
               </div>
+
+              {/* Test Period Indicator */}
+              {!['cancelled', 'refunded', 'completed'].includes(selectedOrder.status) && (
+                <div className="flex items-center justify-between py-2 border-t border-gray-200 dark:border-gray-700">
+                  <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Clock className="h-4 w-4 text-gray-400" />
+                    {lbl('Período de Teste', 'Test Period', 'Período de Prueba')}
+                  </span>
+                  <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                    (selectedOrder.test_days_left || 0) > 0
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                  }`}>
+                    {(selectedOrder.test_days_left || 0) > 0
+                      ? lbl(`${selectedOrder.test_days_left}d restante${(selectedOrder.test_days_left || 0) > 1 ? 's' : ''}`, `${selectedOrder.test_days_left}d left`, `${selectedOrder.test_days_left}d restante${(selectedOrder.test_days_left || 0) > 1 ? 's' : ''}`)
+                      : lbl('Encerrado', 'Ended', 'Terminado')}
+                  </span>
+                </div>
+              )}
+
+              {/* Customer Contact */}
+              {selectedOrder.customer_contact && (
+                <div className="py-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                  <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    {lbl('Contato do Cliente', 'Customer Contact', 'Contacto del Cliente')}
+                  </span>
+                  <a
+                    href={`https://wa.me/${selectedOrder.customer_contact.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="text-sm font-medium text-green-800 dark:text-green-300">{selectedOrder.customer_contact}</span>
+                    </div>
+                    <ExternalLink className="h-4 w-4 text-green-500" />
+                  </a>
+                </div>
+              )}
+
+              {/* Delivered Accounts */}
+              {selectedOrder.delivered_accounts && selectedOrder.delivered_accounts.length > 0 && (
+                <div className="py-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <CreditCard className="h-4 w-4 text-gray-400" />
+                    {lbl('Contas Entregues', 'Delivered Accounts', 'Cuentas Entregadas')}
+                    <span className="text-xs text-gray-500 dark:text-gray-400">({selectedOrder.delivered_accounts.length})</span>
+                  </span>
+                  <div className="space-y-1.5">
+                    {selectedOrder.delivered_accounts.map((acct, idx) => (
+                      <div key={idx} className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-mono text-gray-700 dark:text-gray-300">{acct.email}</span>
+                          <span className="font-mono text-gray-500 dark:text-gray-400 ml-2">{acct.password}</span>
+                        </div>
+                        {acct.instructions && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{acct.instructions}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">
               {(selectedOrder.status === 'paid' || selectedOrder.status === 'processing') && (
