@@ -456,8 +456,8 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
             {isMultiAccount ? (
               <div className="space-y-2">
                 {accounts.map((acct: any, idx: number) => {
-                  const expanded = expandedAccounts.includes(idx) || (purchase.read_accounts || []).includes(idx);
-                  const wasRead = (purchase.read_accounts || []).includes(idx);
+                  const expanded = expandedAccounts.includes(idx);
+                  const wasRead = (purchase.read_accounts || []).includes(idx) || expandedAccounts.includes(idx);
                   return (
                     <div key={idx} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
                       <button

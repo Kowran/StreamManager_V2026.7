@@ -606,40 +606,26 @@ export function UserPurchases() {
                 if (!Array.isArray(accounts) || accounts.length <= 1) return null;
                 const readArr = purchase.read_accounts || [];
                 const expandedSet = expandedAccounts[purchase.id] || [];
-                const allRead = accounts.every((_: any, i: number) => readArr.includes(i) || expandedSet.includes(i));
+                const unreadCount = accounts.filter((_: any, i: number) => !readArr.includes(i)).length;
                 const lang = t.language;
                 return (
                   <div className="mt-3 mb-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedAccounts(prev => {
-                          const current = prev[purchase.id] || [];
-                          if (current.length === accounts.length) {
-                            const next = { ...prev };
-                            delete next[purchase.id];
-                            return next;
-                          }
-                          return { ...prev, [purchase.id]: accounts.map((_: any, i: number) => i) };
-                        });
-                      }}
-                      className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    >
-                      <ChevronDown className={`h-4 w-4 transition-transform ${allRead ? 'rotate-0' : 'rotate-0'}`} />
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <CreditCard className="h-4 w-4 text-gray-500" />
                       {lang === 'pt' ? `${accounts.length} Contas` : lang === 'en' ? `${accounts.length} Accounts` : `${accounts.length} Cuentas`}
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        allRead
+                        unreadCount === 0
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}>
-                        {allRead
+                        {unreadCount === 0
                           ? (lang === 'pt' ? 'Todas lidas' : lang === 'en' ? 'All read' : 'Todas leídas')
-                          : `${accounts.filter((_: any, i: number) => !readArr.includes(i) && !expandedSet.includes(i)).length} ${lang === 'pt' ? 'novas' : lang === 'en' ? 'new' : 'nuevas'}`}
+                          : `${unreadCount} ${lang === 'pt' ? 'novas' : lang === 'en' ? 'new' : 'nuevas'}`}
                       </span>
-                    </button>
-                    <div className="mt-2 space-y-2">
+                    </div>
+                    <div className="space-y-2">
                       {accounts.map((acct: any, idx: number) => {
-                        const expanded = expandedSet.includes(idx) || readArr.includes(idx);
+                        const expanded = expandedSet.includes(idx);
                         const wasRead = readArr.includes(idx) || expandedSet.includes(idx);
                         return (
                           <div key={idx} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -671,7 +657,7 @@ export function UserPurchases() {
                                 {acct.email && (
                                   <div className="flex items-center justify-between gap-2 mb-2">
                                     <div className="min-0 flex-1">
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{lang === 'pt' ? 'Email' : lang === 'en' ? 'Email' : 'Email'}</p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{lang === 'pt' ? 'Email' : 'Email'}</p>
                                       <p className="font-mono text-sm text-gray-900 dark:text-white break-all">{acct.email}</p>
                                     </div>
                                     <button onClick={(e) => { e.stopPropagation(); copyToClipboard(acct.email); }} className="flex-shrink-0 p-1.5 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
