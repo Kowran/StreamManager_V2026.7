@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle, ArrowLeft, MessageCircle, User, Mail, Store } from 'lucide-react';
+import { Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle, ArrowLeft, MessageCircle, User, Mail, Store, Ban } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -69,6 +69,8 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
   const { user } = useAuth();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [ratings, setRatings] = useState<ProductRating[]>([]);
@@ -79,6 +81,39 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
   useEffect(() => {
     loadSellerData();
   }, [sellerSlug]);
+
+  useEffect(() => {
+    if (profile && user) checkBlockStatus();
+  }, [profile, user]);
+
+  async function checkBlockStatus() {
+    if (!user || !profile) return;
+    const { data } = await supabase
+      .from('blocked_users')
+      .select('id')
+      .eq('blocker_id', user.id)
+      .eq('blocked_id', profile.id)
+      .maybeSingle();
+    setIsBlocked(!!data);
+  }
+
+  async function toggleBlock() {
+    if (!user || !profile || blockLoading) return;
+    setBlockLoading(true);
+    try {
+      if (isBlocked) {
+        await supabase.from('blocked_users').delete().eq('blocker_id', user.id).eq('blocked_id', profile.id);
+        setIsBlocked(false);
+      } else {
+        await supabase.from('blocked_users').insert({ blocker_id: user.id, blocked_id: profile.id });
+        setIsBlocked(true);
+      }
+    } catch (err) {
+      console.error('Error toggling block:', err);
+    } finally {
+      setBlockLoading(false);
+    }
+  }
 
   async function loadSellerData() {
     try {
@@ -322,15 +357,34 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               </div>
             </div>
 
-            {/* Chat button */}
+            {/* Chat + Block buttons */}
             {user && user.id !== profile.id && (
-              <button
-                onClick={() => setChatOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <MessageCircle className="h-4 w-4" />
-                {t.language === 'pt' ? 'Enviar mensagem' : t.language === 'en' ? 'Send message' : 'Enviar mensaje'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setChatOpen(true)}
+                  disabled={isBlocked}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {t.language === 'pt' ? 'Enviar mensagem' : t.language === 'en' ? 'Send message' : 'Enviar mensaje'}
+                </button>
+                <button
+                  onClick={toggleBlock}
+                  disabled={blockLoading}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-colors ${
+                    isBlocked
+                      ? 'border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                      : 'border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                  }`}
+                  title={isBlocked ? (t.language === 'pt' ? 'Desbloquear' : 'Unblock') : (t.language === 'pt' ? 'Bloquear' : 'Block')}
+                >
+                  <Ban className="h-4 w-4" />
+                  {isBlocked
+                    ? (t.language === 'pt' ? 'Desbloquear' : 'Unblock')
+                    : (t.language === 'pt' ? 'Bloquear' : 'Block')
+                  }
+                </button>
+              </div>
             )}
           </div>
 

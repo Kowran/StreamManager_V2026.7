@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Star, Package, ShoppingBag, TrendingUp,
-  Award, CheckCircle, User, MessageCircle, Calendar, Shield
+  Award, CheckCircle, User, MessageCircle, Calendar, Shield, Ban
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
@@ -74,10 +74,45 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'products' | 'reviews'>('products');
   const [chatOpen, setChatOpen] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
 
   useEffect(() => {
     loadSellerData();
   }, [sellerId]);
+
+  useEffect(() => {
+    if (profile && user) checkBlockStatus();
+  }, [profile, user]);
+
+  async function checkBlockStatus() {
+    if (!user || !profile) return;
+    const { data } = await supabase
+      .from('blocked_users')
+      .select('id')
+      .eq('blocker_id', user.id)
+      .eq('blocked_id', profile.id)
+      .maybeSingle();
+    setIsBlocked(!!data);
+  }
+
+  async function toggleBlock() {
+    if (!user || !profile || blockLoading) return;
+    setBlockLoading(true);
+    try {
+      if (isBlocked) {
+        await supabase.from('blocked_users').delete().eq('blocker_id', user.id).eq('blocked_id', profile.id);
+        setIsBlocked(false);
+      } else {
+        await supabase.from('blocked_users').insert({ blocker_id: user.id, blocked_id: profile.id });
+        setIsBlocked(true);
+      }
+    } catch (err) {
+      console.error('Error toggling block:', err);
+    } finally {
+      setBlockLoading(false);
+    }
+  }
 
   async function loadSellerData() {
     try {
@@ -238,16 +273,33 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
               {/* spacer so chat button doesn't overlap avatar area */}
               <div />
 
-              {/* Chat button */}
+              {/* Chat + Block buttons */}
               {user && profile && user.id !== profile.id && (
-                <button
-                  onClick={() => setChatOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors shrink-0"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  {lbl('Mensagem', 'Message', 'Mensaje')}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setChatOpen(true)}
+                    disabled={isBlocked}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: themeColor }}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {lbl('Mensagem', 'Message', 'Mensaje')}
+                  </button>
+                  <button
+                    onClick={toggleBlock}
+                    disabled={blockLoading}
+                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl border transition-colors shrink-0 ${
+                      isBlocked
+                        ? 'border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                        : 'border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                    }`}
+                  >
+                    {isBlocked
+                      ? <><CheckCircle className="h-4 w-4" /> {lbl('Desbloquear', 'Unblock', 'Desbloquear')}</>
+                      : <><Ban className="h-4 w-4" /> {lbl('Bloquear', 'Block', 'Bloquear')}</>
+                    }
+                  </button>
+                </div>
               )}
             </div>
 

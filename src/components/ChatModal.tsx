@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package, ChevronRight } from 'lucide-react';
+import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package, ChevronRight, Ban, CheckCircle, MoreVertical } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { OnlineBadge } from './OnlineBadge';
+import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface OtherUser {
   id: string;
@@ -37,9 +38,10 @@ interface ChatModalProps {
   otherUserId: string;
   onClose: () => void;
   orderContext?: OrderContext;
+  embedded?: boolean;
 }
 
-export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps) {
+export function ChatModal({ otherUserId, onClose, orderContext, embedded }: ChatModalProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
@@ -51,6 +53,11 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploadingImg, setUploadingImg] = useState(false);
   const [pendingOrderContext, setPendingOrderContext] = useState<OrderContext | null>(orderContext || null);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockedByOther, setBlockedByOther] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -97,6 +104,7 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
     setLoading(true);
     try {
       await loadOtherUser();
+      await checkBlockStatus();
       const id = await getOrCreateChat();
       setChatId(id);
       await loadMessages(id);
@@ -110,6 +118,50 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
     }
     setTimeout(() => scrollToBottom(false), 100);
     inputRef.current?.focus();
+  }
+
+  async function checkBlockStatus() {
+    if (!user || !otherUserId) return;
+    const { data: myBlock } = await supabase
+      .from('blocked_users')
+      .select('id')
+      .eq('blocker_id', user.id)
+      .eq('blocked_id', otherUserId)
+      .maybeSingle();
+    setIsBlocked(!!myBlock);
+
+    const { data: theirBlock } = await supabase
+      .from('blocked_users')
+      .select('id')
+      .eq('blocker_id', otherUserId)
+      .eq('blocked_id', user.id)
+      .maybeSingle();
+    setBlockedByOther(!!theirBlock);
+  }
+
+  async function toggleBlock() {
+    if (!user || !otherUserId || blockLoading) return;
+    setBlockLoading(true);
+    try {
+      if (isBlocked) {
+        await supabase
+          .from('blocked_users')
+          .delete()
+          .eq('blocker_id', user.id)
+          .eq('blocked_id', otherUserId);
+        setIsBlocked(false);
+      } else {
+        await supabase
+          .from('blocked_users')
+          .insert({ blocker_id: user.id, blocked_id: otherUserId });
+        setIsBlocked(true);
+      }
+    } catch (err) {
+      console.error('Error toggling block:', err);
+    } finally {
+      setBlockLoading(false);
+      setShowMenu(false);
+    }
   }
 
   async function sendOrderCitation(chatId: string, ctx: OrderContext) {
@@ -221,6 +273,7 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
 
   async function sendMessage() {
     if ((!input.trim() && !imageUrl) || !chatId || !user || sending) return;
+    if (isBlocked || blockedByOther) return;
     const content = input.trim();
     const imgToSend = imageUrl;
     setInput('');
@@ -289,14 +342,16 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
   const themeColor = otherUser?.theme_color || '#3b82f6';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end sm:p-4 pointer-events-none">
-      <div
-        className="absolute inset-0 bg-black/40 sm:hidden pointer-events-auto"
-        onClick={onClose}
-      />
+    <div className={embedded ? "flex flex-col h-full" : "fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:justify-end sm:p-4 pointer-events-none"}>
+      {!embedded && (
+        <div
+          className="absolute inset-0 bg-black/40 sm:hidden pointer-events-auto"
+          onClick={onClose}
+        />
+      )}
 
-      <div className="relative pointer-events-auto w-full sm:w-96 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-        style={{ height: 'min(580px, 90dvh)' }}>
+      <div className={embedded ? "relative w-full bg-white dark:bg-gray-900 flex flex-col overflow-hidden h-full" : "relative pointer-events-auto w-full sm:w-96 bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden"}
+        style={embedded ? undefined : { height: 'min(580px, 90dvh)' }}>
 
         {/* Header */}
         <div
@@ -311,15 +366,54 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-white truncate text-sm">
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className="font-semibold text-white truncate text-sm hover:underline text-left"
+            >
               {otherUser?.full_name || (language === 'pt' ? 'Usuário' : 'User')}
-            </p>
+            </button>
             <OnlineBadge
               lastSeenAt={otherUser?.last_seen_at}
               language={language}
               showLabel
               size="sm"
             />
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+            >
+              <MoreVertical className="h-5 w-5" />
+            </button>
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1">
+                  <button
+                    onClick={() => { setShowProfileModal(true); setShowMenu(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                  >
+                    <User className="h-4 w-4" />
+                    {language === 'pt' ? 'Ver perfil' : language === 'en' ? 'View profile' : 'Ver perfil'}
+                  </button>
+                  <button
+                    onClick={toggleBlock}
+                    disabled={blockLoading}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left ${
+                      isBlocked
+                        ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                        : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                    }`}
+                  >
+                    {isBlocked
+                      ? <><CheckCircle className="h-4 w-4" /> {language === 'pt' ? 'Desbloquear' : language === 'en' ? 'Unblock' : 'Desbloquear'}</>
+                      : <><Ban className="h-4 w-4" /> {language === 'pt' ? 'Bloquear' : language === 'en' ? 'Block' : 'Bloquear'}</>
+                    }
+                  </button>
+                </div>
+              </>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -439,6 +533,26 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
           <div ref={bottomRef} />
         </div>
 
+        {/* Blocked banner */}
+        {(isBlocked || blockedByOther) && (
+          <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800 text-center shrink-0">
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {isBlocked
+                ? (language === 'pt' ? 'Você bloqueou este usuário. Desbloqueie para enviar mensagens.' : language === 'en' ? 'You blocked this user. Unblock to send messages.' : 'Bloqueaste a este usuario. Desbloquea para enviar mensajes.')
+                : (language === 'pt' ? 'Este usuário bloqueou você.' : language === 'en' ? 'This user blocked you.' : 'Este usuario te bloqueó.')}
+            </p>
+            {isBlocked && (
+              <button
+                onClick={toggleBlock}
+                disabled={blockLoading}
+                className="mt-2 px-4 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors disabled:opacity-40"
+              >
+                {language === 'pt' ? 'Desbloquear' : language === 'en' ? 'Unblock' : 'Desbloquear'}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Input area */}
         <div className="px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0">
           {imageUrl && (
@@ -469,13 +583,14 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
               onKeyDown={handleKeyDown}
               rows={1}
               maxLength={1000}
-              placeholder={language === 'pt' ? 'Digite uma mensagem...' : 'Type a message...'}
+              disabled={isBlocked || blockedByOther}
+              placeholder={isBlocked || blockedByOther ? (language === 'pt' ? 'Bloqueado' : 'Blocked') : (language === 'pt' ? 'Digite uma mensagem...' : 'Type a message...')}
               className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 resize-none outline-none min-h-[24px] max-h-[120px] overflow-y-auto"
               style={{ lineHeight: '1.5' }}
             />
             <button
               onClick={sendMessage}
-              disabled={(!input.trim() && !imageUrl) || sending}
+              disabled={(!input.trim() && !imageUrl) || sending || isBlocked || blockedByOther}
               className="shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ backgroundColor: (input.trim() || imageUrl) ? themeColor : undefined }}
             >
@@ -490,6 +605,13 @@ export function ChatModal({ otherUserId, onClose, orderContext }: ChatModalProps
           </p>
         </div>
       </div>
+
+      {showProfileModal && (
+        <PublicUserProfileModal
+          userId={otherUserId}
+          onClose={() => setShowProfileModal(false)}
+        />
+      )}
     </div>
   );
 }

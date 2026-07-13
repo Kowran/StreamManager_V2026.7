@@ -10,6 +10,7 @@ import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { ChatModal } from './ChatModal';
+import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface PurchaseDetailProps {
   purchaseId: string;
@@ -86,6 +87,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   const lang = (t as any).language || 'pt';
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -550,7 +552,12 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-gray-900 dark:text-white">{seller.full_name}</p>
+              <button
+                onClick={() => seller.seller_slug ? (window.location.hash = `#seller/${seller.seller_slug}`) : setShowProfile(true)}
+                className="font-semibold text-gray-900 dark:text-white hover:underline text-left"
+              >
+                {seller.full_name}
+              </button>
               {seller.seller_slug && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">@{seller.seller_slug}</p>
               )}
@@ -569,6 +576,13 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
           >
             <MessageCircle className="h-4 w-4" />
             {lbl('Conversar com vendedor', 'Chat with seller', 'Chatear con vendedor')}
+          </button>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <User className="h-4 w-4" />
+            {lbl('Ver perfil', 'View profile', 'Ver perfil')}
           </button>
         </div>
       )}
@@ -724,12 +738,18 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
           onClose={() => setShowChat(false)}
           orderContext={{
             orderId: order.id,
-            productName: purchase?.product_name || product?.name || lbl('Produto', 'Product', 'Producto'),
-            productImage: product?.image_url || purchase?.store_products?.image_url || undefined,
-            quantity: purchase?.quantity || 1,
+            productName: purchase?.product_name || lbl('Produto', 'Product', 'Producto'),
+            productImage: purchase?.store_products?.image_url || undefined,
+            quantity: 1,
             totalUsdt: order.total_usdt || 0,
             customerName: order.customer_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || '',
           }}
+        />
+      )}
+      {showProfile && seller && (
+        <PublicUserProfileModal
+          userId={seller.id}
+          onClose={() => setShowProfile(false)}
         />
       )}
     </div>
