@@ -443,22 +443,23 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
           </h3>
           <TrendingUp className="h-5 w-5 text-gray-400" />
         </div>
-        <div className="flex items-end justify-between gap-2 h-40">
-          {revenueData.map((day, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full flex-1 flex items-end">
+        <div className="flex items-end justify-between gap-2" style={{ height: '160px' }}>
+          {revenueData.map((day, i) => {
+            const barH = Math.max((day.revenue / maxRevenue) * 128, 6);
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
                 <div
                   className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-md transition-all hover:from-blue-600 hover:to-blue-500 group relative"
-                  style={{ height: `${Math.max((day.revenue / maxRevenue) * 100, 4)}%` }}
+                  style={{ height: `${barH}px` }}
                 >
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
                     {formatPrice(day.revenue)}
                   </div>
                 </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{day.day}</span>
               </div>
-              <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{day.day}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

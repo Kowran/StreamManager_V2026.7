@@ -39,13 +39,7 @@ Deno.serve(async (req: Request) => {
 
     const token = authHeader.replace('Bearer ', '');
 
-    // Create a user-scoped client to verify the token
-    const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: `Bearer ${token}` } } }
-    );
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
 
     if (userError || !user) {
       return new Response(
@@ -83,6 +77,14 @@ Deno.serve(async (req: Request) => {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
+      );
+    }
+
+    // Block self-purchase
+    if (product.seller_id && product.seller_id === user.id) {
+      return new Response(
+        JSON.stringify({ error: 'Você não pode comprar seu próprio produto' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

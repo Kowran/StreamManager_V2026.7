@@ -287,6 +287,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
   function handlePurchase(product: ProductWithSeller) {
     if (!user || !userCredit) return;
 
+    if (product.seller_id && product.seller_id === user.id) {
+      alert(t.language === 'pt' ? 'Você não pode comprar seu próprio produto.' :
+        t.language === 'en' ? 'You cannot purchase your own product.' :
+        'No puedes comprar tu propio producto.');
+      return;
+    }
+
     checkPendingRatings().then(hasPending => {
       if (hasPending) {
         setShowRatingModal(true);
@@ -724,6 +731,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 setShowSellerProfile(true);
               }
             }}
+            currentUserId={user?.id}
           />
         ))}
       </div>
@@ -828,6 +836,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             setShowSellerProfile(true);
             setShowProductModal(false);
           }}
+          currentUserId={user?.id}
         />
       )}
 
@@ -1077,11 +1086,13 @@ interface ProductCardProps {
   onCardClick: (product: ProductWithSeller) => void;
   purchasing: boolean;
   onViewSellerProfile: (sellerId: string | null, sellerSlug?: string) => void;
+  currentUserId?: string;
 }
 
-function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing, onViewSellerProfile }: ProductCardProps) {
+function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing, onViewSellerProfile, currentUserId }: ProductCardProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
+  const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
   const canAfford = userCredit ? userCredit.balance >= product.price_usdt : false;
   const isAvailable = product.manual_delivery || (product as any).account_recharge || product.stock_quantity > 0;
 
@@ -1255,9 +1266,9 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
             e.stopPropagation();
             onPurchase(product);
           }}
-          disabled={!canAfford || !isAvailable || purchasing}
+          disabled={isOwnProduct || !canAfford || !isAvailable || purchasing}
           className={`w-full px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
-            canAfford && isAvailable && !purchasing
+            !isOwnProduct && canAfford && isAvailable && !purchasing
               ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
           }`}
@@ -1268,7 +1279,9 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
             <ShoppingCart className="h-4 w-4" />
           )}
           <span>
-            {!canAfford ?
+            {isOwnProduct ?
+              (t.language === 'pt' ? 'Seu Produto' : t.language === 'en' ? 'Your Product' : 'Tu Producto') :
+            !canAfford ?
               (t.language === 'pt' ? 'Saldo Insuf.' : t.language === 'en' ? 'Insufficient' : 'Insuficiente') :
               !isAvailable ?
               (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado') :
@@ -1288,6 +1301,7 @@ interface ProductDetailsModalProps {
   onPurchase: (product: ProductWithSeller) => void;
   purchasing: boolean;
   onViewSellerProfile: (sellerId: string | null, sellerSlug?: string) => void;
+  currentUserId?: string;
 }
 
 interface RechargeModalProps {
@@ -1418,9 +1432,10 @@ function RechargeModal({ onClose, paymentMethods, onPaymentMethodSelect }: Recha
   );
 }
 
-function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchasing, onViewSellerProfile }: ProductDetailsModalProps) {
+function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchasing, onViewSellerProfile, currentUserId }: ProductDetailsModalProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
+  const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
   const canAfford = userCredit ? userCredit.balance >= product.price_usdt : false;
 
   return (
@@ -1654,9 +1669,9 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
                 e.stopPropagation();
                 onPurchase(product);
               }}
-              disabled={!canAfford || (!product.manual_delivery && product.stock_quantity === 0) || purchasing}
+              disabled={isOwnProduct || !canAfford || (!product.manual_delivery && product.stock_quantity === 0) || purchasing}
               className={`flex-1 px-4 py-2.5 sm:py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium ${
-                canAfford && (product.manual_delivery || product.stock_quantity > 0) && !purchasing
+                !isOwnProduct && canAfford && (product.manual_delivery || product.stock_quantity > 0) && !purchasing
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
@@ -1667,7 +1682,9 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
                 <ShoppingCart className="h-4 w-4" />
               )}
               <span>
-                {!canAfford ?
+                {isOwnProduct ?
+                  (t.language === 'pt' ? 'Seu Produto' : t.language === 'en' ? 'Your Product' : 'Tu Producto') :
+                  !canAfford ?
                   (t.language === 'pt' ? 'Saldo Insuficiente' : t.language === 'en' ? 'Insufficient Balance' : 'Saldo Insuficiente') :
                   (!product.manual_delivery && product.stock_quantity === 0) ?
                   (t.language === 'pt' ? 'Fora de Estoque' : t.language === 'en' ? 'Out of Stock' : 'Agotado') :
