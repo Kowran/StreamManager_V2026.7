@@ -356,32 +356,60 @@ Deno.serve(async (req: Request) => {
     }
 
     // Start transaction by creating order
-    const { data: order, error: orderError } = await supabaseAdmin
-      .from('store_orders')
-      .insert({
-        user_id: user.id,
-        product_id: product_id,
-        seller_id: product.seller_id || null,
-        quantity: quantity,
-        total_brl: totalPrice * 5.5,
-        total_usdt: totalPrice,
-        status: 'pending',
-        customer_email: user.email || '',
-        customer_name: user.user_metadata?.full_name || user.email || 'Usuario',
-        coupon_id: couponId,
-        discount_amount: discountAmount,
-        cashback_used: cashbackUsed,
-        recharge_data: isAccountRecharge ? recharge_data : null
-      })
-      .select()
-      .single();
+    // Note: seller_id may or may not exist as a column on store_orders depending on
+    // deployment state. We try with it first; if the column is missing, retry without.
+    const baseOrder: Record<string, any> = {
+      user_id: user.id,
+      product_id: product_id,
+      quantity: quantity,
+      total_brl: totalPrice * 5.5,
+      total_usdt: totalPrice,
+      status: 'pending',
+      customer_email: user.email || '',
+      customer_name: user.user_metadata?.full_name || user.email || 'Usuario',
+      coupon_id: couponId,
+      discount_amount: discountAmount,
+      cashback_used: cashbackUsed,
+      recharge_data: isAccountRecharge ? recharge_data : null
+    };
 
-    if (orderError) {
+    let order: any = null;
+    let orderError: any = null;
+    let orderCreated = false;
+
+    if (product.seller_id) {
+      const { data: dataWithSeller, error: errWithSeller } = await supabaseAdmin
+        .from('store_orders')
+        .insert({ ...baseOrder, seller_id: product.seller_id })
+        .select()
+        .single();
+      if (!errWithSeller && dataWithSeller) {
+        order = dataWithSeller;
+        orderCreated = true;
+      } else {
+        orderError = errWithSeller;
+      }
+    }
+
+    if (!orderCreated) {
+      const { data: dataNoSeller, error: errNoSeller } = await supabaseAdmin
+        .from('store_orders')
+        .insert(baseOrder)
+        .select()
+        .single();
+      order = dataNoSeller;
+      orderError = errNoSeller;
+      if (!errNoSeller && dataNoSeller) {
+        orderCreated = true;
+      }
+    }
+
+    if (!orderCreated || !order) {
       console.error('Order creation error:', orderError);
       return new Response(
         JSON.stringify({ 
           error: 'Failed to create order',
-          details: orderError.message
+          details: orderError?.message || 'Unknown error'
         }),
         {
           status: 500,

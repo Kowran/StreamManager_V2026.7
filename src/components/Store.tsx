@@ -341,7 +341,9 @@ export function Store({ onNavigate }: StoreProps = {}) {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Erro ao processar compra');
+        const errorMsg = result.error || 'Erro ao processar compra';
+        const detailMsg = result.details ? `\n${result.details}` : '';
+        throw new Error(errorMsg + detailMsg);
       }
 
       const finalPrice = result.final_price ?? product.price_usdt;
