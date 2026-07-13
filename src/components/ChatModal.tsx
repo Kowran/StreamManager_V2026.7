@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package, ChevronRight, Ban, CheckCircle, MoreVertical } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -606,11 +607,12 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
         </div>
       </div>
 
-      {showProfileModal && (
+      {showProfileModal && createPortal(
         <PublicUserProfileModal
           userId={otherUserId}
           onClose={() => setShowProfileModal(false)}
-        />
+        />,
+        document.body
       )}
     </div>
   );

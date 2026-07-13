@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, User, MessageCircle, Ban, CheckCircle, Calendar, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
@@ -103,8 +104,8 @@ export function PublicUserProfileModal({ userId, onClose }: PublicUserProfileMod
   const t = (pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
         className="relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
@@ -241,12 +242,14 @@ export function PublicUserProfileModal({ userId, onClose }: PublicUserProfileMod
         )}
       </div>
 
-      {chatOpen && profile && (
+      {chatOpen && profile && createPortal(
         <ChatModal
           otherUserId={profile.id}
           onClose={() => setChatOpen(false)}
-        />
+        />,
+        document.body
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
