@@ -10,7 +10,7 @@ interface AuthContextType {
   isPasswordRecovery: boolean;
   setIsPasswordRecovery: (value: boolean) => void;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName?: string, username?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithDiscord: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ActivityTracker.trackLogin().catch(console.error);
   };
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
+  const signUp = async (email: string, password: string, fullName?: string, username?: string) => {
     // Check for affiliate code in URL
     const urlParams = new URLSearchParams(window.location.search);
     const affiliateCode = urlParams.get('ref');
@@ -173,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             id: data.user.id,
             email: email,
             full_name: fullName,
+            username: username || null,
             role: 'customer',
             language: 'pt',
           approved: true,

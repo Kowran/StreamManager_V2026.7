@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { LogIn, User, Lock, Gift, Chrome } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { LogIn, User, Lock, Gift, Chrome, AtSign, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { LanguageSelector } from './LanguageSelector';
@@ -19,6 +19,8 @@ export function LoginForm({ onBack }: LoginFormProps = {}) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [usernameInput, setUsernameInput] = useState('');
+  const [usernameCheck, setUsernameCheck] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [rememberMe, setRememberMe] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -110,8 +112,18 @@ export function LoginForm({ onBack }: LoginFormProps = {}) {
                          t.language === 'en' ? 'Full name is required' : 
                          'Nombre completo es obligatorio');
         }
+        if (!usernameInput.trim()) {
+          throw new Error(t.language === 'pt' ? 'Nickname é obrigatório' :
+                         t.language === 'en' ? 'Nickname is required' :
+                         'El apodo es obligatorio');
+        }
+        if (usernameCheck !== 'available') {
+          throw new Error(t.language === 'pt' ? 'Escolha um nickname válido e disponível' :
+                         t.language === 'en' ? 'Choose a valid and available nickname' :
+                         'Elige un apodo válido y disponible');
+        }
         
-        await signUp(email, password, fullName.trim());
+        await signUp(email, password, fullName.trim(), usernameInput.trim().toLowerCase());
         
         // Show success message and switch to login
         alert(t.language === 'pt' ? 'Conta criada com sucesso! Faça login para continuar.' :
@@ -180,11 +192,32 @@ export function LoginForm({ onBack }: LoginFormProps = {}) {
     }
   };
 
+  const checkUsernameAvailability = useCallback(async (value: string) => {
+    const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
+    if (!USERNAME_REGEX.test(value)) { setUsernameCheck('invalid'); return; }
+    setUsernameCheck('checking');
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data } = await supabase.rpc('check_username_available', { p_username: value });
+      setUsernameCheck(data ? 'available' : 'taken');
+    } catch { setUsernameCheck('idle'); }
+  }, []);
+
+  useEffect(() => {
+    if (!isSignUp) return;
+    const trimmed = usernameInput.trim();
+    if (!trimmed) { setUsernameCheck('idle'); return; }
+    const t = setTimeout(() => checkUsernameAvailability(trimmed), 500);
+    return () => clearTimeout(t);
+  }, [usernameInput, isSignUp, checkUsernameAvailability]);
+
   const resetForm = () => {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
     setFullName('');
+    setUsernameInput('');
+    setUsernameCheck('idle');
     setRememberMe(false);
     setError('');
   };
@@ -247,6 +280,7 @@ export function LoginForm({ onBack }: LoginFormProps = {}) {
           
           <div className="rounded-md shadow-sm space-y-0">
             {isSignUp && (
+              <>
               <div>
                 <label htmlFor="fullName" className="sr-only">
                   {t.fullName}
@@ -268,6 +302,49 @@ export function LoginForm({ onBack }: LoginFormProps = {}) {
                   />
                 </div>
               </div>
+              {/* Username field */}
+              <div>
+                <label htmlFor="username" className="sr-only">Nickname</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <AtSign className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    required={isSignUp}
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value.replace(/\s/g, ''))}
+                    maxLength={30}
+                    className="appearance-none relative block w-full px-3 py-2.5 sm:py-3 pl-10 pr-10 border border-gray-300 dark:border-gray-600 border-t-0 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 text-sm transition-colors touch-manipulation font-mono"
+                    placeholder="nickname"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    {usernameCheck === 'checking' && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+                    {usernameCheck === 'available' && <CheckCircle className="h-4 w-4 text-emerald-500" />}
+                    {(usernameCheck === 'taken' || usernameCheck === 'invalid') && <XCircle className="h-4 w-4 text-red-500" />}
+                  </div>
+                </div>
+                {usernameCheck === 'taken' && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {t.language === 'pt' ? 'Este nickname já está em uso.' : t.language === 'en' ? 'This nickname is already taken.' : 'Este apodo ya está en uso.'}
+                  </p>
+                )}
+                {usernameCheck === 'invalid' && (
+                  <p className="mt-1 text-xs text-amber-500">
+                    {t.language === 'pt' ? '3–30 chars: letras, números e _' : t.language === 'en' ? '3–30 chars: letters, numbers and _' : '3–30 chars: letras, números y _'}
+                  </p>
+                )}
+                {usernameCheck === 'available' && (
+                  <p className="mt-1 text-xs text-emerald-500">
+                    {t.language === 'pt' ? 'Disponível!' : t.language === 'en' ? 'Available!' : '¡Disponible!'}
+                  </p>
+                )}
+              </div>
+            </>
             )}
             <div>
               <label htmlFor="email" className="sr-only">

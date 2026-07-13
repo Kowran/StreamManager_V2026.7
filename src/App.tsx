@@ -64,8 +64,9 @@ import { AnnouncementBar } from './components/AnnouncementBar';
 import { AdminAnnouncementManager } from './components/AdminAnnouncementManager';
 import { AdminBannerManager } from './components/AdminBannerManager';
 import { AdminCouponsManager } from './components/AdminCouponsManager';
+import { NicknameSetupModal } from './components/NicknameSetupModal';
+import { NicknameSetupModal } from './components/NicknameSetupModal';
 import { ChatInbox } from './components/ChatInbox';
-import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
 type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
 
@@ -84,6 +85,7 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
+  const [needsUsername, setNeedsUsername] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
   const [subdomain, setSubdomain] = useState<'main' | 'login' | 'home'>('main');
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
@@ -139,6 +141,12 @@ function AppContent() {
   }
 
   useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      setIsSeller(false);
+      setNeedsUsername(false);
+      return;
+    }
     checkAdminStatus();
 
     if (user) {
@@ -239,7 +247,7 @@ function AppContent() {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, username')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -247,6 +255,7 @@ function AppContent() {
         console.error('Error checking admin status:', error);
         setIsAdmin(false);
         setIsSeller(false);
+        setNeedsUsername(false);
         return;
       }
 
@@ -257,10 +266,12 @@ function AppContent() {
       console.log('Setting isAdmin:', isAdminUser, 'isSeller:', isSellerUser);
       setIsAdmin(isAdminUser);
       setIsSeller(isSellerUser);
+      setNeedsUsername(!profile?.username);
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
       setIsSeller(false);
+      setNeedsUsername(false);
     }
   }
 
@@ -745,6 +756,14 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
+      {/* Force nickname setup for users without a username */}
+      {user && needsUsername && (
+        <NicknameSetupModal
+          userId={user.id}
+          onComplete={(username) => setNeedsUsername(false)}
+        />
+      )}
+
       {/* Announcement Bar */}
       <AnnouncementBar />
 
