@@ -6,6 +6,7 @@ import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { OnlineBadge } from './OnlineBadge';
 import { PublicUserProfileModal } from './PublicUserProfileModal';
+import { PurchaseDetailPage } from './PurchaseDetailPage';
 
 interface OtherUser {
   id: string;
@@ -59,6 +60,8 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
   const [blockLoading, setBlockLoading] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [openPurchaseId, setOpenPurchaseId] = useState<string | null>(null);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -479,10 +482,26 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                       <div className={`max-w-[80%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
                         {isOrderCitation && orderCtx ? (
                           <button
-                            onClick={() => {
-                              window.dispatchEvent(new CustomEvent('open-order-detail', { detail: { orderId: orderCtx.orderId } }));
+                            onClick={async () => {
+                              if (!orderCtx?.orderId) return;
+                              setPurchaseLoading(true);
+                              try {
+                                const { data: purchase } = await supabase
+                                  .from('user_purchases')
+                                  .select('id')
+                                  .eq('order_id', orderCtx.orderId)
+                                  .maybeSingle();
+                                if (purchase) {
+                                  setOpenPurchaseId(purchase.id);
+                                }
+                              } catch (err) {
+                                console.error('Error finding purchase:', err);
+                              } finally {
+                                setPurchaseLoading(false);
+                              }
                             }}
-                            className="flex items-center gap-3 p-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-left max-w-full"
+                            disabled={purchaseLoading}
+                            className="flex items-center gap-3 p-3 rounded-2xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-left max-w-full disabled:opacity-50"
                           >
                             {orderCtx.productImage ? (
                               <img src={orderCtx.productImage} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
@@ -612,6 +631,26 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
           userId={otherUserId}
           onClose={() => setShowProfileModal(false)}
         />,
+        document.body
+      )}
+      {openPurchaseId && createPortal(
+        <div className="fixed inset-0 z-[70] bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full" onClick={() => setOpenPurchaseId(null)}>
+          <div className="relative top-2 sm:top-10 mx-auto p-3 sm:p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white dark:bg-gray-800 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-white dark:bg-gray-800 pb-2 z-10">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Detalhes da compra</h3>
+              <button
+                onClick={() => setOpenPurchaseId(null)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
+            </div>
+            <PurchaseDetailPage
+              purchaseId={openPurchaseId}
+              onBack={() => setOpenPurchaseId(null)}
+            />
+          </div>
+        </div>,
         document.body
       )}
     </div>
