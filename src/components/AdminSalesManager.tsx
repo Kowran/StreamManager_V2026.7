@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingBag, Search, Calendar, DollarSign, Package, User, Eye, Download, Filter, TrendingUp, CheckCircle, Clock, X, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, Zap, Check, Mail, Lock, FileText } from 'lucide-react';
+import { ShoppingBag, Search, Calendar, DollarSign, Package, User, Eye, Download, Filter, TrendingUp, CheckCircle, Clock, X, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, Zap, Check, Mail, Lock, FileText, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -678,6 +678,8 @@ export function AdminSalesManager() {
                         ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                         : sale.store_orders?.status === 'refunded'
                         ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        : sale.store_orders?.status === 'disputed'
+                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
                         : sale.store_orders?.status === 'paid'
                         ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
                         : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
@@ -691,6 +693,11 @@ export function AdminSalesManager() {
                         <>
                           <RefreshCw className="h-3 w-3 mr-1" />
                           Reembolsado
+                        </>
+                      ) : sale.store_orders?.status === 'disputed' ? (
+                        <>
+                          <ShieldAlert className="h-3 w-3 mr-1" />
+                          Disputa Aberta
                         </>
                       ) : sale.store_orders?.status === 'paid' ? (
                         <>
@@ -825,10 +832,13 @@ export function AdminSalesManager() {
                     ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                     : sale.store_orders?.status === 'refunded'
                     ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                    : sale.store_orders?.status === 'disputed'
+                    ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400'
                     : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                 }`}>
                   {sale.store_orders?.status === 'cancelled' ? 'Cancelado' :
                    sale.store_orders?.status === 'refunded' ? 'Reembolsado' :
+                   sale.store_orders?.status === 'disputed' ? 'Disputa Aberta' :
                    'Entregue'}
                 </span>
                 {sale.store_orders?.cancelled_at && (

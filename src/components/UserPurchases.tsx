@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, ExternalLink } from 'lucide-react';
+import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, ExternalLink, ShieldAlert } from 'lucide-react';
 import { PurchaseDetailPage } from './PurchaseDetailPage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -48,6 +48,10 @@ interface UserPurchase {
 
   function isCancelled(purchase: UserPurchase): boolean {
     return purchase.store_orders?.status === 'cancelled';
+  }
+
+  function isDisputed(purchase: UserPurchase): boolean {
+    return purchase.store_orders?.status === 'disputed';
   }
 
   function getDaysRemaining(purchaseDate: string): number {
@@ -398,6 +402,8 @@ export function UserPurchases() {
             <div key={purchase.id} className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border transition-colors p-3 sm:p-4 ${
               isCancelled(purchase)
                 ? 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10 opacity-75'
+                : isDisputed(purchase)
+                ? 'border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10'
                 : isExpired(purchase.purchase_date)
                 ? 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10'
                 : 'border-gray-200 dark:border-gray-700'
@@ -467,6 +473,14 @@ export function UserPurchases() {
                                 </span>
                               )}
                             </>
+                          );
+                        }
+                        if (isDisputed(purchase)) {
+                          return (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
+                              <ShieldAlert className="h-3 w-3 mr-1 text-orange-500" />
+                              {t.language === 'pt' ? 'Disputa Aberta' : t.language === 'en' ? 'Dispute Open' : 'Disputa Abierta'}
+                            </span>
                           );
                         }
                         

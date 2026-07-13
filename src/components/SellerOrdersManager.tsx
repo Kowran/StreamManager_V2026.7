@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Calendar, Package, Download, Eye, Truck, CheckCircle,
-  Clock, X, MessageCircle, User, DollarSign, ShoppingCart
+  Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert, AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -122,6 +122,10 @@ export function SellerOrdersManager() {
   }
 
   async function updateOrderStatus(orderId: string, newStatus: string) {
+    if (newStatus === 'cancelled') {
+      await handleSellerCancel(orderId);
+      return;
+    }
     setActionLoading(true);
     try {
       const { error } = await supabase
@@ -137,6 +141,52 @@ export function SellerOrdersManager() {
     } catch (error) {
       console.error('Error updating order:', error);
       alert(lbl('Erro ao atualizar pedido', 'Error updating order', 'Error al actualizar pedido'));
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleSellerCancel(orderId: string) {
+    const reason = prompt(lbl(
+      'Digite o motivo do cancelamento:',
+      'Enter the cancellation reason:',
+      'Ingrese el motivo de cancelación:'
+    ));
+    if (!reason || !reason.trim()) return;
+
+    const returnToStock = confirm(lbl(
+      'Devolver o item ao estoque?',
+      'Return item to stock?',
+      '¿Devolver el item al inventario?'
+    ));
+
+    setActionLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('process_seller_cancellation', {
+        p_order_id: orderId,
+        p_cancellation_reason: reason.trim(),
+        p_return_to_stock: returnToStock,
+      });
+      if (error) throw error;
+      if (data && data.success === false) {
+        throw new Error(data.error || 'Unknown error');
+      }
+      await loadOrders();
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: 'cancelled' } : null);
+      }
+      alert(lbl(
+        'Pedido cancelado e cliente reembolsado com sucesso.',
+        'Order cancelled and customer refunded successfully.',
+        'Pedido cancelado y cliente reembolsado con éxito.'
+      ));
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      alert(lbl(
+        'Erro ao cancelar pedido: ' + (error instanceof Error ? error.message : ''),
+        'Error cancelling order: ' + (error instanceof Error ? error.message : ''),
+        'Error al cancelar pedido: ' + (error instanceof Error ? error.message : '')
+      ));
     } finally {
       setActionLoading(false);
     }
@@ -171,6 +221,7 @@ export function SellerOrdersManager() {
       completed: { color: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400', label: lbl('Concluído', 'Completed', 'Completado') },
       cancelled: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', label: lbl('Cancelado', 'Cancelled', 'Cancelado') },
       refunded: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', label: lbl('Reembolsado', 'Refunded', 'Reembolsado') },
+      disputed: { color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400', label: lbl('Disputa Aberta', 'Disputed', 'Disputa Abierta') },
     };
     const c = config[status] || config.pending;
     return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${c.color}`}>{c.label}</span>;
@@ -207,6 +258,7 @@ export function SellerOrdersManager() {
             <option value="delivered">{lbl('Entregue', 'Delivered', 'Entregado')}</option>
             <option value="completed">{lbl('Concluído', 'Completed', 'Completado')}</option>
             <option value="cancelled">{lbl('Cancelado', 'Cancelled', 'Cancelado')}</option>
+            <option value="disputed">{lbl('Disputa', 'Disputed', 'Disputa')}</option>
           </select>
           <div className="flex gap-2">
             <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}

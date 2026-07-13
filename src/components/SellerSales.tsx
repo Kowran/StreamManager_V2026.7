@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download } from 'lucide-react';
+import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -25,6 +25,7 @@ interface SalesStats {
   pendingSales: number;
   completedSales: number;
   cancelledSales: number;
+  disputedSales: number;
 }
 
 export function SellerSales() {
@@ -38,7 +39,8 @@ export function SellerSales() {
     totalRevenue: 0,
     pendingSales: 0,
     completedSales: 0,
-    cancelledSales: 0
+    cancelledSales: 0,
+    disputedSales: 0
   });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -132,9 +134,10 @@ export function SellerSales() {
       totalRevenue: salesData
         .filter(s => s.status === 'completed')
         .reduce((sum, sale) => sum + sale.total_usdt, 0),
-      pendingSales: salesData.filter(s => ['pending', 'processing', 'paid', 'delivered'].includes(s.status)).length,
+      pendingSales: salesData.filter(s => ['pending', 'processing', 'paid', 'delivered', 'disputed'].includes(s.status)).length,
       completedSales: salesData.filter(s => s.status === 'completed').length,
-      cancelledSales: salesData.filter(s => s.status === 'cancelled' || s.status === 'refunded').length
+      cancelledSales: salesData.filter(s => s.status === 'cancelled' || s.status === 'refunded').length,
+      disputedSales: salesData.filter(s => s.status === 'disputed').length
     };
 
     setStats(stats);
@@ -189,7 +192,8 @@ export function SellerSales() {
       delivered: { color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400', label: 'Entregue' },
       completed: { color: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400', label: 'Concluído' },
       cancelled: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', label: 'Cancelado' },
-      refunded: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', label: 'Reembolsado' }
+      refunded: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', label: 'Reembolsado' },
+      disputed: { color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400', label: 'Disputa Aberta' }
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
@@ -320,6 +324,15 @@ export function SellerSales() {
             <Eye className="h-8 w-8 text-red-500" />
           </div>
         </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Disputas</p>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">{stats.disputedSales}</p>
+            </div>
+            <ShieldAlert className="h-8 w-8 text-orange-500" />
+          </div>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
@@ -350,6 +363,7 @@ export function SellerSales() {
             <option value="completed">Concluído</option>
             <option value="cancelled">Cancelado</option>
             <option value="refunded">Reembolsado</option>
+            <option value="disputed">Disputa Aberta</option>
           </select>
 
           <select
