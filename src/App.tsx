@@ -65,8 +65,8 @@ import { AdminAnnouncementManager } from './components/AdminAnnouncementManager'
 import { AdminBannerManager } from './components/AdminBannerManager';
 import { AdminCouponsManager } from './components/AdminCouponsManager';
 import { NicknameSetupModal } from './components/NicknameSetupModal';
-import { NicknameSetupModal } from './components/NicknameSetupModal';
 import { ChatInbox } from './components/ChatInbox';
+import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
 type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
 

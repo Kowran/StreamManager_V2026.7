@@ -6,6 +6,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { ArrowLeft } from 'lucide-react';
 import { PasswordRecoveryForm } from './PasswordRecoveryForm';
 import { PasswordResetForm } from './PasswordResetForm';
+import { supabase } from '../lib/supabase';
 
 interface LoginFormProps {
   onBack?: () => void;
@@ -197,7 +198,6 @@ export function LoginForm({ onBack }: LoginFormProps = {}) {
     if (!USERNAME_REGEX.test(value)) { setUsernameCheck('invalid'); return; }
     setUsernameCheck('checking');
     try {
-      const { supabase } = await import('../lib/supabase');
       const { data } = await supabase.rpc('check_username_available', { p_username: value });
       setUsernameCheck(data ? 'available' : 'taken');
     } catch { setUsernameCheck('idle'); }
