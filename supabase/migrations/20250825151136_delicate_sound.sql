@@ -42,7 +42,9 @@ BEGIN
     jsonb_build_object(
       'email', NEW.delivery_content->>'email',
       'password', NEW.delivery_content->>'password',
-      'instructions', NEW.delivery_content->>'instructions'
+      'instructions', NEW.delivery_content->>'instructions',
+      'accounts', NEW.delivery_content->'accounts',
+      'quantity', NEW.delivery_content->'quantity'
     ),
     NOW()
   );
