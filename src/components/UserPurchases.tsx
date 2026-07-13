@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, ExternalLink, ShieldAlert } from 'lucide-react';
+import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, ExternalLink, ShieldAlert } from 'lucide-react';
 import { PurchaseDetailPage } from './PurchaseDetailPage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -228,14 +228,14 @@ export function UserPurchases() {
     }
   }
 
-  async function markAccountAsRead(purchaseId: string, accountIndex: number) {
+  async function markAccountAsRead(purchaseId: string, accountIndex: number, readAccounts?: number[]) {
     setExpandedAccounts(prev => ({
       ...prev,
       [purchaseId]: [...new Set([...(prev[purchaseId] || []), accountIndex])]
     }));
 
     try {
-      const currentRead = selectedPurchase?.read_accounts || [];
+      const currentRead = readAccounts || [];
       if (currentRead.includes(accountIndex)) return;
 
       const newReadAccounts = [...currentRead, accountIndex];
@@ -247,27 +247,30 @@ export function UserPurchases() {
       if (error) {
         console.error('Error marking account as read:', error);
       } else {
-        setSelectedPurchase(prev => prev ? { ...prev, read_accounts: newReadAccounts } : prev);
+        setPurchases(prev => prev.map(p =>
+          p.id === purchaseId ? { ...p, read_accounts: newReadAccounts } : p
+        ));
+        setSelectedPurchase(prev => prev && prev.id === purchaseId ? { ...prev, read_accounts: newReadAccounts } : prev);
       }
     } catch (err) {
       console.error('Error in markAccountAsRead:', err);
     }
   }
 
-  function toggleAccount(purchaseId: string, accountIndex: number) {
+  function toggleAccount(purchaseId: string, accountIndex: number, readAccounts?: number[]) {
     setExpandedAccounts(prev => {
       const current = prev[purchaseId] || [];
       if (current.includes(accountIndex)) {
         return { ...prev, [purchaseId]: current.filter(i => i !== accountIndex) };
       } else {
-        markAccountAsRead(purchaseId, accountIndex);
+        markAccountAsRead(purchaseId, accountIndex, readAccounts);
         return { ...prev, [purchaseId]: [...current, accountIndex] };
       }
     });
   }
 
-  function isAccountRead(purchaseId: string, accountIndex: number): boolean {
-    const readFromDb = selectedPurchase?.read_accounts || [];
+  function isAccountRead(purchaseId: string, accountIndex: number, readAccounts?: number[]): boolean {
+    const readFromDb = readAccounts || [];
     const readFromState = expandedAccounts[purchaseId] || [];
     return readFromDb.includes(accountIndex) || readFromState.includes(accountIndex);
   }
@@ -590,6 +593,123 @@ export function UserPurchases() {
                               }`} />
                             )}
                           </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Multi-Account Bubbles */}
+              {(() => {
+                const accounts = purchase.credentials?.accounts;
+                if (!Array.isArray(accounts) || accounts.length <= 1) return null;
+                const readArr = purchase.read_accounts || [];
+                const expandedSet = expandedAccounts[purchase.id] || [];
+                const allRead = accounts.every((_: any, i: number) => readArr.includes(i) || expandedSet.includes(i));
+                const lang = t.language;
+                return (
+                  <div className="mt-3 mb-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedAccounts(prev => {
+                          const current = prev[purchase.id] || [];
+                          if (current.length === accounts.length) {
+                            const next = { ...prev };
+                            delete next[purchase.id];
+                            return next;
+                          }
+                          return { ...prev, [purchase.id]: accounts.map((_: any, i: number) => i) };
+                        });
+                      }}
+                      className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${allRead ? 'rotate-0' : 'rotate-0'}`} />
+                      {lang === 'pt' ? `${accounts.length} Contas` : lang === 'en' ? `${accounts.length} Accounts` : `${accounts.length} Cuentas`}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        allRead
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                      }`}>
+                        {allRead
+                          ? (lang === 'pt' ? 'Todas lidas' : lang === 'en' ? 'All read' : 'Todas leídas')
+                          : `${accounts.filter((_: any, i: number) => !readArr.includes(i) && !expandedSet.includes(i)).length} ${lang === 'pt' ? 'novas' : lang === 'en' ? 'new' : 'nuevas'}`}
+                      </span>
+                    </button>
+                    <div className="mt-2 space-y-2">
+                      {accounts.map((acct: any, idx: number) => {
+                        const expanded = expandedSet.includes(idx) || readArr.includes(idx);
+                        const wasRead = readArr.includes(idx) || expandedSet.includes(idx);
+                        return (
+                          <div key={idx} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleAccount(purchase.id, idx, purchase.read_accounts);
+                              }}
+                              className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors bg-white dark:bg-gray-800"
+                            >
+                              <div className="flex items-center gap-2">
+                                <ChevronRight className={`h-4 w-4 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  {lang === 'pt' ? 'Conta' : lang === 'en' ? 'Account' : 'Cuenta'} #{idx + 1}
+                                </span>
+                              </div>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                wasRead
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                              }`}>
+                                {wasRead
+                                  ? (lang === 'pt' ? 'Lida' : lang === 'en' ? 'Read' : 'Leída')
+                                  : (lang === 'pt' ? 'Nova' : lang === 'en' ? 'New' : 'Nueva')}
+                              </span>
+                            </button>
+                            {expanded && (
+                              <div className="px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30">
+                                {acct.email && (
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="min-0 flex-1">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{lang === 'pt' ? 'Email' : lang === 'en' ? 'Email' : 'Email'}</p>
+                                      <p className="font-mono text-sm text-gray-900 dark:text-white break-all">{acct.email}</p>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(acct.email); }} className="flex-shrink-0 p-1.5 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                                      {copiedText === acct.email ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                )}
+                                {acct.password && (
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="min-0 flex-1">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{lang === 'pt' ? 'Senha' : lang === 'en' ? 'Password' : 'Contraseña'}</p>
+                                      <p className="font-mono text-sm text-gray-900 dark:text-white break-all">{acct.password}</p>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(acct.password); }} className="flex-shrink-0 p-1.5 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                                      {copiedText === acct.password ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                )}
+                                {acct.pin && (
+                                  <div className="flex items-center justify-between gap-2 mb-2">
+                                    <div className="min-0 flex-1">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">PIN</p>
+                                      <p className="font-mono text-sm text-gray-900 dark:text-white break-all">{acct.pin}</p>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); copyToClipboard(acct.pin); }} className="flex-shrink-0 p-1.5 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                                      {copiedText === acct.pin ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                    </button>
+                                  </div>
+                                )}
+                                {acct.instructions && (
+                                  <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{lang === 'pt' ? 'Instruções:' : lang === 'en' ? 'Instructions:' : 'Instrucciones:'}</p>
+                                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{acct.instructions}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
@@ -981,11 +1101,11 @@ export function UserPurchases() {
                     <div className="space-y-2">
                       {accounts.map((acct: any, idx: number) => {
                         const expanded = (expandedAccounts[selectedPurchase.id] || []).includes(idx) || (selectedPurchase.read_accounts || []).includes(idx);
-                        const wasRead = isAccountRead(selectedPurchase.id, idx);
+                        const wasRead = isAccountRead(selectedPurchase.id, idx, selectedPurchase.read_accounts);
                         return (
                           <div key={idx} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
                             <button
-                              onClick={() => toggleAccount(selectedPurchase.id, idx)}
+                              onClick={() => toggleAccount(selectedPurchase.id, idx, selectedPurchase.read_accounts)}
                               className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                             >
                               <div className="flex items-center gap-2">
