@@ -9,6 +9,7 @@ export const ADMIN_PAGES = [
   { id: 'admin-payments', labelPt: 'Confirmar Pagamentos', labelEn: 'Confirm Payments', labelEs: 'Confirmar Pagos', section: 'financial' },
   { id: 'admin-credits', labelPt: 'Gerenciar Créditos', labelEn: 'Manage Credits', labelEs: 'Gestionar Créditos', section: 'financial' },
   { id: 'admin-sales', labelPt: 'Gerenciar Vendas', labelEn: 'Manage Sales', labelEs: 'Gestionar Ventas', section: 'financial' },
+  { id: 'admin-withdrawals', labelPt: 'Gestão de Saques', labelEn: 'Withdrawal Management', labelEs: 'Gestión de Retiros', section: 'financial' },
   { id: 'admin-products', labelPt: 'Gerenciar Produtos', labelEn: 'Manage Products', labelEs: 'Gestionar Productos', section: 'products' },
   { id: 'admin-smm-providers', labelPt: 'Provedores SMM', labelEn: 'SMM Providers', labelEs: 'Proveedores SMM', section: 'products' },
   { id: 'admin-smm', labelPt: 'Configurar Serviços SMM', labelEn: 'Configure SMM Services', labelEs: 'Configurar Servicios SMM', section: 'products' },

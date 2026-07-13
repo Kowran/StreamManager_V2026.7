@@ -20,7 +20,8 @@ import {
   Megaphone,
   Image,
   Tag,
-  Eye
+  Eye,
+  Wallet
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -97,6 +98,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         { id: 'admin-payments', name: language === 'pt' ? 'Confirmar Pagamentos' : language === 'en' ? 'Confirm Payments' : 'Confirmar Pagos', icon: DollarSign, color: 'from-green-500 to-green-600', description: language === 'pt' ? 'Confirme pagamentos pendentes' : language === 'en' ? 'Confirm pending payments' : 'Confirmar pagos pendientes' },
         { id: 'admin-credits', name: language === 'pt' ? 'Gerenciar Créditos' : language === 'en' ? 'Manage Credits' : 'Gestionar Créditos', icon: CreditCard, color: 'from-emerald-500 to-emerald-600', description: language === 'pt' ? 'Adicione ou remova créditos' : language === 'en' ? 'Add or remove credits' : 'Agregar o quitar créditos' },
         { id: 'admin-sales', name: language === 'pt' ? 'Gerenciar Vendas' : language === 'en' ? 'Manage Sales' : 'Gestionar Ventas', icon: ShoppingBag, color: 'from-orange-500 to-orange-600', description: language === 'pt' ? 'Visualize e gerencie vendas' : language === 'en' ? 'View and manage sales' : 'Ver y gestionar ventas' },
+        { id: 'admin-withdrawals', name: language === 'pt' ? 'Gestão de Saques' : language === 'en' ? 'Withdrawal Management' : 'Gestión de Retiros', icon: Wallet, color: 'from-cyan-500 to-blue-600', description: language === 'pt' ? 'Aprove e processe saques de vendedores' : language === 'en' ? 'Approve and process seller withdrawals' : 'Aprobar y procesar retiros de vendedores' },
         { id: 'admin-coupons', name: language === 'pt' ? 'Cupons de Desconto' : language === 'en' ? 'Discount Coupons' : 'Cupones de Descuento', icon: Tag, color: 'from-rose-500 to-rose-600', description: language === 'pt' ? 'Crie cupons de desconto para clientes' : language === 'en' ? 'Create discount coupons for customers' : 'Cree cupones de descuento para clientes' }
       ]
     },
