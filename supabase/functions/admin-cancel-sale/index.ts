@@ -24,15 +24,14 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-    // Client for verifying user JWT (uses anon key)
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey);
     // Admin client for database operations (uses service role key)
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Verify admin authentication
+    // Since verifyJWT is true, the gateway already validated the JWT.
+    // We use the service role client to get the user (same pattern as all other edge functions).
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -45,9 +44,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser(token);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
+      console.error('Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
         {
