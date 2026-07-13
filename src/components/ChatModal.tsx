@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Loader2, User, Circle, ImagePlus } from 'lucide-react';
+import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -287,6 +287,18 @@ export function ChatModal({ otherUserId, onClose }: ChatModalProps) {
           >
             <X className="h-5 w-5" />
           </button>
+        </div>
+
+        {/* No outside contact warning */}
+        <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-start gap-2 shrink-0">
+          <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
+            {language === 'pt'
+              ? 'Proibido compartilhar contatos externos (WhatsApp, email, redes sociais). Toda comunicação deve ser pelo chat do site.'
+              : language === 'en'
+              ? 'Sharing external contacts (WhatsApp, email, social media) is prohibited. All communication must stay on the site chat.'
+              : 'Prohibido compartir contactos externos (WhatsApp, email, redes sociales). Toda comunicación debe ser por el chat del sitio.'}
+          </p>
         </div>
 
         {/* Messages */}

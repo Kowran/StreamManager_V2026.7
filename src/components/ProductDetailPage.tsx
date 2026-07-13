@@ -220,7 +220,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
     });
   }
 
-  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, _quantity?: number, customerContact?: string) {
+  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean) {
     if (!user || !userCredit || !product) return;
     setPurchasing(true);
     try {
@@ -238,7 +238,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           quantity: quantity,
           coupon_code: couponCode || null,
           use_cashback: useCashback || false,
-          customer_contact: customerContact,
         }),
       });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download, ShieldAlert, X, Phone, MessageCircle, CreditCard, ExternalLink, Clock, CheckCircle, Truck } from 'lucide-react';
+import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download, ShieldAlert, X, CreditCard, Clock, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -13,11 +13,9 @@ interface SellerSale {
   total_brl: number;
   total_usdt: number;
   status: string;
-  customer_email: string;
   customer_name: string;
   created_at: string;
   updated_at: string;
-  customer_contact?: string;
   delivered_at?: string;
   delivered_accounts?: { email: string; password: string; instructions?: string }[];
   test_days_left?: number;
@@ -91,7 +89,7 @@ export function SellerSales() {
     setLoading(true);
     try {
       const { data: ordersData, error } = await supabase
-        .from('store_orders')
+        .from('seller_orders_view')
         .select(`
           id,
           product_id,
@@ -99,9 +97,7 @@ export function SellerSales() {
           total_brl,
           total_usdt,
           status,
-          customer_email,
           customer_name,
-          customer_contact,
           delivered_at,
           created_at,
           updated_at,
@@ -143,9 +139,7 @@ export function SellerSales() {
           total_brl: order.total_brl,
           total_usdt: order.total_usdt,
           status: order.status,
-          customer_email: order.customer_email,
           customer_name: order.customer_name,
-          customer_contact: order.customer_contact || '',
           delivered_at: order.delivered_at,
           test_days_left: daysLeft,
           delivered_accounts: accounts,
@@ -186,7 +180,6 @@ export function SellerSales() {
       filtered = filtered.filter(
         sale =>
           sale.product_name.toLowerCase().includes(term) ||
-          sale.customer_email.toLowerCase().includes(term) ||
           sale.customer_name.toLowerCase().includes(term) ||
           sale.id.toLowerCase().includes(term)
       );
@@ -252,13 +245,12 @@ export function SellerSales() {
   }
 
   function exportToCSV() {
-    const headers = ['ID', 'Data', 'Produto', 'Cliente', 'Email', 'Quantidade', 'Valor (USD)', 'Status'];
+    const headers = ['ID', 'Data', 'Produto', 'Cliente', 'Quantidade', 'Valor (USD)', 'Status'];
     const rows = filteredSales.map(sale => [
       sale.id,
       formatDate(sale.created_at),
       sale.product_name,
       sale.customer_name,
-      sale.customer_email,
       sale.quantity.toString(),
       sale.total_usdt.toFixed(2),
       sale.status
@@ -428,9 +420,6 @@ export function SellerSales() {
                 <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Cliente
                 </th>
-                <th className="hidden lg:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Email
-                </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Qtd
                 </th>
@@ -463,9 +452,6 @@ export function SellerSales() {
                   </td>
                   <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {sale.customer_name}
-                  </td>
-                  <td className="hidden lg:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                    {sale.customer_email}
                   </td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {sale.quantity}
@@ -525,7 +511,7 @@ export function SellerSales() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Cliente', 'Customer', 'Cliente')}</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">{selectedSale.customer_name || selectedSale.customer_email}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{selectedSale.customer_name}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Data', 'Date', 'Fecha')}</span>
@@ -570,28 +556,6 @@ export function SellerSales() {
                   <span className="text-xs text-green-700 dark:text-green-400">
                     {lbl('Recebimento confirmado em', 'Delivery confirmed on', 'Recepción confirmada el')} {formatDate(selectedSale.delivered_at)}
                   </span>
-                </div>
-              )}
-
-              {/* Customer Contact */}
-              {selectedSale.customer_contact && (
-                <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                  <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    {lbl('Contato do Cliente', 'Customer Contact', 'Contacto del Cliente')}
-                  </span>
-                  <a
-                    href={`https://wa.me/${selectedSale.customer_contact.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <span className="text-sm font-medium text-green-800 dark:text-green-300">{selectedSale.customer_contact}</span>
-                    </div>
-                    <ExternalLink className="h-4 w-4 text-green-500" />
-                  </a>
                 </div>
               )}
 

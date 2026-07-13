@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Calendar, Package, Download, Eye, Truck, CheckCircle,
   Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert, AlertTriangle,
-  Phone, CreditCard, ExternalLink
+  CreditCard, ExternalLink
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -17,12 +17,10 @@ interface SellerOrder {
   total_usdt: number;
   total_brl: number;
   status: string;
-  customer_email: string;
   customer_name: string;
   created_at: string;
   updated_at: string;
   delivered_accounts?: { email: string; password: string; instructions?: string }[];
-  customer_contact?: string;
   delivered_at?: string;
   test_days_left?: number;
 }
@@ -66,10 +64,10 @@ export function SellerOrdersManager() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('store_orders')
+        .from('seller_orders_view')
         .select(`
           id, product_id, quantity, total_usdt, total_brl, status,
-          customer_email, customer_name, customer_contact, delivered_at, created_at, updated_at,
+          customer_name, delivered_at, created_at, updated_at,
           store_products (name),
           store_deliveries (delivery_content, delivery_method, delivery_status, delivered_at)
         `)
@@ -101,9 +99,7 @@ export function SellerOrdersManager() {
           total_usdt: o.total_usdt || 0,
           total_brl: o.total_brl || 0,
           status: o.status,
-          customer_email: o.customer_email || '',
           customer_name: o.customer_name || '',
-          customer_contact: o.customer_contact || '',
           delivered_at: o.delivered_at,
           test_days_left: daysLeft,
           delivered_accounts: accounts,
@@ -125,7 +121,6 @@ export function SellerOrdersManager() {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(o =>
         o.product_name.toLowerCase().includes(term) ||
-        o.customer_email.toLowerCase().includes(term) ||
         o.customer_name.toLowerCase().includes(term) ||
         o.id.toLowerCase().includes(term)
       );
@@ -221,7 +216,7 @@ export function SellerOrdersManager() {
     const headers = ['ID', 'Data', 'Produto', 'Cliente', 'Email', 'Qtd', 'Valor (USD)', 'Status'];
     const rows = filteredOrders.map(o => [
       o.id, formatDate(o.created_at), o.product_name, o.customer_name,
-      o.customer_email, o.quantity.toString(), o.total_usdt.toFixed(2), o.status,
+      o.quantity.toString(), o.total_usdt.toFixed(2), o.status,
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -334,7 +329,6 @@ export function SellerOrdersManager() {
                   </td>
                   <td className="hidden md:table-cell px-3 py-3 text-sm text-gray-900 dark:text-white">
                     <div>{order.customer_name}</div>
-                    <div className="text-xs text-gray-500">{order.customer_email}</div>
                   </td>
                   <td className="px-3 py-3 text-sm text-gray-900 dark:text-white">{order.quantity}</td>
                   <td className="px-3 py-3 text-sm font-semibold text-green-600 dark:text-green-400">{formatPrice(order.total_usdt)}</td>
@@ -391,7 +385,6 @@ export function SellerOrdersManager() {
             <div className="px-5 py-4 space-y-3">
               <DetailRow icon={Package} label={lbl('Produto', 'Product', 'Producto')} value={selectedOrder.product_name} />
               <DetailRow icon={User} label={lbl('Cliente', 'Customer', 'Cliente')} value={selectedOrder.customer_name} />
-              <DetailRow icon={Clock} label={lbl('Email', 'Email', 'Email')} value={selectedOrder.customer_email} />
               <DetailRow icon={Calendar} label={lbl('Data', 'Date', 'Fecha')} value={formatDate(selectedOrder.created_at)} />
               <DetailRow icon={DollarSign} label={lbl('Valor', 'Amount', 'Valor')} value={formatPrice(selectedOrder.total_usdt)} />
               <div className="flex items-center justify-between py-2">
@@ -419,28 +412,6 @@ export function SellerOrdersManager() {
                       ? lbl(`${selectedOrder.test_days_left}d restante${(selectedOrder.test_days_left || 0) > 1 ? 's' : ''}`, `${selectedOrder.test_days_left}d left`, `${selectedOrder.test_days_left}d restante${(selectedOrder.test_days_left || 0) > 1 ? 's' : ''}`)
                       : lbl('Encerrado', 'Ended', 'Terminado')}
                   </span>
-                </div>
-              )}
-
-              {/* Customer Contact */}
-              {selectedOrder.customer_contact && (
-                <div className="py-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                  <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <Phone className="h-4 w-4 text-gray-400" />
-                    {lbl('Contato do Cliente', 'Customer Contact', 'Contacto del Cliente')}
-                  </span>
-                  <a
-                    href={`https://wa.me/${selectedOrder.customer_contact.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <span className="text-sm font-medium text-green-800 dark:text-green-300">{selectedOrder.customer_contact}</span>
-                    </div>
-                    <ExternalLink className="h-4 w-4 text-green-500" />
-                  </a>
                 </div>
               )}
 

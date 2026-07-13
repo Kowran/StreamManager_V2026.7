@@ -15,7 +15,6 @@ interface SupportTicket {
   seller_id: string;
   customer_id: string;
   customer_name: string;
-  customer_email: string;
   product_id: string;
   order_id: string | null;
   subject: string;
@@ -128,7 +127,7 @@ export function SellerSupport() {
       filtered = filtered.filter(t =>
         t.ticket_number?.toLowerCase().includes(term) ||
         t.customer_name?.toLowerCase().includes(term) ||
-        t.customer_email?.toLowerCase().includes(term) ||
+        t.customer_name?.toLowerCase().includes(term) ||
         t.subject?.toLowerCase().includes(term)
       );
     }
@@ -159,7 +158,7 @@ export function SellerSupport() {
     if (!orderId) { setOrderInfo(null); return; }
     try {
       const { data, error } = await supabase
-        .from('store_orders')
+        .from('seller_orders_view')
         .select(`id, total_usdt, customer_id, status, created_at, quantity, store_products(name)`)
         .eq('id', orderId)
         .maybeSingle();
@@ -316,7 +315,7 @@ export function SellerSupport() {
       // Update order status back to completed on resolution
       if (selectedTicket.order_id) {
         await supabase
-          .from('store_orders')
+          .from('seller_orders_view')
           .update({ status: 'completed' })
           .eq('id', selectedTicket.order_id)
           .eq('status', 'disputed');
@@ -408,7 +407,7 @@ export function SellerSupport() {
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{selectedTicket.subject}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {selectedTicket.customer_name} · {selectedTicket.customer_email} · {formatDate(selectedTicket.created_at)}
+                  {selectedTicket.customer_name} · {formatDate(selectedTicket.created_at)}
                 </p>
               </div>
               {selectedTicket.status !== 'resolved' && selectedTicket.status !== 'closed' && (
@@ -510,6 +509,17 @@ export function SellerSupport() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-gray-50 dark:bg-gray-900/50">
+            {/* No outside contact warning */}
+            <div className="flex items-start gap-2 px-3 py-2 mb-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
+                {lbl(
+                  'Proibido compartilhar contatos externos (WhatsApp, email, redes sociais). Toda comunicação deve ser pelo chat do site.',
+                  'Sharing external contacts (WhatsApp, email, social media) is prohibited. All communication must stay on the site chat.',
+                  'Prohibido compartir contactos externos (WhatsApp, email, redes sociales). Toda comunicación debe ser por el chat del sitio.'
+                )}
+              </p>
+            </div>
             {/* Initial message */}
             <div className="flex justify-start">
               <div className="max-w-[85%] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 shadow-sm">

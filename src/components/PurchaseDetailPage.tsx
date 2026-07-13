@@ -46,7 +46,6 @@ interface FullPurchase {
     coupon_id?: string;
     customer_email?: string;
     customer_name?: string;
-    customer_contact?: string;
     total_usdt?: number;
     seller_id?: string;
     dispute_opened_at?: string;
@@ -60,7 +59,6 @@ interface SellerProfile {
   avatar_url?: string;
   seller_slug?: string;
   theme_color?: string;
-  phone_number?: string;
 }
 
 function calculateExpiryDate(purchaseDate: string): Date {
@@ -109,7 +107,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
           store_orders!user_purchases_order_id_fkey (
             id, status, created_at, updated_at,
             cancelled_at, cancellation_reason, discount_amount, cashback_used,
-            coupon_id, customer_email, customer_name, customer_contact, total_usdt, seller_id, dispute_opened_at, delivered_at
+            coupon_id, customer_email, customer_name, total_usdt, seller_id, dispute_opened_at, delivered_at
           )
         `)
         .eq('id', purchaseId)
@@ -125,7 +123,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
       if (sellerId) {
         const { data: sellerData } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, seller_slug, theme_color, phone_number')
+          .select('id, full_name, avatar_url, seller_slug, theme_color')
           .eq('id', sellerId)
           .maybeSingle();
         if (sellerData) setSeller(sellerData);
@@ -461,48 +459,23 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
         </div>
       )}
 
-      {/* Seller Contact */}
-      {seller && (seller.phone_number || order?.customer_contact) && !isCancelled && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-            <Phone className="h-4 w-4 text-gray-500" />
-            {lbl('Contato do Vendedor', 'Seller Contact', 'Contacto del Vendedor')}
-          </h2>
-          <div className="space-y-2">
-            {seller.phone_number && (
-              <a
-                href={`https://wa.me/${seller.phone_number.replace(/\\D/g, '')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between px-4 py-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <MessageCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  <div>
-                    <p className="text-sm font-medium text-green-800 dark:text-green-300">{seller.phone_number}</p>
-                    <p className="text-xs text-green-600 dark:text-green-400">{lbl('WhatsApp do Vendedor', 'Seller WhatsApp', 'WhatsApp del Vendedor')}</p>
-                  </div>
-                </div>
-                <ExternalLink className="h-4 w-4 text-green-500" />
-              </a>
-            )}
-            {order?.customer_contact && !seller.phone_number && (
-              <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{order.customer_contact}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{lbl('Seu Contato', 'Your Contact', 'Tu Contacto')}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => copyToClipboard(order.customer_contact!)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                >
-                  {copiedText === order.customer_contact ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </button>
-              </div>
-            )}
+      {/* In-site Communication Notice */}
+      {seller && !isCancelled && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-4">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                {lbl('Comunicação apenas pela plataforma', 'Platform-only communication', 'Comunicación solo por la plataforma')}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                {lbl(
+                  'Todo contato com o vendedor deve ser feito exclusivamente pelo chat do site. Não compartilhe nem aceite contatos externos (WhatsApp, email, redes sociais). Compartilhar dados de contato fora da plataforma é proibido e pode resultar em banimento.',
+                  'All contact with the seller must be done exclusively through the site chat. Do not share or accept external contacts (WhatsApp, email, social media). Sharing contact information outside the platform is prohibited and may result in a ban.',
+                  'Todo contacto con el vendedor debe hacerse exclusivamente por el chat del sitio. No compartas ni aceptes contactos externos (WhatsApp, email, redes sociales). Compartir datos de contacto fuera de la plataforma está prohibido y puede resultar en expulsión.'
+                )}
+              </p>
+            </div>
           </div>
         </div>
       )}
