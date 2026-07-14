@@ -238,13 +238,14 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
         p_payment_method: {} as any,
       });
       if (error) throw error;
-      if (data && data.success === false) throw new Error(data.error);
+      if (data && data.success === false) throw new Error(data.error || 'Unknown error');
       alert(lbl('Pedido de saque criado! Aguardando aprovação do administrador.', 'Withdrawal request created! Awaiting admin approval.', '¡Solicitud de retiro creada! Esperando aprobación del administrador.'));
       setShowWithdrawModal(false);
       setWithdrawAmount('');
       loadDashboardData();
     } catch (error) {
-      alert(lbl('Erro: ', 'Error: ', 'Error: ') + (error instanceof Error ? error.message : ''));
+      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+      alert(lbl('Erro: ', 'Error: ', 'Error: ') + msg);
     } finally {
       setWithdrawLoading(false);
     }
