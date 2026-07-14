@@ -676,55 +676,109 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       )}
 
-      {/* Search Bar */}
+      {/* Search Bar + Secondary Filter Dropdown */}
       <div className="mb-3 sm:mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            placeholder={
-              t.language === 'pt' ? 'Buscar produtos...' :
-              t.language === 'en' ? 'Search products...' :
-              'Buscar productos...'
-            }
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all text-sm"
-          />
-          {searchTerm && (
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder={
+                t.language === 'pt' ? 'Buscar produtos...' :
+                t.language === 'en' ? 'Search products...' :
+                'Buscar productos...'
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Secondary Filter Dropdown */}
+          <div className="relative flex-shrink-0">
             <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => setShowSecondaryFilters(!showSecondaryFilters)}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl border shadow-sm transition-all text-sm font-semibold whitespace-nowrap ${
+                showSecondaryFilters || activeCategory !== 'all'
+                  ? 'bg-blue-500 text-white border-blue-500'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+              }`}
             >
-              <X className="h-4 w-4" />
+              <SlidersHorizontal className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">
+                {t.language === 'pt' ? 'Subcategoria' : t.language === 'en' ? 'Subcategory' : 'Subcategoría'}
+              </span>
+              {activeCategory !== 'all' && (
+                <span className="sm:hidden text-xs">●</span>
+              )}
+              <ChevronDown className={`h-4 w-4 transition-transform ${showSecondaryFilters ? 'rotate-180' : ''}`} />
             </button>
-          )}
+            {showSecondaryFilters && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowSecondaryFilters(false)} />
+                <div className="absolute right-0 top-full mt-2 z-40 w-56 sm:w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-2 space-y-1 max-h-80 overflow-y-auto">
+                  {categories.map(({ key, label, icon: Icon, color, count }) => (
+                    <button
+                      key={key}
+                      onClick={() => { setActiveCategory(key); setShowSecondaryFilters(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        activeCategory === key
+                          ? `${color.activeBg} ${color.activeText} shadow-sm`
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="flex-1 text-left whitespace-nowrap">{label}</span>
+                      {count > 0 && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                          activeCategory === key
+                            ? color.badgeActive
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Primary Category - Large Square Cards */}
+      {/* Primary Category - Square Cards */}
       <div className="mb-4 sm:mb-6">
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 sm:gap-3">
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1.5 sm:gap-3">
           {primaryCategories.map(({ key, label, icon: Icon, color, count }) => (
             <button
               key={key}
               onClick={() => setActivePrimaryCategory(key)}
-              className={`relative flex flex-col items-center justify-center gap-1.5 p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 group ${
+              className={`relative flex flex-col items-center justify-center gap-1 p-1.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 group ${
                 activePrimaryCategory === key
-                  ? `${color.activeBg} ${color.activeText} shadow-lg scale-[1.03] border-transparent`
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md hover:scale-[1.02]'
+                  ? `${color.activeBg} ${color.activeText} shadow-md sm:shadow-lg scale-[1.03] border-transparent`
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm sm:hover:shadow-md hover:scale-[1.02]'
               }`}
             >
-              <div className={`p-2 sm:p-2.5 rounded-xl transition-colors ${
+              <div className={`p-1 sm:p-2.5 rounded-lg sm:rounded-xl transition-colors ${
                 activePrimaryCategory === key
                   ? 'bg-white/20'
                   : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
               }`}>
-                <Icon className="h-6 w-6 sm:h-7 sm:w-7 flex-shrink-0" />
+                <Icon className="h-4 w-4 sm:h-7 sm:w-7 flex-shrink-0" />
               </div>
-              <span className="text-xs sm:text-sm font-bold text-center leading-tight">{label}</span>
+              <span className="text-[10px] sm:text-sm font-bold text-center leading-tight">{label}</span>
               {count > 0 && (
-                <span className={`absolute top-1.5 right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                <span className={`absolute top-1 right-1 sm:top-1.5 sm:right-1.5 text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full ${
                   activePrimaryCategory === key
                     ? 'bg-white/25 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
@@ -737,95 +791,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       </div>
 
-      {/* Layout with collapsible secondary filter sidebar */}
-      <div className="flex gap-4 sm:gap-6">
-        {/* Secondary Category Sidebar - Desktop */}
-        <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ${showSecondaryFilters ? 'w-56' : 'w-12'}`}>
-          <div className="sticky top-4">
-            <button
-              onClick={() => setShowSecondaryFilters(!showSecondaryFilters)}
-              className={`w-full flex items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all ${
-                showSecondaryFilters ? '' : 'justify-center'
-              }`}
-            >
-              <SlidersHorizontal className="h-5 w-5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-              {showSecondaryFilters && (
-                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
-                  {t.language === 'pt' ? 'Subcategorias' : t.language === 'en' ? 'Subcategories' : 'Subcategorías'}
-                </span>
-              )}
-            </button>
-            {showSecondaryFilters && (
-              <div className="mt-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 space-y-1">
-                {categories.map(({ key, label, icon: Icon, color, count }) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveCategory(key)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      activeCategory === key
-                        ? `${color.activeBg} ${color.activeText} shadow-sm`
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="flex-1 text-left whitespace-nowrap">{label}</span>
-                    {count > 0 && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                        activeCategory === key
-                          ? color.badgeActive
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                      }`}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
-
-        {/* Secondary Category - Mobile Collapsible */}
-        <div className="md:hidden mb-3">
-          <button
-            onClick={() => setShowSecondaryFilters(!showSecondaryFilters)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            {t.language === 'pt' ? 'Subcategorias' : t.language === 'en' ? 'Subcategories' : 'Subcategorías'}
-            <ChevronDown className={`h-4 w-4 transition-transform ${showSecondaryFilters ? 'rotate-180' : ''}`} />
-          </button>
-          {showSecondaryFilters && (
-            <div className="mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 grid grid-cols-2 gap-1">
-              {categories.map(({ key, label, icon: Icon, color, count }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveCategory(key)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    activeCategory === key
-                      ? `${color.activeBg} ${color.activeText} shadow-sm`
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="flex-1 text-left whitespace-nowrap truncate">{label}</span>
-                  {count > 0 && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      activeCategory === key
-                        ? color.badgeActive
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Products grid - takes remaining space */}
-        <div className="flex-1 min-w-0">
+      {/* Products grid */}
+      <div>
 
       {/* SMM Panel - shown when Social Media category is active */}
       {activeCategory === 'smm' ? (
@@ -942,7 +909,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
       )}
       </>
       )}
-      </div>
       </div>
 
       {/* Product Details Modal */}
