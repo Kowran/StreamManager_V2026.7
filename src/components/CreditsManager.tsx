@@ -11,6 +11,7 @@ import { WhatsAppPaymentModal } from './WhatsAppPaymentModal';
 import { CryptomusPaymentModal } from './CryptomusPaymentModal';
 import { BinancePaymentModal } from './BinancePaymentModal';
 import { TripleAPaymentModal } from './TripleAPaymentModal';
+import { AsaasPaymentModal } from './AsaasPaymentModal';
 
 interface UserCredit {
   balance: number;
@@ -47,6 +48,7 @@ const PAYMENT_METHOD_META: Record<string, { icon: string; description: string; f
   binance: { icon: 'https://i.imgur.com/ylT9tJ1.png', description: 'Pagamento via Binance', fees: 'Sem taxas', processing_time: 'Instantâneo', min_amount: 1, max_amount: 10000 },
   whatsapp: { icon: 'https://i.imgur.com/Ei6JERR.png', description: 'Atendimento personalizado', fees: 'Sem taxas', processing_time: '2-24 horas', min_amount: 1, max_amount: 10000 },
   triplea: { icon: 'https://i.imgur.com/nXhq7ph.png', description: 'Bitcoin, Ethereum, USDC, USDT', fees: 'Sem taxas', processing_time: '5-15 minutos', min_amount: 1, max_amount: 5000 },
+  asaas: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, Boleto (Brasil)', fees: 'Sem taxas (PIX)', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
 };
 
 export function CreditsManager() {
@@ -642,6 +644,13 @@ export function CreditsManager() {
 
       <TripleAPaymentModal
         isOpen={showPaymentModal && selectedPaymentMethod === 'triplea'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <AsaasPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'asaas'}
         onClose={() => setShowPaymentModal(false)}
         amount={rechargeAmount}
         onSuccess={handlePaymentSuccess}

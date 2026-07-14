@@ -7,6 +7,7 @@ import { MercadoPagoConfigModal } from './MercadoPagoConfigModal';
 import { CryptomusConfigModal } from './CryptomusConfigModal';
 import { BinanceConfigModal } from './BinanceConfigModal';
 import { TripleAConfigModal } from './TripleAConfigModal';
+import { AsaasConfigModal } from './AsaasConfigModal';
 import { ImapConfigModal } from './ImapConfigModal';
 
 interface PaymentGateway {
@@ -77,6 +78,12 @@ export default function AdminSettingsManager() {
         .select('id')
         .maybeSingle();
 
+      const { data: asaasData } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'asaas_config')
+        .maybeSingle();
+
       const gatewayList: PaymentGateway[] = [
         {
           id: 'stripe',
@@ -137,6 +144,16 @@ export default function AdminSettingsManager() {
           color: 'border-purple-500',
           hoverColor: 'hover:bg-purple-50 dark:hover:bg-purple-900/20',
           iconColor: 'text-purple-600 dark:text-purple-400'
+        },
+        {
+          id: 'asaas',
+          name: 'Asaas',
+          icon: <CreditCard className="w-8 h-8" />,
+          description: 'PIX, Boleto Bancario (Brasil)',
+          configured: !!asaasData?.value?.configured,
+          color: 'border-blue-500',
+          hoverColor: 'hover:bg-blue-50 dark:hover:bg-blue-900/20',
+          iconColor: 'text-blue-600 dark:text-blue-400'
         }
       ];
 
@@ -411,6 +428,15 @@ export default function AdminSettingsManager() {
           }}
         />
       )}
+
+      <AsaasConfigModal
+        isOpen={activeModal === 'asaas'}
+        onClose={handleModalClose}
+        onSave={() => {
+          showSuccessMessage('Asaas');
+          handleModalClose();
+        }}
+      />
 
       <ImapConfigModal
         isOpen={activeModal === 'imap'}
