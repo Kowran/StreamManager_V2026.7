@@ -24,13 +24,14 @@ interface StripeFeesCalculation {
 
 interface PaymentElementProps {
   clientSecret: string;
+  publishableKey: string;
   amount: number;
   fees: StripeFeesCalculation;
   onSuccess: () => void;
   onError: (error: string) => void;
 }
 
-function PaymentElement({ clientSecret, amount, fees, onSuccess, onError }: PaymentElementProps) {
+function PaymentElement({ clientSecret, publishableKey, amount, fees, onSuccess, onError }: PaymentElementProps) {
   const [stripe, setStripe] = useState<Stripe | null>(null);
   const [elements, setElements] = useState<StripeElements | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -43,18 +44,11 @@ function PaymentElement({ clientSecret, amount, fees, onSuccess, onError }: Paym
   useEffect(() => {
     const initializeStripe = async () => {
       try {
-        // Get Stripe publishable key from config
-        const { data: configData } = await supabase
-          .from('system_config')
-          .select('value')
-          .eq('key', 'stripe_config')
-          .maybeSingle();
-
-        if (!configData?.value?.publishable_key) {
+        if (!publishableKey) {
           throw new Error('Stripe não configurado');
         }
 
-        const stripeInstance = await loadStripe(configData.value.publishable_key);
+        const stripeInstance = await loadStripe(publishableKey);
         setStripe(stripeInstance);
 
         if (stripeInstance && clientSecret) {
@@ -214,6 +208,7 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
   const { t } = useLanguage();
   const { currency, rates } = useCurrency();
   const [clientSecret, setClientSecret] = useState<string>('');
+  const [publishableKey, setPublishableKey] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fees, setFees] = useState<StripeFeesCalculation | null>(null);
@@ -300,6 +295,7 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
 
       if (result.success && result.client_secret) {
         setClientSecret(result.client_secret);
+        setPublishableKey(result.publishable_key || '');
       } else {
         throw new Error('Resposta inválida do servidor');
       }
@@ -426,6 +422,7 @@ export function StripePaymentModal({ isOpen, onClose, amount, onSuccess }: Strip
             {/* Payment Form */}
             <PaymentElement
               clientSecret={clientSecret}
+              publishableKey={publishableKey}
               amount={amount}
               fees={fees}
               onSuccess={handleSuccess}

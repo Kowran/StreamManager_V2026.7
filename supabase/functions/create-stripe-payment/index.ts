@@ -175,7 +175,8 @@ Deno.serve(async (req: Request) => {
         total_charged: totalChargedInCurrency, // Total charged in user currency
         stripe_fee: stripeFeeInCurrency,
         currency: currency.toUpperCase(),
-        amount_in_smallest_unit: amountInSmallestUnit
+        amount_in_smallest_unit: amountInSmallestUnit,
+        publishable_key: config.publishable_key
       }),
       {
         status: 200,
