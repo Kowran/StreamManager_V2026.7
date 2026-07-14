@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, Store, Coins, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -77,6 +77,31 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchEndX.current = null;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchStartX.current === null || touchEndX.current === null || banners.length === 0) return;
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) {
+        setCurrentBanner(prev => (prev + 1) % banners.length);
+      } else {
+        setCurrentBanner(prev => (prev - 1 + banners.length) % banners.length);
+      }
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+  }, [banners.length]);
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -355,15 +380,22 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       {banners.length > 0 && (
         <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-8 pt-20 sm:pt-24">
           <div className="max-w-7xl mx-auto">
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl h-48 sm:h-64 lg:h-80 group">
+            <div
+        className="relative rounded-2xl overflow-hidden shadow-2xl h-[220px] sm:h-[400px] lg:h-[500px] group select-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
               {banners.map((banner, idx) => (
                 <div key={banner.id}
                   className={`absolute inset-0 transition-all duration-700 ${idx === currentBanner ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'}`}
                 >
-                  <div className="absolute inset-0" style={{ backgroundColor: banner.bg_color }} />
+                  <div className="absolute inset-0" style={{ backgroundColor: banner.bg_color === 'transparent' ? 'transparent' : banner.bg_color }} />
                   {banner.image_url && (
                     <img src={banner.image_url} alt={banner.title}
-                      className="absolute inset-0 w-full h-full object-cover opacity-40"
+                      className={`absolute inset-0 w-full h-full object-cover ${
+                        banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'
+                      }`}
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   )}
