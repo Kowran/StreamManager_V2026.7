@@ -25,6 +25,7 @@ import { Package } from 'lucide-react';
 import { AccountsAccessGuard } from './components/AccountsAccessGuard';
 import AdminUsersManager from './components/AdminUsersManager';
 import AdminSettingsManager from './components/AdminSettingsManager';
+import AdminSiteSettingsManager from './components/AdminSiteSettingsManager';
 import { LandingPage } from './components/LandingPage';
 import { AccountsAccessManager } from './components/AccountsAccessManager';
 import { MessageCircle } from 'lucide-react';
@@ -68,7 +69,7 @@ import { NicknameSetupModal } from './components/NicknameSetupModal';
 import { ChatInbox } from './components/ChatInbox';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
 
 interface StoreConfig {
   store_name?: string;
@@ -89,12 +90,40 @@ function AppContent() {
   const [showLanding, setShowLanding] = useState(true);
   const [subdomain, setSubdomain] = useState<'main' | 'login' | 'home'>('main');
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
+  const [siteSettings, setSiteSettings] = useState<{ site_name?: string; header_logo_url?: string; browser_title?: string; favicon_url?: string } | null>(null);
   const [sellerSlug, setSellerSlug] = useState<string | null>(null);
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
 
   useOnlineHeartbeat(user?.id);
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  // Dynamic browser title & favicon from site settings
+  useEffect(() => {
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    const defaultHref = link.href;
+
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('system_config')
+          .select('value')
+          .eq('key', 'site_settings')
+          .maybeSingle();
+        const s = data?.value;
+        if (s?.browser_title) document.title = s.browser_title;
+        else if (s?.site_name) document.title = s.site_name;
+        if (s?.favicon_url) link!.href = s.favicon_url;
+      } catch { /* ignore */ }
+    })();
+
+    return () => { link!.href = defaultHref; };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -236,6 +265,13 @@ function AppContent() {
       }
 
       setStoreConfig(data?.value || null);
+
+      const { data: siteData } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'site_settings')
+        .maybeSingle();
+      setSiteSettings(siteData?.value || null);
     } catch (error) {
       console.error('Error loading store config:', error);
     }
@@ -349,6 +385,12 @@ function AppContent() {
         return (
           <AdminGuard page="admin-settings">
             <AdminSettingsManager />
+          </AdminGuard>
+        );
+      case 'admin-site-settings':
+        return (
+          <AdminGuard page="admin-site-settings">
+            <AdminSiteSettingsManager />
           </AdminGuard>
         );
       case 'accounts-access':
@@ -523,8 +565,8 @@ function AppContent() {
                     }}
                     className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
                   >
-                    {storeConfig?.store_logo_url ? (
-                      <img src={storeConfig.store_logo_url} alt="Logo" className="h-6 w-6 object-cover rounded-lg mr-2"
+                    {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
+                      <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-6 w-6 object-cover rounded-lg mr-2"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : (
                       <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
@@ -532,7 +574,7 @@ function AppContent() {
                       </div>
                     )}
                     <span className="text-sm font-bold text-gray-900 dark:text-white">
-                      {storeConfig?.store_name || 'StreamManager'}
+                      {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
                     </span>
                   </button>
                   <button
@@ -543,15 +585,15 @@ function AppContent() {
                     }}
                     className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
                   >
-                    {storeConfig?.store_logo_url ? (
-                      <img src={storeConfig.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
+                    {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
+                      <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : null}
-                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
                       <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
                     </div>
                     <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                      {storeConfig?.store_name || 'StreamManager'}
+                      {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
                     </span>
                   </button>
                 </div>
@@ -625,15 +667,15 @@ function AppContent() {
                     }}
                     className="flex items-center hover:opacity-80 transition-opacity"
                   >
-                    {storeConfig?.store_logo_url ? (
-                      <img src={storeConfig.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
+                    {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
+                      <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : null}
-                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
                       <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
                     </div>
                     <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                      {storeConfig?.store_name || 'StreamManager'}
+                      {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
                     </span>
                   </button>
                 </div>
@@ -797,9 +839,9 @@ function AppContent() {
                 }}
                 className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
               >
-                {storeConfig?.store_logo_url ? (
+                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
                   <img
-                    src={storeConfig.store_logo_url}
+                    src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
                     className="h-6 w-6 object-cover rounded-lg mr-2"
                     onError={(e) => {
@@ -813,7 +855,7 @@ function AppContent() {
                   </div>
                 )}
                 <span className="text-sm font-bold text-gray-900 dark:text-white">
-                  {storeConfig?.store_name || 'StreamManager'}
+                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
                 </span>
               </button>
 
@@ -825,9 +867,9 @@ function AppContent() {
                 }}
                 className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
               >
-                {storeConfig?.store_logo_url ? (
+                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
                   <img
-                    src={storeConfig.store_logo_url}
+                    src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
                     className="h-8 w-8 object-cover rounded-lg"
                     onError={(e) => {
@@ -837,11 +879,11 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
                   <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
                 </div>
                 <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                  {storeConfig?.store_name || 'StreamManager'}
+                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
                 </span>
               </button>
 
@@ -922,9 +964,9 @@ function AppContent() {
                 }}
                 className="flex items-center hover:opacity-80 transition-opacity"
               >
-                {storeConfig?.store_logo_url ? (
+                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
                   <img
-                    src={storeConfig.store_logo_url}
+                    src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
                     className="h-8 w-8 object-cover rounded-lg"
                     onError={(e) => {
@@ -934,11 +976,11 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
                   <CreditCard className="h-5 w-5 text-white" />
                 </div>
                 <span className="ml-3 text-lg font-bold text-gray-900 dark:text-white">
-                  {storeConfig?.store_name || 'StreamManager'}
+                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
                 </span>
               </button>
               <button

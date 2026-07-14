@@ -21,7 +21,8 @@ import {
   Image,
   Tag,
   Eye,
-  Wallet
+  Wallet,
+  Globe
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -125,7 +126,8 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         { id: 'admin-community', name: language === 'pt' ? 'Gerenciar Comunidade' : language === 'en' ? 'Manage Community' : 'Gestionar Comunidad', icon: Newspaper, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Poste novidades para os usuários' : language === 'en' ? 'Post news for users' : 'Publicar novedades para usuarios' },
         { id: 'admin-support', name: language === 'pt' ? 'Gerenciar Suporte' : language === 'en' ? 'Manage Support' : 'Gestionar Soporte', icon: MessageCircle, color: 'from-yellow-500 to-yellow-600', description: language === 'pt' ? 'Responda tickets de suporte' : language === 'en' ? 'Respond to support tickets' : 'Responder tickets de soporte' },
         { id: 'admin-netflix-accounts', name: language === 'pt' ? 'Contas Netflix' : language === 'en' ? 'Netflix Accounts' : 'Cuentas Netflix', icon: Mail, color: 'from-red-500 to-red-600', description: language === 'pt' ? 'Configure contas para buscar códigos' : language === 'en' ? 'Configure accounts to find codes' : 'Configure cuentas para buscar códigos' },
-        { id: 'admin-settings', name: language === 'pt' ? 'Configurações' : language === 'en' ? 'Settings' : 'Configuraciones', icon: Settings, color: 'from-gray-500 to-gray-600', description: language === 'pt' ? 'Configure o sistema' : language === 'en' ? 'Configure the system' : 'Configurar el sistema' }
+        { id: 'admin-settings', name: language === 'pt' ? 'Configurações' : language === 'en' ? 'Settings' : 'Configuraciones', icon: Settings, color: 'from-gray-500 to-gray-600', description: language === 'pt' ? 'Configure o sistema' : language === 'en' ? 'Configure the system' : 'Configurar el sistema' },
+        { id: 'admin-site-settings', name: language === 'pt' ? 'Identidade do Site' : language === 'en' ? 'Site Identity' : 'Identidad del Sitio', icon: Globe, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Logo, favicon, nome e aparência do site' : language === 'en' ? 'Logo, favicon, site name and appearance' : 'Logo, favicon, nombre del sitio y apariencia' }
       ]
     }
   ];
