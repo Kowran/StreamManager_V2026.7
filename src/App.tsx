@@ -213,9 +213,9 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Update URL when tab changes
+  // Update URL when tab changes (skip product-detail, which uses #product/<id>)
   useEffect(() => {
-    if (user && !loading) {
+    if (user && !loading && activeTab !== 'product-detail') {
       const currentHash = window.location.hash.slice(1);
       if (currentHash !== activeTab) {
         window.history.pushState(null, '', `#${activeTab}`);
