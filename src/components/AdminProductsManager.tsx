@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, CreditCard as Edit, Trash2, Package, Search, Save, X, DollarSign, List, Upload, Star } from 'lucide-react';
-import { supabase, StoreProduct } from '../lib/supabase';
+import { Plus, CreditCard as Edit, Trash2, Package, Search, Save, X, DollarSign, List, Upload, Star, UserCheck, Smartphone, Gamepad2, Gift, Coins } from 'lucide-react';
+import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
@@ -11,6 +11,7 @@ interface ProductFormData {
   description: string;
   price_usd: number;
   category: string;
+  primary_category: PrimaryCategory;
   image_url: string;
   active: boolean;
   features: string[];
@@ -45,6 +46,7 @@ export function AdminProductsManager() {
     description: '',
     price_usd: 0,
     category: 'streaming',
+    primary_category: 'item',
     image_url: '',
     active: true,
     features: [],
@@ -141,6 +143,7 @@ export function AdminProductsManager() {
         description: editingProduct.description || '',
         price_usd: editingProduct.price_usdt,
         category: editingProduct.category,
+        primary_category: (editingProduct.primary_category || 'item') as PrimaryCategory,
         image_url: editingProduct.image_url || '',
         active: editingProduct.active,
         features: editingProduct.features || [],
@@ -154,6 +157,7 @@ export function AdminProductsManager() {
         description: '',
         price_usd: 0,
         category: 'streaming',
+        primary_category: 'item',
         image_url: '',
         active: true,
         features: [],
@@ -247,6 +251,7 @@ export function AdminProductsManager() {
         price_brl: formData.price_usd * 5.5,
         price_usdt: formData.price_usd,
         category: formData.category,
+        primary_category: formData.primary_category,
         image_url: formData.image_url || null,
         auto_delivery: true, // Always true for new system
         active: formData.active,
@@ -695,10 +700,44 @@ export function AdminProductsManager() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Categoria Primária *
+                </label>
+                <div className="mt-2 grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {PRIMARY_CATEGORIES.map(cat => {
+                    const icons: Record<string, React.ReactNode> = {
+                      UserCheck: <UserCheck className="w-5 h-5" />,
+                      Package: <Package className="w-5 h-5" />,
+                      Smartphone: <Smartphone className="w-5 h-5" />,
+                      Gamepad2: <Gamepad2 className="w-5 h-5" />,
+                      Gift: <Gift className="w-5 h-5" />,
+                      Coins: <Coins className="w-5 h-5" />,
+                    };
+                    const isSelected = formData.primary_category === cat.key;
+                    return (
+                      <button
+                        key={cat.key}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, primary_category: cat.key }))}
+                        className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-600 dark:text-gray-400'
+                        }`}
+                      >
+                        {icons[cat.icon]}
+                        <span className="text-xs font-medium text-center leading-tight">{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Categoria *
+                    Subcategoria *
                   </label>
                   <select
                     required

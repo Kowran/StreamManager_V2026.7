@@ -66,6 +66,17 @@ export async function ensureUserSetup(userId: string, email: string): Promise<bo
   }
 }
 
+export type PrimaryCategory = 'account' | 'item' | 'mobile_recharge' | 'game' | 'gift_card' | 'top_up';
+
+export const PRIMARY_CATEGORIES: { key: PrimaryCategory; label: string; icon: string }[] = [
+  { key: 'account', label: 'Conta', icon: 'UserCheck' },
+  { key: 'item', label: 'Item', icon: 'Package' },
+  { key: 'mobile_recharge', label: 'Recarga de Celular', icon: 'Smartphone' },
+  { key: 'game', label: 'Jogo', icon: 'Gamepad2' },
+  { key: 'gift_card', label: 'Gift Card', icon: 'Gift' },
+  { key: 'top_up', label: 'Top-Up', icon: 'Coins' },
+];
+
 export interface StoreProduct {
   id: string;
   name: string;
@@ -73,12 +84,20 @@ export interface StoreProduct {
   price_brl: number; // Keep for backward compatibility
   price_usdt: number;
   category: string;
+  primary_category?: PrimaryCategory;
   image_url?: string;
   stock_quantity: number;
   auto_delivery: boolean;
   active: boolean;
   features?: string[];
   renewable?: boolean;
+  manual_delivery?: boolean;
+  promotional_price_usdt?: number | null;
+  promotion_active?: boolean;
+  promotion_end_date?: string | null;
+  slug?: string;
+  seller_id?: string | null;
+  account_recharge?: boolean;
   created_at: string;
   updated_at: string;
 }

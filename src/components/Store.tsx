@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, type LucideIcon } from 'lucide-react';
-import { supabase, StoreProduct } from '../lib/supabase';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, type LucideIcon } from 'lucide-react';
+import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
@@ -57,6 +57,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [activePrimaryCategory, setActivePrimaryCategory] = useState<'all' | PrimaryCategory>('all');
   const [selectedProduct, setSelectedProduct] = useState<ProductWithSeller | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -392,6 +393,33 @@ export function Store({ onNavigate }: StoreProps = {}) {
     }
   }
 
+  const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
+    account: { icon: UserCheck, label: language === 'pt' ? 'Contas' : language === 'en' ? 'Accounts' : 'Cuentas', color: { activeBg: 'bg-indigo-500', activeText: 'text-white', badgeActive: 'bg-indigo-600 text-white' } },
+    item: { icon: Package, label: language === 'pt' ? 'Itens' : 'Items', color: { activeBg: 'bg-emerald-500', activeText: 'text-white', badgeActive: 'bg-emerald-600 text-white' } },
+    mobile_recharge: { icon: Smartphone, label: language === 'pt' ? 'Recarga' : language === 'en' ? 'Recharge' : 'Recarga', color: { activeBg: 'bg-teal-500', activeText: 'text-white', badgeActive: 'bg-teal-600 text-white' } },
+    game: { icon: Gamepad2, label: language === 'pt' ? 'Jogos' : language === 'en' ? 'Games' : 'Juegos', color: { activeBg: 'bg-orange-500', activeText: 'text-white', badgeActive: 'bg-orange-600 text-white' } },
+    gift_card: { icon: Gift, label: language === 'pt' ? 'Gift Cards' : 'Gift Cards', color: { activeBg: 'bg-pink-500', activeText: 'text-white', badgeActive: 'bg-pink-600 text-white' } },
+    top_up: { icon: Coins, label: language === 'pt' ? 'Top-Up' : 'Top-Up', color: { activeBg: 'bg-amber-500', activeText: 'text-white', badgeActive: 'bg-amber-600 text-white' } },
+  };
+
+  const primaryCategories = useMemo(() => {
+    const counts: Record<string, number> = {};
+    products.forEach(p => {
+      const pc = (p as any).primary_category || 'item';
+      counts[pc] = (counts[pc] || 0) + 1;
+    });
+    return [
+      { key: 'all' as const, label: language === 'pt' ? 'Todos' : language === 'en' ? 'All' : 'Todos', icon: LayoutGrid, color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' }, count: products.length },
+      ...PRIMARY_CATEGORIES.map(cat => ({
+        key: cat.key,
+        label: primaryCategoryConfig[cat.key].label,
+        icon: primaryCategoryConfig[cat.key].icon,
+        color: primaryCategoryConfig[cat.key].color,
+        count: counts[cat.key] || 0,
+      })).filter(c => c.count > 0),
+    ];
+  }, [products, language]);
+
   const categoryConfig: Record<string, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
     streaming: { icon: Clapperboard, label: 'Streaming', color: { activeBg: 'bg-red-500', activeText: 'text-white', badgeActive: 'bg-red-600 text-white' } },
     music: { icon: Music, label: language === 'pt' ? 'Música' : 'Music', color: { activeBg: 'bg-purple-500', activeText: 'text-white', badgeActive: 'bg-purple-600 text-white' } },
@@ -428,7 +456,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
-    return matchesSearch && matchesCategory;
+    const matchesPrimary = activePrimaryCategory === 'all' || ((product as any).primary_category || 'item') === activePrimaryCategory;
+    return matchesSearch && matchesCategory && matchesPrimary;
   });
 
   // Pagination logic
@@ -440,7 +469,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeCategory]);
+  }, [searchTerm, activeCategory, activePrimaryCategory]);
 
 
   const paymentMethods: PaymentMethod[] = [
@@ -669,6 +698,35 @@ export function Store({ onNavigate }: StoreProps = {}) {
               <X className="h-4 w-4" />
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Primary Category Filter Bar */}
+      <div className="mb-3 sm:mb-4">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide min-w-0" style={{ scrollbarWidth: 'none' }}>
+          {primaryCategories.map(({ key, label, icon: Icon, color, count }) => (
+            <button
+              key={key}
+              onClick={() => setActivePrimaryCategory(key)}
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
+                activePrimaryCategory === key
+                  ? color.activeBg + ' ' + color.activeText + ' shadow-md scale-105'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:scale-105 border border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span>{label}</span>
+              {count > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  activePrimaryCategory === key
+                    ? color.badgeActive
+                    : 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400'
+                }`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 

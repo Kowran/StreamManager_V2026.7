@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, Store, type LucideIcon } from 'lucide-react';
+import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, Store, Coins, type LucideIcon } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { LanguageSelector } from './LanguageSelector';
 import { useTheme } from './ThemeProvider';
-import { supabase } from '../lib/supabase';
+import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
 
@@ -81,6 +81,34 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
   const [productsLoading, setProductsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedPrimaryCategory, setSelectedPrimaryCategory] = useState<'all' | PrimaryCategory>('all');
+
+  const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
+    account: { icon: UserCheck, label: language === 'pt' ? 'Contas' : language === 'en' ? 'Accounts' : 'Cuentas', color: { activeBg: 'bg-indigo-500', activeText: 'text-white', badgeActive: 'bg-indigo-600 text-white' } },
+    item: { icon: Package, label: language === 'pt' ? 'Itens' : 'Items', color: { activeBg: 'bg-emerald-500', activeText: 'text-white', badgeActive: 'bg-emerald-600 text-white' } },
+    mobile_recharge: { icon: Smartphone, label: language === 'pt' ? 'Recarga' : language === 'en' ? 'Recharge' : 'Recarga', color: { activeBg: 'bg-teal-500', activeText: 'text-white', badgeActive: 'bg-teal-600 text-white' } },
+    game: { icon: Gamepad2, label: language === 'pt' ? 'Jogos' : language === 'en' ? 'Games' : 'Juegos', color: { activeBg: 'bg-orange-500', activeText: 'text-white', badgeActive: 'bg-orange-600 text-white' } },
+    gift_card: { icon: Gift, label: 'Gift Cards', color: { activeBg: 'bg-pink-500', activeText: 'text-white', badgeActive: 'bg-pink-600 text-white' } },
+    top_up: { icon: Coins, label: 'Top-Up', color: { activeBg: 'bg-amber-500', activeText: 'text-white', badgeActive: 'bg-amber-600 text-white' } },
+  };
+
+  const primaryCategories = useMemo(() => {
+    const counts: Record<string, number> = {};
+    products.forEach(p => {
+      const pc = (p as any).primary_category || 'item';
+      counts[pc] = (counts[pc] || 0) + 1;
+    });
+    return [
+      { key: 'all' as const, label: language === 'pt' ? 'Todos' : language === 'en' ? 'All' : 'Todos', icon: LayoutGrid, color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' }, count: products.length },
+      ...PRIMARY_CATEGORIES.map(cat => ({
+        key: cat.key,
+        label: primaryCategoryConfig[cat.key].label,
+        icon: primaryCategoryConfig[cat.key].icon,
+        color: primaryCategoryConfig[cat.key].color,
+        count: counts[cat.key] || 0,
+      })).filter(c => c.count > 0),
+    ];
+  }, [products, language]);
 
   const categoryConfig: Record<string, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
     streaming: { icon: Clapperboard, label: 'Streaming', color: { activeBg: 'bg-red-500', activeText: 'text-white', badgeActive: 'bg-red-600 text-white' } },
@@ -189,7 +217,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     try {
       const { data, error } = await supabase
         .from('store_products')
-        .select('id, name, description, price_brl, price_usdt, category, image_url, stock_quantity, manual_delivery, slug, promotional_price_usdt, promotion_active, seller_id')
+        .select('id, name, description, price_brl, price_usdt, category, primary_category, image_url, stock_quantity, manual_delivery, slug, promotional_price_usdt, promotion_active, seller_id')
         .eq('active', true)
         .order('created_at', { ascending: false });
       if (error) return;
@@ -382,21 +410,52 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </section>
       )}
 
-      {/* Category Filter Bar */}
+      {/* Primary Category Filter Bar */}
       <section className="sticky top-[60px] z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-y border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 overflow-x-auto py-3 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-            {categories.map(({ key, label, icon: Icon, color, count }) => (
+          <div className="flex items-center gap-2 overflow-x-auto py-2.5 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+            {primaryCategories.map(({ key, label, icon: Icon, color, count }) => (
               <button
                 key={key}
-                onClick={() => setSelectedCategory(key)}
+                onClick={() => setSelectedPrimaryCategory(key)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
-                  selectedCategory === key
+                  selectedPrimaryCategory === key
                     ? `${color.activeBg} ${color.activeText} shadow-md scale-105`
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:scale-105'
                 }`}
               >
                 <Icon className="h-4 w-4 flex-shrink-0" />
+                <span>{label}</span>
+                {count > 0 && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                    selectedPrimaryCategory === key
+                      ? `${color.badgeActive}`
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Category Filter Bar */}
+      <section className="sticky top-[110px] z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 overflow-x-auto py-2.5 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+            {categories.map(({ key, label, icon: Icon, color, count }) => (
+              <button
+                key={key}
+                onClick={() => setSelectedCategory(key)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
+                  selectedCategory === key
+                    ? `${color.activeBg} ${color.activeText} shadow-md scale-105`
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:scale-105'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
                 <span>{label}</span>
                 {count > 0 && (
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${
@@ -459,11 +518,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           ) : (() => {
             const filtered = products.filter(p => {
               const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
+              const matchesPrimary = selectedPrimaryCategory === 'all' || ((p as any).primary_category || 'item') === selectedPrimaryCategory;
               const matchesSearch = !searchQuery ||
                 p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 p.category.toLowerCase().includes(searchQuery.toLowerCase());
-              return matchesCategory && matchesSearch;
+              return matchesCategory && matchesPrimary && matchesSearch;
             });
             return filtered.length === 0 ? (
               <div className="text-center py-12 text-gray-400 dark:text-gray-500">
