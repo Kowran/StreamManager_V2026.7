@@ -23,6 +23,10 @@ interface SellerOrder {
   delivered_accounts?: { email: string; password: string; instructions?: string }[];
   delivered_at?: string;
   test_days_left?: number;
+  seller_amount?: number | null;
+  admin_amount?: number | null;
+  admin_rate?: number | null;
+  seller_rate?: number | null;
 }
 
 export function SellerOrdersManager() {
@@ -36,6 +40,7 @@ export function SellerOrdersManager() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<SellerOrder | null>(null);
+  const [orderCommission, setOrderCommission] = useState<{ seller_amount: number; admin_amount: number; admin_rate: number; seller_rate: number } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -111,6 +116,21 @@ export function SellerOrdersManager() {
 
       if (error) throw error;
 
+      // Fetch commission data for all orders
+      const orderIds = (data || []).map((o: any) => o.id);
+      const commissionMap: Record<string, any> = {};
+      if (orderIds.length > 0) {
+        const { data: commissions } = await supabase
+          .from('sales_commissions')
+          .select('order_id, seller_amount, admin_amount, admin_commission_rate, seller_commission_rate, currency')
+          .eq('seller_id', user.id)
+          .in('order_id', orderIds)
+          .eq('currency', 'USDT');
+        (commissions || []).forEach((c: any) => {
+          commissionMap[c.order_id] = c;
+        });
+      }
+
       const mapped = (data || []).map((o: any) => {
         const accounts: { email: string; password: string; instructions?: string }[] = [];
         (o.store_deliveries || []).forEach((d: any) => {
@@ -140,6 +160,10 @@ export function SellerOrdersManager() {
           delivered_accounts: accounts,
           created_at: o.created_at,
           updated_at: o.updated_at,
+          seller_amount: commissionMap[o.id]?.seller_amount ?? null,
+          admin_amount: commissionMap[o.id]?.admin_amount ?? null,
+          admin_rate: commissionMap[o.id]?.admin_commission_rate ?? null,
+          seller_rate: commissionMap[o.id]?.seller_commission_rate ?? null,
         };
       });
       setOrders(mapped);
@@ -421,7 +445,32 @@ export function SellerOrdersManager() {
               <DetailRow icon={Package} label={lbl('Produto', 'Product', 'Producto')} value={selectedOrder.product_name} />
               <DetailRow icon={User} label={lbl('Cliente', 'Customer', 'Cliente')} value={selectedOrder.customer_name} />
               <DetailRow icon={Calendar} label={lbl('Data', 'Date', 'Fecha')} value={formatDate(selectedOrder.created_at)} />
-              <DetailRow icon={DollarSign} label={lbl('Valor', 'Amount', 'Valor')} value={formatPrice(selectedOrder.total_usdt)} />
+              <DetailRow icon={DollarSign} label={lbl('Valor Total', 'Total Amount', 'Valor Total')} value={formatPrice(selectedOrder.total_usdt)} />
+              {selectedOrder.seller_amount != null && selectedOrder.admin_amount != null ? (
+                <>
+                  <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <span className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+                      <DollarSign className="h-4 w-4" />
+                      {lbl('Seu Lucro', 'Your Profit', 'Tu Ganancia')} ({selectedOrder.seller_rate}%)
+                    </span>
+                    <span className="text-sm font-bold text-green-600 dark:text-green-400">{formatPrice(selectedOrder.seller_amount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                    <span className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
+                      <ShieldAlert className="h-4 w-4" />
+                      {lbl('Taxa da Plataforma', 'Platform Fee', 'Comisión Plataforma')} ({selectedOrder.admin_rate}%)
+                    </span>
+                    <span className="text-sm font-bold text-red-500 dark:text-red-400">{formatPrice(selectedOrder.admin_amount)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <span className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-400">
+                    <Clock className="h-4 w-4" />
+                    {lbl('Comissão será calculada ao concluir', 'Commission calculated on completion', 'Comisión calculada al completar')}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between py-2">
                 <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Status', 'Status', 'Estado')}</span>
                 {getStatusBadge(selectedOrder.status)}

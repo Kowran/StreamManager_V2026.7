@@ -205,46 +205,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signOut = async () => {
-    // If no session exists, just clear local state without making network request
-    if (!session) {
-      setSession(null);
-      setUser(null);
-      return;
+  const clearLocalSession = () => {
+    setSession(null);
+    setUser(null);
+    try {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {
+      // ignore
     }
-    
+  };
+
+  const signOut = async () => {
     // Track logout activity before signing out
     ActivityTracker.trackLogout().catch(console.error);
-    
+
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        // Handle cases where session no longer exists on server or refresh token is invalid
-        if (error.message?.includes('Session from session_id claim in JWT does not exist') ||
-            error.message?.includes('Invalid Refresh Token') ||
-            error.message?.includes('Refresh Token Not Found') ||
-            error.message?.includes('session_not_found') ||
-            error.message?.includes('Auth session missing!') ||
-            error.status === 403) {
-          // Manually clear the client-side session state
-          setSession(null);
-          setUser(null);
-          return;
-        }
-        throw error;
-      }
+      await supabase.auth.signOut({ scope: 'global' });
     } catch (error: any) {
-      // Catch any network errors or other exceptions during signOut
-      // Always clear local state to ensure UI reflects logged-out state
-      setSession(null);
-      setUser(null);
-      
-      // Only re-throw if it's not a session-related error
-      if (!error.message?.includes('session_not_found') && 
+      // Ignore session-related errors — we still need to clear local state
+      if (!error.message?.includes('session_not_found') &&
           !error.message?.includes('Session from session_id claim in JWT does not exist') &&
+          !error.message?.includes('Invalid Refresh Token') &&
+          !error.message?.includes('Auth session missing!') &&
           error.status !== 403) {
         console.error('Unexpected error during signOut:', error);
       }
+    } finally {
+      clearLocalSession();
     }
   };
 

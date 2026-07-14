@@ -69,6 +69,7 @@ interface StoreProduct {
   seller_id?: string | null;
   seller_name?: string | null;
   seller_slug?: string | null;
+  seller_avatar?: string | null;
 }
 
 export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPageProps) {
@@ -259,14 +260,14 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
       // Load seller names for seller products
       const sellerIds = ([...new Set((data || []).map(p => p.seller_id).filter(Boolean))] as string[]);
-      const sellerMap: Record<string, { name: string; slug: string | null }> = {};
+      const sellerMap: Record<string, { name: string; slug: string | null; avatar: string | null }> = {};
       if (sellerIds.length > 0) {
         const { data: sellers } = await supabase
           .from('profiles')
-          .select('id, full_name, seller_slug, username')
+          .select('id, full_name, seller_slug, username, avatar_url')
           .in('id', sellerIds);
         for (const s of sellers || []) {
-          sellerMap[s.id] = { name: s.full_name || s.username || s.seller_slug || 'Vendedor', slug: s.seller_slug };
+          sellerMap[s.id] = { name: s.full_name || s.username || s.seller_slug || 'Vendedor', slug: s.seller_slug, avatar: s.avatar_url || null };
         }
       }
 
@@ -274,6 +275,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         ...p,
         seller_name: p.seller_id ? sellerMap[p.seller_id]?.name || null : null,
         seller_slug: p.seller_id ? sellerMap[p.seller_id]?.slug || null : null,
+        seller_avatar: p.seller_id ? sellerMap[p.seller_id]?.avatar || null : null,
       }));
 
       const sorted = enriched.sort((a, b) => {
@@ -666,8 +668,14 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                           )}
                         </div>
                         {product.seller_name && (
-                          <div className="mt-1.5 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                            <Store className="h-3 w-3" />
+                          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            {product.seller_avatar ? (
+                              <img src={product.seller_avatar} alt={product.seller_name} className="h-4 w-4 rounded-full object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="h-4 w-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                                <Store className="h-2.5 w-2.5 text-white" />
+                              </div>
+                            )}
                             <span className="truncate">{product.seller_name}</span>
                           </div>
                         )}
