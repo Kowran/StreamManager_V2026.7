@@ -119,13 +119,15 @@ Deno.serve(async (req: Request) => {
       }),
     });
 
-    const customerResult = await customerResponse.json();
+    const customerText = await customerResponse.text();
+    const customerResult = customerText ? JSON.parse(customerText) : {};
 
     if (!customerResponse.ok) {
-      console.error('Asaas customer creation error:', customerResult);
+      console.error('Asaas customer creation error:', customerResult, 'status:', customerResponse.status);
+      const errorDesc = customerResult.errors?.[0]?.description || customerResult.message || (customerResponse.status === 401 ? 'Token inválido ou sem permissão' : 'Unknown error');
       return new Response(JSON.stringify({
         error: 'Failed to create customer',
-        details: customerResult.errors?.[0]?.description || 'Unknown error'
+        details: errorDesc
       }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -151,13 +153,15 @@ Deno.serve(async (req: Request) => {
       }),
     });
 
-    const paymentResult = await paymentResponse.json();
+    const paymentText = await paymentResponse.text();
+    const paymentResult = paymentText ? JSON.parse(paymentText) : {};
 
     if (!paymentResponse.ok) {
-      console.error('Asaas payment creation error:', paymentResult);
+      console.error('Asaas payment creation error:', paymentResult, 'status:', paymentResponse.status);
+      const errorDesc = paymentResult.errors?.[0]?.description || paymentResult.message || (paymentResponse.status === 401 ? 'Token inválido ou sem permissão' : 'Unknown error');
       return new Response(JSON.stringify({
         error: 'Payment creation failed',
-        details: paymentResult.errors?.[0]?.description || 'Unknown error'
+        details: errorDesc
       }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -177,9 +181,12 @@ Deno.serve(async (req: Request) => {
       });
 
       if (qrResponse.ok) {
-        const qrResult = await qrResponse.json();
-        qrCode = qrResult.payload || null;
-        qrCodeImage = qrResult.encodedImage || null;
+        const qrText = await qrResponse.text();
+        if (qrText) {
+          const qrResult = JSON.parse(qrText);
+          qrCode = qrResult.payload || null;
+          qrCodeImage = qrResult.encodedImage || null;
+        }
       }
     }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, CreditCard, AlertCircle, CheckCircle, Eye, EyeOff, Shield, Key, Globe } from 'lucide-react';
+import { X, Save, CreditCard, AlertCircle, CheckCircle, Eye, EyeOff, Shield, Key, Globe, Wifi } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 
@@ -24,6 +24,7 @@ export function AsaasConfigModal({ isOpen, onClose, onSave }: AsaasConfigModalPr
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showSecrets, setShowSecrets] = useState({
@@ -99,6 +100,45 @@ export function AsaasConfigModal({ isOpen, onClose, onSave }: AsaasConfigModalPr
       setError(error instanceof Error ? error.message : 'Erro ao salvar configuracoes');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function testAsaasConnection() {
+    setTesting(true);
+    setError('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Não autenticado');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-asaas-connection`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ config })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.details || 'Erro ao testar conexão');
+      }
+
+      if (result.success) {
+        const mode = result.details?.is_production_token ? 'Produção' : (result.details?.test_mode ? 'Sandbox' : 'Produção');
+        alert(`✅ Conexão com o Asaas estabelecida com sucesso!\n\nModo: ${mode}\nAPI: ${result.details?.api_base || '-'}\nClientes encontrados: ${result.details?.customers_found ?? '-'}\nStatus: ${result.details?.status || 'Conectado'}`);
+      } else {
+        throw new Error(result.error || 'Falha na conexão com o Asaas');
+      }
+    } catch (error) {
+      console.error('Error testing connection:', error);
+      setError(error instanceof Error ? error.message : 'Erro ao testar conexão');
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -311,7 +351,23 @@ export function AsaasConfigModal({ isOpen, onClose, onSave }: AsaasConfigModalPr
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-600">
-              <div></div>
+              <button
+                onClick={testAsaasConnection}
+                disabled={testing || !config.access_token}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center"
+              >
+                {testing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Testando...
+                  </>
+                ) : (
+                  <>
+                    <Wifi className="h-4 w-4 mr-2" />
+                    Testar Conexão
+                  </>
+                )}
+              </button>
               <div className="flex items-center space-x-3">
                 <button
                   type="button"
