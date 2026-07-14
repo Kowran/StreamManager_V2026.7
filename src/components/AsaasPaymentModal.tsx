@@ -84,7 +84,7 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Erro ao criar pagamento');
+        throw new Error(result.error || result.details || 'Erro ao criar pagamento');
       }
 
       setPaymentData(result.payment);

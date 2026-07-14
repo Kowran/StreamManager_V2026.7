@@ -47,7 +47,18 @@ Deno.serve(async (req: Request) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    const jwtPayload = JSON.parse(atob(jwtParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    let jwtPayload: any;
+    try {
+      const b64 = jwtParts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64 + '='.repeat((4 - b64.length % 4) % 4);
+      const jsonStr = new TextDecoder().decode(Uint8Array.from(atob(padded), c => c.charCodeAt(0)));
+      jwtPayload = JSON.parse(jsonStr);
+    } catch (decodeError) {
+      console.error('JWT decode error:', decodeError);
+      return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     const userId = jwtPayload.sub;
     const userEmail = jwtPayload.email;
     if (!userId) {
@@ -81,7 +92,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const config: AsaasConfig = configData.value;
-    const apiBase = config.test_mode
+    const isProdToken = config.access_token?.startsWith('$aact_prod_') || false;
+    const useTestMode = config.test_mode && !isProdToken;
+    const apiBase = useTestMode
       ? 'https://sandbox.asaas.com/v3'
       : 'https://api.asaas.com/v3';
 
@@ -218,7 +231,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error creating Asaas payment:', error);
     return new Response(JSON.stringify({
-      error: 'Internal server error',
+      error: error.message || 'Internal server error',
       details: error.message
     }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
