@@ -19,6 +19,7 @@ interface ProductWithSeller extends StoreProduct {
     business_name: string;
     sales_count: number;
     seller_slug?: string;
+    avatar_url?: string | null;
   };
   is_seller_product?: boolean;
   seller_application_id?: string;
@@ -108,24 +109,26 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       if (data.seller_id) {
         const { data: sellerData } = await supabase
           .from('profiles')
-          .select('full_name, seller_slug')
+          .select('full_name, seller_slug, avatar_url')
           .eq('id', data.seller_id)
           .maybeSingle();
         productData.seller_info = {
           business_name: sellerData?.full_name || 'Unknown Seller',
           sales_count: salesCount,
           seller_slug: sellerData?.seller_slug,
+          avatar_url: sellerData?.avatar_url || null,
         };
       } else {
         const { data: adminProfile } = await supabase
           .from('profiles')
-          .select('id, full_name, seller_slug')
+          .select('id, full_name, seller_slug, avatar_url')
           .eq('role', 'admin')
           .maybeSingle();
         productData.seller_info = {
           business_name: adminProfile?.full_name || 'Admin',
           sales_count: salesCount,
           seller_slug: adminProfile?.seller_slug,
+          avatar_url: adminProfile?.avatar_url || null,
         };
       }
 
@@ -324,12 +327,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       </div>
 
       {/* Product Detail Content */}
-      <main className="pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+      <main className="pb-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {/* Product Image */}
             <div className="relative">
-              <div className="aspect-square sm:aspect-[4/3] lg:aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-xl">
+              <div className="aspect-[16/10] bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg">
                 {product.image_url ? (
                   <img
                     src={product.image_url}
@@ -339,22 +342,22 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
-                    <Package className="h-24 w-24 text-white opacity-50" />
+                    <Package className="h-16 w-16 text-white opacity-50" />
                   </div>
                 )}
               </div>
               {/* Category badge */}
-              <span className="absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">
+              <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">
                 {product.category}
               </span>
               {/* Availability badge */}
               {!isAvailable && (
-                <span className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium bg-red-500/90 backdrop-blur-sm text-white">
+                <span className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/90 backdrop-blur-sm text-white">
                   {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
                 </span>
               )}
               {isAvailable && !product.manual_delivery && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-                <span className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium bg-orange-500/90 backdrop-blur-sm text-white">
+                <span className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/90 backdrop-blur-sm text-white">
                   {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
                 </span>
               )}
@@ -363,32 +366,32 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
             {/* Product Info */}
             <div className="flex flex-col">
               {/* Delivery badges */}
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-3">
                 {product.manual_delivery ? (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                    <Truck className="h-4 w-4 mr-1.5" />
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    <Truck className="h-3.5 w-3.5 mr-1" />
                     {t.language === 'pt' ? 'Entrega Manual' : t.language === 'en' ? 'Manual Delivery' : 'Entrega Manual'}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                    <Truck className="h-4 w-4 mr-1.5" />
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                    <Truck className="h-3.5 w-3.5 mr-1" />
                     {t.language === 'pt' ? 'Entrega Automatica' : t.language === 'en' ? 'Auto Delivery' : 'Entrega Automatica'}
                   </span>
                 )}
                 {product.renewable && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                    <Check className="h-4 w-4 mr-1.5" />
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                    <Check className="h-3.5 w-3.5 mr-1" />
                     {t.language === 'pt' ? 'Renovavel' : t.language === 'en' ? 'Renewable' : 'Renovable'}
                   </span>
                 )}
               </div>
 
               {/* Title */}
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-3">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 {product.name}
               </h1>
 
-              {/* Seller info */}
+              {/* Seller info with avatar */}
               {product.seller_info && (
                 <button
                   onClick={() => {
@@ -396,27 +399,38 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       window.location.hash = `seller/${product.seller_info.seller_slug}`;
                     }
                   }}
-                  className="self-start mb-4 inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="self-start mb-3 inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
-                  <UserCheck className="h-4 w-4" />
-                  {product.seller_info.business_name}
+                  {product.seller_info.avatar_url ? (
+                    <img
+                      src={product.seller_info.avatar_url}
+                      alt={product.seller_info.business_name}
+                      className="h-7 w-7 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-700"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <span className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                      {product.seller_info.business_name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{product.seller_info.business_name}</span>
                   <span className="text-gray-400">·</span>
                   <span>{product.seller_info.sales_count} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'}</span>
                 </button>
               )}
 
               {/* Price */}
-              <div className="flex items-baseline gap-3 mb-4">
+              <div className="flex items-baseline gap-2 mb-3">
                 {hasPromo && (
-                  <span className="text-2xl text-gray-400 line-through">
+                  <span className="text-lg text-gray-400 line-through">
                     {formatPrice(Number(product.price_usdt))}
                   </span>
                 )}
-                <span className={`text-4xl font-bold ${hasPromo ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
+                <span className={`text-3xl font-bold ${hasPromo ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
                   {formatPrice(effectivePrice)}
                 </span>
                 {quantity > 1 && (
-                  <span className="text-lg text-gray-500 dark:text-gray-400">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
                     {t.language === 'pt' ? `Total: ${formatPrice(effectivePrice * quantity)}` : t.language === 'en' ? `Total: ${formatPrice(effectivePrice * quantity)}` : `Total: ${formatPrice(effectivePrice * quantity)}`}
                   </span>
                 )}
@@ -424,8 +438,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
               {/* Description */}
               {product.description && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1.5 uppercase tracking-wide">
                     {t.language === 'pt' ? 'Descricao' : t.language === 'en' ? 'Description' : 'Descripcion'}
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
@@ -436,14 +450,14 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
               {/* Features */}
               {product.features && product.features.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 uppercase tracking-wide">
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">
                     {t.language === 'pt' ? 'Recursos' : t.language === 'en' ? 'Features' : 'Caracteristicas'}
                   </h3>
-                  <ul className="space-y-2">
+                  <ul className="space-y-1.5">
                     {product.features.map((feat, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
-                        <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </li>
                     ))}
@@ -453,12 +467,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
               {/* Stock Info */}
               {!product.manual_delivery && (
-                <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
                       {t.language === 'pt' ? 'Disponibilidade' : t.language === 'en' ? 'Availability' : 'Disponibilidad'}
                     </span>
-                    <span className={`font-bold text-lg ${
+                    <span className={`font-bold text-base ${
                       product.stock_quantity > 5
                         ? 'text-green-600 dark:text-green-400'
                         : product.stock_quantity > 0
@@ -472,17 +486,17 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               )}
 
               {/* Ratings */}
-              <div className="mb-6">
-                <ProductRatingsDisplay productId={product.id} showTitle={true} compact={false} />
+              <div className="mb-4">
+                <ProductRatingsDisplay productId={product.id} showTitle={true} compact={true} />
               </div>
 
               {/* Quantity Selector */}
               {/* Action Buttons */}
-              <div className="mt-auto space-y-3">
+              <div className="mt-auto space-y-2">
                 <button
                   onClick={handleBuyNow}
                   disabled={!isAvailable || purchasing}
-                  className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
+                  className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
                     !isAvailable
                       ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                       : purchasing
@@ -491,9 +505,9 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   }`}
                 >
                   {purchasing ? (
-                    <Loader className="h-6 w-6 animate-spin" />
+                    <Loader className="h-5 w-5 animate-spin" />
                   ) : (
-                    <ShoppingCart className="h-6 w-6" />
+                    <ShoppingCart className="h-5 w-5" />
                   )}
                   <span>
                     {!isAvailable
@@ -503,7 +517,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       : (t.language === 'pt' ? 'Entrar para Comprar' : t.language === 'en' ? 'Sign In to Buy' : 'Iniciar Sesion para Comprar')
                     }
                   </span>
-                  {isAvailable && !purchasing && <ArrowRight className="h-5 w-5" />}
+                  {isAvailable && !purchasing && <ArrowRight className="h-4 w-4" />}
                 </button>
                 <p className="text-center text-xs text-gray-400 dark:text-gray-500">
                   {user
@@ -523,11 +537,11 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
           {/* Related Products */}
           {relatedProducts.length > 0 && (
-            <div className="mt-16 pt-12 border-t border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 {t.language === 'pt' ? 'Produtos Relacionados' : t.language === 'en' ? 'Related Products' : 'Productos Relacionados'}
               </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
                 {relatedProducts.map((rp) => {
                   const rpAvail = rp.manual_delivery || rp.stock_quantity > 0;
                   const rpPromo = rp.promotion_active && rp.promotional_price_usdt;
