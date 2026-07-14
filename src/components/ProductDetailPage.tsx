@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, Package, Check, Truck, ShoppingCart, Star,
   AlertCircle, Loader, UserCheck, CreditCard,
-  Share2, CheckCircle2
+  Share2, CheckCircle2, Zap, Clock
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -363,20 +363,28 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               {/* Delivery badges */}
               <div className="flex flex-wrap gap-2 mb-3">
                 {product.manual_delivery ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                    <Truck className="h-3.5 w-3.5 mr-1" />
-                    {t.language === 'pt' ? 'Entrega Manual' : t.language === 'en' ? 'Manual Delivery' : 'Entrega Manual'}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                    <Truck className="h-3.5 w-3.5 mr-1" />
-                    {t.language === 'pt' ? 'Entrega Automatica' : t.language === 'en' ? 'Auto Delivery' : 'Entrega Automatica'}
-                  </span>
-                )}
+                  (product as any).account_recharge ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      <Zap className="h-3.5 w-3.5 mr-1" />
+                      {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                      <Truck className="h-3.5 w-3.5 mr-1" />
+                      {t.language === 'pt' ? 'Entrega Manual' : t.language === 'en' ? 'Manual Delivery' : 'Entrega Manual'}
+                    </span>
+                  )
+                ) : null}
                 {product.renewable && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                     <Check className="h-3.5 w-3.5 mr-1" />
                     {t.language === 'pt' ? 'Renovavel' : t.language === 'en' ? 'Renewable' : 'Renovable'}
+                  </span>
+                )}
+                {product.delivery_time && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
+                    <Clock className="h-3.5 w-3.5 mr-1" />
+                    {product.delivery_time}
                   </span>
                 )}
               </div>

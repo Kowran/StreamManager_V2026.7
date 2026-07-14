@@ -20,7 +20,8 @@ interface ProductFormData {
   active: boolean;
   features: string[];
   renewable: boolean;
-  delivery_type: 'automatic' | 'manual';
+  delivery_type: 'automatic' | 'manual' | 'recharge';
+  delivery_time: string;
 }
 
 interface InventoryItem {
@@ -48,6 +49,7 @@ export function SellerProductsManager() {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '', description: '', price_usd: 0, category: 'streaming', primary_category: 'item',
     image_url: '', active: true, features: [], renewable: false, delivery_type: 'automatic',
+    delivery_time: '',
   });
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -69,12 +71,14 @@ export function SellerProductsManager() {
         active: editingProduct.active,
         features: editingProduct.features || [],
         renewable: editingProduct.renewable || false,
-        delivery_type: editingProduct.manual_delivery ? 'manual' : 'automatic',
+        delivery_type: editingProduct.account_recharge ? 'recharge' : editingProduct.manual_delivery ? 'manual' : 'automatic',
+        delivery_time: editingProduct.delivery_time || '',
       });
     } else if (view === 'create') {
       setFormData({
         name: '', description: '', price_usd: 0, category: 'streaming',
         image_url: '', active: true, features: [], renewable: false, delivery_type: 'automatic',
+        delivery_time: '',
       });
     }
   }, [editingProduct, view]);
@@ -413,6 +417,7 @@ export function SellerProductsManager() {
     e.preventDefault();
     setSaving(true);
     try {
+      const isRecharge = formData.delivery_type === 'recharge' || formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge';
       const productData = {
         name: formData.name,
         description: formData.description || null,
@@ -425,7 +430,9 @@ export function SellerProductsManager() {
         active: formData.active,
         features: formData.features.filter(f => f.trim() !== ''),
         renewable: formData.renewable,
-        manual_delivery: formData.delivery_type === 'manual',
+        manual_delivery: formData.delivery_type === 'manual' || isRecharge,
+        account_recharge: isRecharge,
+        delivery_time: formData.delivery_time || null,
         stock_quantity: 0,
         seller_id: user?.id,
         updated_at: new Date().toISOString(),
@@ -757,7 +764,7 @@ function ProductFormPage({
             {lbl('Escolha apenas uma opção de entrega', 'Choose only one delivery option', 'Elige solo una opción de entrega')}
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, delivery_type: 'automatic' }))}
@@ -819,7 +826,57 @@ function ProductFormPage({
                 )}
               </div>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, delivery_type: 'recharge' }))}
+              className={`relative p-5 rounded-2xl border-2 text-left transition-all ${
+                formData.delivery_type === 'recharge'
+                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-500/20'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${
+                  formData.delivery_type === 'recharge'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+                }`}>
+                  <Smartphone className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {lbl('Recarga / Top-up', 'Recharge / Top-up', 'Recarga / Top-up')}
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {lbl('Cliente envia email, senha e dados extras para recarga', 'Customer sends email, password and extra data for recharge', 'El cliente envía email, contraseña y datos extra para recarga')}
+                  </p>
+                </div>
+                {formData.delivery_type === 'recharge' && (
+                  <CheckCircle2 className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                )}
+              </div>
+            </button>
           </div>
+
+          {/* Delivery Time Field */}
+          {(formData.delivery_type === 'manual' || formData.delivery_type === 'recharge') && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {lbl('Tempo de Entrega Estimado', 'Estimated Delivery Time', 'Tiempo de Entrega Estimado')}
+              </label>
+              <input
+                type="text"
+                value={formData.delivery_time}
+                onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: e.target.value }))}
+                placeholder={lbl('Ex: Até 24h, 1-3 dias úteis, Imediato...', 'e.g. Up to 24h, 1-3 business days, Instant...', 'Ej: Hasta 24h, 1-3 días hábiles, Inmediato...')}
+                className="block w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {lbl('Será exibido na página do produto', 'Will be shown on the product page', 'Se mostrará en la página del producto')}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Features */}

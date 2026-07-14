@@ -98,6 +98,7 @@ export interface StoreProduct {
   slug?: string;
   seller_id?: string | null;
   account_recharge?: boolean;
+  delivery_time?: string;
   created_at: string;
   updated_at: string;
 }

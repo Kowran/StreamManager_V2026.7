@@ -18,6 +18,7 @@ interface ProductFormData {
   renewable: boolean;
   manual_delivery: boolean;
   account_recharge: boolean;
+  delivery_time: string;
 }
 
 interface InventoryItem {
@@ -52,7 +53,8 @@ export function AdminProductsManager() {
     features: [],
     renewable: false,
     manual_delivery: false,
-    account_recharge: false
+    account_recharge: false,
+    delivery_time: ''
   });
   const [inventoryForm, setInventoryForm] = useState<InventoryItem[]>([]);
   const [deleteModal, setDeleteModal] = useState<{ show: boolean; item: InventoryItem | null; index: number }>({
@@ -149,7 +151,8 @@ export function AdminProductsManager() {
         features: editingProduct.features || [],
         renewable: editingProduct.renewable || false,
         manual_delivery: editingProduct.manual_delivery || false,
-        account_recharge: (editingProduct as any).account_recharge || false
+        account_recharge: (editingProduct as any).account_recharge || false,
+        delivery_time: (editingProduct as any).delivery_time || ''
       });
     } else {
       setFormData({
@@ -258,7 +261,8 @@ export function AdminProductsManager() {
         features: formData.features.filter(f => f.trim() !== ''),
         renewable: formData.renewable,
         manual_delivery: formData.manual_delivery,
-        account_recharge: formData.account_recharge,
+        account_recharge: formData.account_recharge || formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge',
+        delivery_time: formData.delivery_time || null,
         stock_quantity: 0, // Will be updated by trigger
         seller_id: user?.id || null,
         updated_at: new Date().toISOString()
@@ -841,6 +845,25 @@ export function AdminProductsManager() {
                   </div>
                 </div>
               </div>
+
+              {/* Delivery Time */}
+              {(formData.manual_delivery || formData.account_recharge) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tempo de Entrega Estimado
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.delivery_time}
+                    onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: e.target.value }))}
+                    placeholder="Ex: Até 24h, 1-3 dias úteis, Imediato..."
+                    className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Será exibido na página do produto
+                  </p>
+                </div>
+              )}
 
               {/* Product Features */}
               <div>

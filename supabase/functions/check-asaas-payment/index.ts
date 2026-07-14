@@ -30,9 +30,15 @@ Deno.serve(async (req: Request) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
-    if (userError || !user) {
+    const jwtParts = token.split('.');
+    if (jwtParts.length !== 3) {
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    const jwtPayload = JSON.parse(atob(jwtParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const userId = jwtPayload.sub;
+    if (!userId) {
       return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -61,7 +67,7 @@ Deno.serve(async (req: Request) => {
       .from('asaas_payments')
       .select('*')
       .eq('order_id', order_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (paymentError || !payment) {

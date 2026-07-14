@@ -1196,33 +1196,26 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
       <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
         {/* Delivery Tag */}
         {product.manual_delivery ? (
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10">
-            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-blue-500 text-white shadow-sm">
-              <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-              {t.language === 'pt' ? 'Entrega Manual' :
-               t.language === 'en' ? 'Manual Delivery' :
-               'Entrega Manual'}
-            </span>
-          </div>
-        ) : (product as any).account_recharge ? (
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10">
-            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500 text-white shadow-sm">
-              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-              {t.language === 'pt' ? 'Recarga' :
-               t.language === 'en' ? 'Recharge' :
-               'Recarga'}
-            </span>
-          </div>
-        ) : product.auto_delivery && (
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10">
-            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-green-500 text-white shadow-sm">
-              <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-              {t.language === 'pt' ? 'Entrega Automática' :
-               t.language === 'en' ? 'Auto Delivery' :
-               'Entrega Automática'}
-            </span>
-          </div>
-        )}
+          (product as any).account_recharge ? (
+            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10">
+              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500 text-white shadow-sm">
+                <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                {t.language === 'pt' ? 'Recarga' :
+                 t.language === 'en' ? 'Recharge' :
+                 'Recarga'}
+              </span>
+            </div>
+          ) : (
+            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10">
+              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-blue-500 text-white shadow-sm">
+                <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                {t.language === 'pt' ? 'Entrega Manual' :
+                 t.language === 'en' ? 'Manual Delivery' :
+                 'Entrega Manual'}
+              </span>
+            </div>
+          )
+        ) : null}
 
         {product.image_url ? (
           <img
@@ -1252,44 +1245,33 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
         )}
 
         {/* Low Stock Badge */}
-        {isAvailable && !product.manual_delivery && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-500/80 backdrop-blur-sm text-white">
-            {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-          </span>
-        )}
+        {/* Stock badge removed from product photo */}
       </div>
 
       {/* Product Info */}
       <div className="p-2.5 sm:p-3 lg:p-4">
         {/* Delivery Tag - Mobile only */}
         {product.manual_delivery ? (
-          <div className="mb-2 sm:hidden">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white shadow-sm">
-              <Truck className="h-3 w-3 mr-1" />
-              {t.language === 'pt' ? 'Entrega Manual' :
-               t.language === 'en' ? 'Manual Delivery' :
-               'Entrega Manual'}
-            </span>
-          </div>
-        ) : (product as any).account_recharge ? (
-          <div className="mb-2 sm:hidden">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white shadow-sm">
-              <Zap className="h-3 w-3 mr-1" />
-              {t.language === 'pt' ? 'Recarga' :
-               t.language === 'en' ? 'Recharge' :
-               'Recarga'}
-            </span>
-          </div>
-        ) : product.auto_delivery && (
-          <div className="mb-2 sm:hidden">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500 text-white shadow-sm">
-              <Truck className="h-3 w-3 mr-1" />
-              {t.language === 'pt' ? 'Entrega Automática' :
-               t.language === 'en' ? 'Auto Delivery' :
-               'Entrega Automática'}
-            </span>
-          </div>
-        )}
+          (product as any).account_recharge ? (
+            <div className="mb-2 sm:hidden">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white shadow-sm">
+                <Zap className="h-3 w-3 mr-1" />
+                {t.language === 'pt' ? 'Recarga' :
+                 t.language === 'en' ? 'Recharge' :
+                 'Recarga'}
+              </span>
+            </div>
+          ) : (
+            <div className="mb-2 sm:hidden">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white shadow-sm">
+                <Truck className="h-3 w-3 mr-1" />
+                {t.language === 'pt' ? 'Entrega Manual' :
+                 t.language === 'en' ? 'Manual Delivery' :
+                 'Entrega Manual'}
+              </span>
+            </div>
+          )
+        ) : null}
 
         <h3 className="font-bold text-xs sm:text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1">
           {product.name}

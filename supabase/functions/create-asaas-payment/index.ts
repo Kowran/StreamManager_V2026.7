@@ -41,9 +41,16 @@ Deno.serve(async (req: Request) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
-    if (userError || !user) {
+    const jwtParts = token.split('.');
+    if (jwtParts.length !== 3) {
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    const jwtPayload = JSON.parse(atob(jwtParts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    const userId = jwtPayload.sub;
+    const userEmail = jwtPayload.email;
+    if (!userId) {
       return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -81,8 +88,8 @@ Deno.serve(async (req: Request) => {
     const orderId = `AS-${Date.now()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
     const amountBRL = amount * 5.5;
 
-    const customerName = payer?.first_name || user.email?.split('@')[0] || 'Cliente';
-    const customerEmail = payer?.email || user.email;
+    const customerName = payer?.first_name || userEmail?.split('@')[0] || 'Cliente';
+    const customerEmail = payer?.email || userEmail;
 
     let asaasCustomerId: string;
 
@@ -166,7 +173,7 @@ Deno.serve(async (req: Request) => {
     const { error: insertError } = await supabaseAdmin
       .from('asaas_payments')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         payment_id: paymentResult.id,
         order_id: orderId,
         amount_brl: amountBRL,
