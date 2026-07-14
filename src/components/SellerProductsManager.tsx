@@ -544,6 +544,8 @@ function ProductFormPage({
     setFormData(prev => ({ ...prev, features: prev.features.map((f, i) => i === index ? value : f) }));
   }
 
+  const isRechargeCategory = formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge';
+
   return (
     <div className="min-h-[calc(100vh-200px)]">
       {/* Top bar */}
@@ -721,7 +723,14 @@ function ProductFormPage({
                   <button
                     key={cat.key}
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, primary_category: cat.key }))}
+                    onClick={() => {
+                      const isRechargeCat = cat.key === 'top_up' || cat.key === 'mobile_recharge';
+                      setFormData(prev => ({
+                        ...prev,
+                        primary_category: cat.key,
+                        delivery_type: isRechargeCat ? 'recharge' : (prev.delivery_type === 'recharge' ? 'automatic' : prev.delivery_type),
+                      }));
+                    }}
                     className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
                       isSelected
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
@@ -755,7 +764,24 @@ function ProductFormPage({
           </div>
         </div>
 
-        {/* Delivery Type - Required choice */}
+        {/* Delivery Type - Required choice (hidden for recharge categories) */}
+        {isRechargeCategory ? (
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl shadow-sm border border-amber-200 dark:border-amber-700 p-6">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-amber-500 text-white">
+                <Smartphone className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-amber-900 dark:text-amber-200">
+                  {lbl('Produto de Recarga', 'Recharge Product', 'Producto de Recarga')}
+                </h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  {lbl('Este produto é automaticamente configurado como recarga. O cliente envia email, senha e dados extras.', 'This product is automatically configured as recharge. Customer sends email, password and extra data.', 'Este producto se configura automáticamente como recarga. El cliente envía email, contraseña y datos extra.')}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
             {lbl('Tipo de Entrega', 'Delivery Type', 'Tipo de Entrega')} <span className="text-red-500">*</span>
@@ -764,7 +790,7 @@ function ProductFormPage({
             {lbl('Escolha apenas uma opção de entrega', 'Choose only one delivery option', 'Elige solo una opción de entrega')}
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, delivery_type: 'automatic' }))}
@@ -826,41 +852,10 @@ function ProductFormPage({
                 )}
               </div>
             </button>
-
-            <button
-              type="button"
-              onClick={() => setFormData(prev => ({ ...prev, delivery_type: 'recharge' }))}
-              className={`relative p-5 rounded-2xl border-2 text-left transition-all ${
-                formData.delivery_type === 'recharge'
-                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-500/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${
-                  formData.delivery_type === 'recharge'
-                    ? 'bg-amber-500 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
-                }`}>
-                  <Smartphone className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {lbl('Recarga / Top-up', 'Recharge / Top-up', 'Recarga / Top-up')}
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {lbl('Cliente envia email, senha e dados extras para recarga', 'Customer sends email, password and extra data for recharge', 'El cliente envía email, contraseña y datos extra para recarga')}
-                  </p>
-                </div>
-                {formData.delivery_type === 'recharge' && (
-                  <CheckCircle2 className="h-5 w-5 text-amber-500 flex-shrink-0" />
-                )}
-              </div>
-            </button>
           </div>
 
-          {/* Delivery Time Field */}
-          {(formData.delivery_type === 'manual' || formData.delivery_type === 'recharge') && (
+          {/* Delivery Time Field - Manual only */}
+          {formData.delivery_type === 'manual' && (
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {lbl('Tempo de Entrega Estimado', 'Estimated Delivery Time', 'Tiempo de Entrega Estimado')}
@@ -878,6 +873,39 @@ function ProductFormPage({
             </div>
           )}
         </div>
+        )}
+
+        {/* Delivery Time for Recharge Products */}
+        {isRechargeCategory && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">
+              {lbl('Tempo de Entrega da Recarga', 'Recharge Delivery Time', 'Tiempo de Entrega de Recarga')} <span className="text-red-500">*</span>
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              {lbl('Selecione quanto tempo leva para processar a recarga', 'Select how long it takes to process the recharge', 'Selecciona cuánto tiempo toma procesar la recarga')}
+            </p>
+            <select
+              value={formData.delivery_time}
+              onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: e.target.value }))}
+              className="block w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-amber-500 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="">{lbl('Selecione um tempo estimado...', 'Select an estimated time...', 'Selecciona un tiempo estimado...')}</option>
+              <option value="10 minutos">{lbl('10 minutos', '10 minutes', '10 minutos')}</option>
+              <option value="15 minutos">{lbl('15 minutos', '15 minutes', '15 minutos')}</option>
+              <option value="30 minutos">{lbl('30 minutos', '30 minutes', '30 minutos')}</option>
+              <option value="45 minutos">{lbl('45 minutos', '45 minutes', '45 minutos')}</option>
+              <option value="60 minutos">{lbl('60 minutos (1 hora)', '60 minutes (1 hour)', '60 minutos (1 hora)')}</option>
+              <option value="2 horas">{lbl('2 horas', '2 hours', '2 horas')}</option>
+              <option value="4 horas">{lbl('4 horas', '4 hours', '4 horas')}</option>
+              <option value="6 horas">{lbl('6 horas', '6 hours', '6 horas')}</option>
+              <option value="12 horas">{lbl('12 horas', '12 hours', '12 horas')}</option>
+              <option value="24 horas">{lbl('24 horas', '24 hours', '24 horas')}</option>
+            </select>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              {lbl('Este tempo será exibido na página do produto para o cliente', 'This time will be shown on the product page to the customer', 'Este tiempo se mostrará en la página del producto al cliente')}
+            </p>
+          </div>
+        )}
 
         {/* Features */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">

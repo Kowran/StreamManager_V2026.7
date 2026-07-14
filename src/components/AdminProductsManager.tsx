@@ -723,7 +723,15 @@ export function AdminProductsManager() {
                       <button
                         key={cat.key}
                         type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, primary_category: cat.key }))}
+                        onClick={() => {
+                          const isRechargeCat = cat.key === 'top_up' || cat.key === 'mobile_recharge';
+                          setFormData(prev => ({
+                            ...prev,
+                            primary_category: cat.key,
+                            account_recharge: isRechargeCat ? true : prev.account_recharge,
+                            manual_delivery: isRechargeCat ? true : prev.manual_delivery,
+                          }));
+                        }}
                         className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
                           isSelected
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
@@ -804,6 +812,7 @@ export function AdminProductsManager() {
                     </div>
                   </div>
                 </div>
+                {!(formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge') && (
                 <div className="flex items-center">
                   <label className="flex items-center">
                     <input
@@ -824,6 +833,8 @@ export function AdminProductsManager() {
                     </div>
                   </div>
                 </div>
+                )}
+                {!(formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge') && (
                 <div className="flex items-center">
                   <label className="flex items-center">
                     <input
@@ -844,21 +855,49 @@ export function AdminProductsManager() {
                     </div>
                   </div>
                 </div>
+                )}
+                {(formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge') && (
+                <div className="flex items-center">
+                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                    Produto de Recarga - entrega automática como recarga
+                  </span>
+                </div>
+                )}
               </div>
 
               {/* Delivery Time */}
-              {(formData.manual_delivery || formData.account_recharge) && (
+              {(formData.manual_delivery || formData.account_recharge || formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tempo de Entrega Estimado
                   </label>
-                  <input
-                    type="text"
-                    value={formData.delivery_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: e.target.value }))}
-                    placeholder="Ex: Até 24h, 1-3 dias úteis, Imediato..."
-                    className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                  />
+                  {(formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge') ? (
+                    <select
+                      value={formData.delivery_time}
+                      onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: e.target.value }))}
+                      className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-amber-500 focus:ring-amber-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    >
+                      <option value="">Selecione um tempo estimado...</option>
+                      <option value="10 minutos">10 minutos</option>
+                      <option value="15 minutos">15 minutos</option>
+                      <option value="30 minutos">30 minutos</option>
+                      <option value="45 minutos">45 minutos</option>
+                      <option value="60 minutos (1 hora)">60 minutos (1 hora)</option>
+                      <option value="2 horas">2 horas</option>
+                      <option value="4 horas">4 horas</option>
+                      <option value="6 horas">6 horas</option>
+                      <option value="12 horas">12 horas</option>
+                      <option value="24 horas">24 horas</option>
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formData.delivery_time}
+                      onChange={(e) => setFormData(prev => ({ ...prev, delivery_time: e.target.value }))}
+                      placeholder="Ex: Até 24h, 1-3 dias úteis, Imediato..."
+                      className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                    />
+                  )}
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                     Será exibido na página do produto
                   </p>
