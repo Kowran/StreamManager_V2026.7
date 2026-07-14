@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, Store, Coins, type LucideIcon } from 'lucide-react';
+import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, Store, Coins, SlidersHorizontal, type LucideIcon } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { LanguageSelector } from './LanguageSelector';
@@ -82,6 +82,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPrimaryCategory, setSelectedPrimaryCategory] = useState<'all' | PrimaryCategory>('all');
+  const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
 
   const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
     account: { icon: UserCheck, label: language === 'pt' ? 'Contas' : language === 'en' ? 'Accounts' : 'Cuentas', color: { activeBg: 'bg-indigo-500', activeText: 'text-white', badgeActive: 'bg-indigo-600 text-white' } },
@@ -410,57 +411,32 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </section>
       )}
 
-      {/* Primary Category Filter Bar */}
-      <section className="sticky top-[60px] z-30 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-y border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 overflow-x-auto py-2.5 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+      {/* Primary Category - Large Square Cards */}
+      <section className="relative z-30 bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 sm:gap-3">
             {primaryCategories.map(({ key, label, icon: Icon, color, count }) => (
               <button
                 key={key}
                 onClick={() => setSelectedPrimaryCategory(key)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
+                className={`relative flex flex-col items-center justify-center gap-1.5 p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 group ${
                   selectedPrimaryCategory === key
-                    ? `${color.activeBg} ${color.activeText} shadow-md scale-105`
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:scale-105'
+                    ? `${color.activeBg} ${color.activeText} shadow-lg scale-[1.03] border-transparent`
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md hover:scale-[1.02]'
                 }`}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                <span>{label}</span>
+                <div className={`p-2 sm:p-2.5 rounded-xl transition-colors ${
+                  selectedPrimaryCategory === key
+                    ? 'bg-white/20'
+                    : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                }`}>
+                  <Icon className="h-6 w-6 sm:h-7 sm:w-7 flex-shrink-0" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-center leading-tight">{label}</span>
                 {count > 0 && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  <span className={`absolute top-1.5 right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                     selectedPrimaryCategory === key
-                      ? `${color.badgeActive}`
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                  }`}>
-                    {count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Category Filter Bar */}
-      <section className="sticky top-[110px] z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 overflow-x-auto py-2.5 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-            {categories.map(({ key, label, icon: Icon, color, count }) => (
-              <button
-                key={key}
-                onClick={() => setSelectedCategory(key)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-200 flex-shrink-0 ${
-                  selectedCategory === key
-                    ? `${color.activeBg} ${color.activeText} shadow-md scale-105`
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:scale-105'
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-                <span>{label}</span>
-                {count > 0 && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    selectedCategory === key
-                      ? `${color.badgeActive}`
+                      ? 'bg-white/25 text-white'
                       : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                   }`}>
                     {count}
@@ -506,6 +482,95 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             </div>
           </div>
 
+          {/* Layout with collapsible secondary filter sidebar */}
+          <div className="flex gap-4 lg:gap-6">
+            {/* Secondary Category Sidebar - Desktop */}
+            <aside className={`hidden md:block flex-shrink-0 transition-all duration-300 ${showSecondaryFilters ? 'w-52' : 'w-12'}`}>
+              <div className="sticky top-4">
+                <button
+                  onClick={() => setShowSecondaryFilters(!showSecondaryFilters)}
+                  className={`w-full flex items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all ${
+                    showSecondaryFilters ? '' : 'justify-center'
+                  }`}
+                >
+                  <SlidersHorizontal className="h-5 w-5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
+                  {showSecondaryFilters && (
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      {t.language === 'pt' ? 'Subcategorias' : t.language === 'en' ? 'Subcategories' : 'Subcategorías'}
+                    </span>
+                  )}
+                </button>
+                {showSecondaryFilters && (
+                  <div className="mt-3 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 space-y-1">
+                    {categories.map(({ key, label, icon: Icon, color, count }) => (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedCategory(key)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          selectedCategory === key
+                            ? `${color.activeBg} ${color.activeText} shadow-sm`
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="flex-1 text-left whitespace-nowrap">{label}</span>
+                        {count > 0 && (
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                            selectedCategory === key
+                              ? color.badgeActive
+                              : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                          }`}>
+                            {count}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </aside>
+
+            {/* Secondary Category - Mobile Collapsible */}
+            <div className="md:hidden mb-3 w-full">
+              <button
+                onClick={() => setShowSecondaryFilters(!showSecondaryFilters)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                {t.language === 'pt' ? 'Subcategorias' : t.language === 'en' ? 'Subcategories' : 'Subcategorías'}
+                <ChevronDown className={`h-4 w-4 transition-transform ${showSecondaryFilters ? 'rotate-180' : ''}`} />
+              </button>
+              {showSecondaryFilters && (
+                <div className="mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-2 grid grid-cols-2 gap-1">
+                  {categories.map(({ key, label, icon: Icon, color, count }) => (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedCategory(key)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        selectedCategory === key
+                          ? `${color.activeBg} ${color.activeText} shadow-sm`
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="flex-1 text-left whitespace-nowrap truncate">{label}</span>
+                      {count > 0 && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                          selectedCategory === key
+                            ? color.badgeActive
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Products area */}
+            <div className="flex-1 min-w-0">
           {productsLoading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
@@ -600,6 +665,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             </>
             );
           })()}
+            </div>
+          </div>
         </div>
       </section>
 
