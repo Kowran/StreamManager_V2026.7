@@ -39,7 +39,7 @@ interface ProductDetailPageProps {
   productId: string;
   onBack: () => void;
   onGetStarted: () => void;
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: string, opts?: { presetAmount?: number }) => void;
 }
 
 export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate }: ProductDetailPageProps) {
@@ -217,12 +217,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       const unitPrice = hasPromo ? Number(product!.promotional_price_usdt) : product!.price_usdt;
       const totalPrice = unitPrice * quantity;
       if (userCredit.balance < totalPrice) {
-        alert(t.language === 'pt' ?
-          `Saldo insuficiente. Voce precisa de ${formatPrice(totalPrice)} mas tem apenas ${formatPrice(userCredit.balance)}. Recarregue sua conta primeiro.` :
-          t.language === 'en' ?
-          `Insufficient balance. You need ${formatPrice(totalPrice)} but only have ${formatPrice(userCredit.balance)}. Please recharge your account first.` :
-          `Saldo insuficiente. Necesitas ${formatPrice(totalPrice)} pero solo tienes ${formatPrice(userCredit.balance)}. Recarga tu cuenta primero.`
-        );
+        onNavigate?.('credits', { presetAmount: totalPrice });
         return;
       }
       setShowConfirmModal(true);

@@ -43,7 +43,7 @@ interface ProductWithSeller extends StoreProduct {
 }
 
 interface StoreProps {
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: string, opts?: { presetAmount?: number }) => void;
 }
 
 export function Store({ onNavigate }: StoreProps = {}) {
@@ -302,12 +302,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       const price = product.price_usdt;
 
       if (userCredit.balance < price) {
-        alert(t.language === 'pt' ?
-          `Saldo insuficiente. Você precisa de ${formatPrice(price)} mas tem apenas ${formatPrice(userCredit.balance)}. Recarregue sua conta primeiro.` :
-          t.language === 'en' ?
-          `Insufficient balance. You need ${formatPrice(price)} but only have ${formatPrice(userCredit.balance)}. Please recharge your account first.` :
-          `Saldo insuficiente. Necesitas ${formatPrice(price)} pero solo tienes ${formatPrice(userCredit.balance)}. Recarga tu cuenta primero.`
-        );
+        onNavigate?.('credits', { presetAmount: price });
         return;
       }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, CreditCard, RefreshCw, Plus, Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight, Wallet, TrendingUp, Eye } from 'lucide-react';
+import { DollarSign, CreditCard, RefreshCw, Plus, Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight, Wallet, TrendingUp, Eye, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -51,7 +51,7 @@ const PAYMENT_METHOD_META: Record<string, { icon: string; description: string; f
   asaas: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, Boleto (Brasil)', fees: 'Sem taxas (PIX)', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
 };
 
-export function CreditsManager() {
+export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { presetRechargeAmount?: number; onRechargeComplete?: () => void } = {}) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -60,12 +60,13 @@ export function CreditsManager() {
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
-  const [rechargeAmount, setRechargeAmount] = useState<number>(10);
-  const [customAmount, setCustomAmount] = useState<string>('');
+  const [rechargeAmount, setRechargeAmount] = useState<number>(presetRechargeAmount || 10);
+  const [customAmount, setCustomAmount] = useState<string>(presetRechargeAmount ? String(presetRechargeAmount) : '');
   const [currentPage, setCurrentPage] = useState(1);
   const transactionsPerPage = 10;
   const [cashbackBalance, setCashbackBalance] = useState<number>(0);
   const [activeMethods, setActiveMethods] = useState<PaymentMethodConfig[]>([]);
+  const paymentMethodsRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -75,6 +76,16 @@ export function CreditsManager() {
       fetchActiveMethods();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (presetRechargeAmount && presetRechargeAmount > 0) {
+      setRechargeAmount(presetRechargeAmount);
+      setCustomAmount(String(presetRechargeAmount));
+      setTimeout(() => {
+        paymentMethodsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }, [presetRechargeAmount]);
 
   async function loadUserCredit() {
     if (!user) return;
@@ -285,10 +296,23 @@ export function CreditsManager() {
 
 
       {/* Recharge Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+      <div ref={paymentMethodsRef} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 scroll-mt-20">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
           {t.language === 'pt' ? 'Recarregar Créditos' : t.language === 'en' ? 'Recharge Credits' : 'Recargar Créditos'}
         </h3>
+
+        {presetRechargeAmount && presetRechargeAmount > 0 && (
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              {t.language === 'pt'
+                ? `Saldo insuficiente para sua compra. Recarregue pelo menos ${formatPrice(presetRechargeAmount)} e escolha o método de pagamento abaixo.`
+                : t.language === 'en'
+                ? `Insufficient balance for your purchase. Recharge at least ${formatPrice(presetRechargeAmount)} and choose a payment method below.`
+                : `Saldo insuficiente para su compra. Recarga al menos ${formatPrice(presetRechargeAmount)} y elige un método de pago abajo.`}
+            </p>
+          </div>
+        )}
 
         {/* Quick Amount Selection */}
         <div className="mb-4 sm:mb-6">

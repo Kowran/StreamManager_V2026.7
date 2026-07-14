@@ -81,6 +81,7 @@ function AppContent() {
   const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>('store');
+  const [presetRechargeAmount, setPresetRechargeAmount] = useState<number | undefined>(undefined);
   const [productDetailId, setProductDetailId] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -95,6 +96,13 @@ function AppContent() {
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
 
   useOnlineHeartbeat(user?.id);
+
+  const navigateWithRecharge = (tab: string, opts?: { presetAmount?: number }) => {
+    if (tab === 'credits' && opts?.presetAmount) {
+      setPresetRechargeAmount(opts.presetAmount);
+    }
+    setActiveTab(tab as ActiveTab);
+  };
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
@@ -322,7 +330,7 @@ function AppContent() {
       case 'admin-dashboard':
         return (
           <AdminGuard>
-            <AdminDashboard onNavigate={setActiveTab} />
+            <AdminDashboard onNavigate={navigateWithRecharge} />
           </AdminGuard>
         );
       case 'accounts':
@@ -344,7 +352,12 @@ function AppContent() {
           </AdminGuard>
         );
       case 'store':
-        return <Store onNavigate={setActiveTab} />;
+        return <Store onNavigate={(tab, opts) => {
+          if (tab === 'credits' && opts?.presetAmount) {
+            setPresetRechargeAmount(opts.presetAmount);
+          }
+          setActiveTab(tab);
+        }} />;
       case 'smm':
         return <SMMPanel onNavigate={(tab) => setActiveTab(tab as ActiveTab)} />;
       case 'admin-smm-providers':
@@ -372,7 +385,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'credits':
-        return <CreditsManager />;
+        return <CreditsManager presetRechargeAmount={presetRechargeAmount} onRechargeComplete={() => setPresetRechargeAmount(undefined)} />;
       case 'purchases':
         return <UserPurchases />;
       case 'admin-users':
@@ -408,7 +421,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'profile':
-        return <UserProfile onNavigate={setActiveTab} />;
+        return <UserProfile onNavigate={navigateWithRecharge} />;
       case 'admin-payments':
         return (
           <AdminGuard page="admin-payments">
@@ -498,7 +511,7 @@ function AppContent() {
       case 'seller-store':
         return <SellerStore />;
       case 'seller-profile':
-        if (!sellerSlug) return <Store onNavigate={setActiveTab} />;
+        if (!sellerSlug) return <Store onNavigate={navigateWithRecharge} />;
         return (
           <PublicSellerProfilePage
             sellerSlug={sellerSlug}
@@ -515,7 +528,7 @@ function AppContent() {
       case 'email-verifier':
         // Redirect to external URL
         window.open('https://streammanager.online/', '_blank');
-        return <Store onNavigate={setActiveTab} />;
+        return <Store onNavigate={navigateWithRecharge} />;
       case 'netflix-finder':
         return (
           <AdminGuard>
@@ -523,7 +536,7 @@ function AppContent() {
           </AdminGuard>
         );
       default:
-        return <Store onNavigate={setActiveTab} />;
+        return <Store onNavigate={navigateWithRecharge} />;
     }
   };
 
@@ -638,7 +651,7 @@ function AppContent() {
                 setShowLanding(false);
               }
             }}
-            onNavigate={setActiveTab}
+            onNavigate={navigateWithRecharge}
           />
           {showLoginModal && (
             <LoginModal
@@ -705,7 +718,7 @@ function AppContent() {
             onGetStarted={() => {
               setShowLanding(false);
             }}
-            onNavigate={setActiveTab}
+            onNavigate={navigateWithRecharge}
           />
         </div>
       );
@@ -790,7 +803,7 @@ function AppContent() {
               setShowLanding(false);
             }
           }}
-          onNavigate={setActiveTab}
+          onNavigate={navigateWithRecharge}
         />
       </div>
     );
@@ -932,7 +945,7 @@ function AppContent() {
                 )}
               </button>
               <NotificationCenter />
-              <UserMenu onNavigate={setActiveTab} isAdmin={isAdmin} isSeller={isSeller} />
+              <UserMenu onNavigate={navigateWithRecharge} isAdmin={isAdmin} isSeller={isSeller} />
             </div>
           </div>
         </div>
@@ -1071,7 +1084,7 @@ function AppContent() {
             onGetStarted={() => {
               setShowLanding(false);
             }}
-            onNavigate={setActiveTab}
+            onNavigate={navigateWithRecharge}
           />
         ) : (
         <div className="min-w-0">
