@@ -263,10 +263,10 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       if (sellerIds.length > 0) {
         const { data: sellers } = await supabase
           .from('profiles')
-          .select('id, full_name, seller_slug')
+          .select('id, full_name, seller_slug, username')
           .in('id', sellerIds);
         for (const s of sellers || []) {
-          sellerMap[s.id] = { name: s.full_name || 'Vendedor', slug: s.seller_slug };
+          sellerMap[s.id] = { name: s.full_name || s.username || s.seller_slug || 'Vendedor', slug: s.seller_slug };
         }
       }
 

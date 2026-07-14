@@ -109,11 +109,11 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       if (data.seller_id) {
         const { data: sellerData } = await supabase
           .from('profiles')
-          .select('full_name, seller_slug, avatar_url')
+          .select('full_name, seller_slug, avatar_url, username')
           .eq('id', data.seller_id)
           .maybeSingle();
         productData.seller_info = {
-          business_name: sellerData?.full_name || 'Unknown Seller',
+          business_name: sellerData?.full_name || sellerData?.username || sellerData?.seller_slug || 'Vendedor',
           sales_count: salesCount,
           seller_slug: sellerData?.seller_slug,
           avatar_url: sellerData?.avatar_url || null,

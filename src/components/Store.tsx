@@ -147,24 +147,25 @@ export function Store({ onNavigate }: StoreProps = {}) {
           const salesCount = Number(productSalesCount) || 0;
 
           if (product.seller_id) {
-            let sellerData: { full_name: string; seller_slug: string } | null = null;
+            let sellerData: { full_name: string; seller_slug: string; username: string } | null = null;
             if (sellerProfileCache[product.seller_id]) {
               sellerData = sellerProfileCache[product.seller_id];
             } else {
               const { data: sd } = await supabase
                 .from('profiles')
-                .select('full_name, seller_slug')
+                .select('full_name, seller_slug, username')
                 .eq('id', product.seller_id)
                 .maybeSingle();
               sellerData = sd;
               if (sd) {
-                sellerProfileCache[product.seller_id] = { business_name: sd.full_name, seller_slug: sd.seller_slug };
+                const displayName = sd.full_name || sd.username || sd.seller_slug || 'Vendedor';
+                sellerProfileCache[product.seller_id] = { business_name: displayName, seller_slug: sd.seller_slug, username: sd.username };
               }
             }
             return {
               ...product,
               seller_info: {
-                business_name: sellerData?.full_name || 'Unknown Seller',
+                business_name: sellerData?.full_name || sellerData?.username || sellerData?.seller_slug || 'Vendedor',
                 sales_count: salesCount,
                 seller_slug: sellerData?.seller_slug,
               }
