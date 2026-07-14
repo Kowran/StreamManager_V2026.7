@@ -62,7 +62,7 @@ export function Footer() {
   }
 
   const siteName = siteSettings?.site_name || storeConfig?.store_name || 'StreamManager';
-  const footerLogo = siteSettings?.footer_logo_url || storeConfig?.store_logo_url;
+  const footerLogo = siteSettings?.footer_logo_url || siteSettings?.header_logo_url || storeConfig?.store_logo_url;
   const contactEmail = siteSettings?.contact_email || 'support@streammanager.com.br';
   const currentYear = new Date().getFullYear();
   const copyrightText = siteSettings?.copyright_text ||

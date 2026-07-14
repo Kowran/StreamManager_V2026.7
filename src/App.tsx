@@ -67,6 +67,7 @@ import { AdminBannerManager } from './components/AdminBannerManager';
 import { AdminCouponsManager } from './components/AdminCouponsManager';
 import { NicknameSetupModal } from './components/NicknameSetupModal';
 import { ChatInbox } from './components/ChatInbox';
+import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
 type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
@@ -89,6 +90,7 @@ function AppContent() {
   const [isSeller, setIsSeller] = useState(false);
   const [needsUsername, setNeedsUsername] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
+  const [showSellerRecruitment, setShowSellerRecruitment] = useState(false);
   const [subdomain, setSubdomain] = useState<'main' | 'login' | 'home'>('main');
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [siteSettings, setSiteSettings] = useState<{ site_name?: string; header_logo_url?: string; browser_title?: string; favicon_url?: string } | null>(null);
@@ -723,6 +725,25 @@ function AppContent() {
         </div>
       );
     }
+    if (showSellerRecruitment) {
+      return (
+        <div className="min-h-screen flex flex-col">
+          <AnnouncementBar />
+          <SellerRecruitmentPage
+            onBack={() => { setShowSellerRecruitment(false); setShowLanding(true); }}
+            onBecomeSeller={() => {
+              setShowSellerRecruitment(false);
+              setShowLanding(false);
+              if (!user) {
+                setShowLogin(true);
+              } else {
+                setActiveTab('seller-request');
+              }
+            }}
+          />
+        </div>
+      );
+    }
     if (subdomain === 'home' || (subdomain === 'main' && showLanding)) {
       return (
         <div className="min-h-screen flex flex-col">
@@ -744,7 +765,7 @@ function AppContent() {
         } else {
           setShowLanding(false);
         }
-          }} />
+          }} onSellerRecruitment={() => { setShowSellerRecruitment(true); setShowLanding(false); }} />
         </div>
       );
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download, ShieldAlert, X, CreditCard, Clock, CheckCircle } from 'lucide-react';
+import { DollarSign, Package, Search, Eye, Calendar, TrendingUp, ShoppingCart, Download, ShieldAlert, X, CreditCard, Clock, CheckCircle, Award } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -19,6 +19,10 @@ interface SellerSale {
   delivered_at?: string;
   delivered_accounts?: { email: string; password: string; instructions?: string }[];
   test_days_left?: number;
+  seller_amount?: number;
+  admin_amount?: number;
+  admin_rate?: number;
+  seller_rate?: number;
 }
 
 interface SalesStats {
@@ -51,6 +55,7 @@ export function SellerSales() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [selectedSale, setSelectedSale] = useState<SellerSale | null>(null);
+  const [sellerLevelInfo, setSellerLevelInfo] = useState<any>(null);
 
   useEffect(() => {
     loadSales();
@@ -99,33 +104,50 @@ export function SellerSales() {
 
     setLoading(true);
     try {
-      const { data: ordersData, error } = await supabase
-        .from('seller_orders_view')
-        .select(`
-          id,
-          product_id,
-          quantity,
-          total_brl,
-          total_usdt,
-          status,
-          customer_name,
-          delivered_at,
-          created_at,
-          updated_at,
-          store_products (
-            name
-          ),
-          store_deliveries (
-            delivery_content,
-            delivery_method,
-            delivery_status,
-            delivered_at
-          )
-        `)
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
+      const [ordersRes, commissionsRes, levelRes] = await Promise.all([
+        supabase
+          .from('seller_orders_view')
+          .select(`
+            id,
+            product_id,
+            quantity,
+            total_brl,
+            total_usdt,
+            status,
+            customer_name,
+            delivered_at,
+            created_at,
+            updated_at,
+            store_products (
+              name
+            ),
+            store_deliveries (
+              delivery_content,
+              delivery_method,
+              delivery_status,
+              delivered_at
+            )
+          `)
+          .eq('seller_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('sales_commissions')
+          .select('order_id, seller_amount, admin_amount, admin_commission_rate, seller_commission_rate, currency')
+          .eq('seller_id', user.id)
+          .eq('currency', 'USDT'),
+        supabase.rpc('get_seller_level_info', { p_seller_id: user.id }),
+      ]);
 
-      if (error) throw error;
+      if (ordersRes.error) throw ordersRes.error;
+
+      const commissionMap = new Map<string, any>();
+      (commissionsRes.data || []).forEach((c: any) => {
+        commissionMap.set(c.order_id, c);
+      });
+
+      if (levelRes.data) setSellerLevelInfo(levelRes.data);
+
+      const ordersData = ordersRes.data || [];
 
       const salesData: SellerSale[] = (ordersData || []).map(order => {
         const accounts: { email: string; password: string; instructions?: string }[] = [];
@@ -142,6 +164,7 @@ export function SellerSales() {
         const purchaseDate = new Date(order.created_at);
         const testEnd = new Date(purchaseDate.getTime() + 3 * 24 * 60 * 60 * 1000);
         const daysLeft = Math.max(0, Math.ceil((testEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+        const commission = commissionMap.get(order.id);
         return {
           id: order.id,
           product_id: order.product_id,
@@ -155,7 +178,11 @@ export function SellerSales() {
           test_days_left: daysLeft,
           delivered_accounts: accounts,
           created_at: order.created_at,
-          updated_at: order.updated_at
+          updated_at: order.updated_at,
+          seller_amount: commission?.seller_amount,
+          admin_amount: commission?.admin_amount,
+          admin_rate: commission?.admin_commission_rate,
+          seller_rate: commission?.seller_commission_rate,
         };
       });
 
@@ -310,6 +337,37 @@ export function SellerSales() {
         </button>
       </div>
 
+      {/* Level Benefits Banner */}
+      {sellerLevelInfo && (
+        <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl" style={{ backgroundColor: (sellerLevelInfo.current_tier_color || '#3b82f6') + '20', color: sellerLevelInfo.current_tier_color || '#3b82f6' }}>
+                <Award className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{sellerLevelInfo.current_tier_name} · {lbl('Nível', 'Level', 'Nivel')} {sellerLevelInfo.seller_level}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {lbl('Taxa atual', 'Current fee', 'Comisión actual')}: <span className="font-semibold text-red-500">{sellerLevelInfo.admin_rate}%</span> · {lbl('Você recebe', 'You keep', 'Recibes')}: <span className="font-semibold text-green-500">{sellerLevelInfo.seller_rate}%</span>
+                </p>
+              </div>
+            </div>
+            {sellerLevelInfo.next_tier_name && (
+              <div className="text-right">
+                <p className="text-xs text-gray-500 dark:text-gray-400">{lbl('Próximo nível', 'Next tier', 'Siguiente nivel')}: {sellerLevelInfo.next_tier_name} ({lbl('Nível', 'Level', 'Nivel')} {sellerLevelInfo.next_tier_min_level})</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full" style={{ width: `${sellerLevelInfo.progress_pct}%` }} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{sellerLevelInfo.progress_pct}%</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{sellerLevelInfo.xp_to_next_tier} XP {lbl('restantes', 'remaining', 'restantes')}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
@@ -435,7 +493,13 @@ export function SellerSales() {
                   Qtd
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Valor
+                  {lbl('Valor', 'Amount', 'Valor')}
+                </th>
+                <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {lbl('Lucro', 'Profit', 'Ganancia')}
+                </th>
+                <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {lbl('Taxa Plataforma', 'Platform Fee', 'Comisión')}
                 </th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
@@ -469,6 +533,14 @@ export function SellerSales() {
                   </td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
                     {formatPrice(sale.total_usdt)}
+                  </td>
+                  <td className="hidden lg:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">
+                    {sale.seller_amount != null ? formatPrice(sale.seller_amount) : <span className="text-gray-400">—</span>}
+                  </td>
+                  <td className="hidden lg:table-cell px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-red-500 dark:text-red-400">
+                    {sale.admin_amount != null ? (
+                      <span>{formatPrice(sale.admin_amount)} <span className="text-xs text-gray-400">({sale.admin_rate}%)</span></span>
+                    ) : <span className="text-gray-400">—</span>}
                   </td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(sale.status)}
@@ -529,9 +601,21 @@ export function SellerSales() {
                 <span className="text-sm text-gray-900 dark:text-white">{formatDate(selectedSale.created_at)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Valor', 'Amount', 'Valor')}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Valor Total', 'Total Amount', 'Valor Total')}</span>
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">{formatPrice(selectedSale.total_usdt)}</span>
               </div>
+              {selectedSale.seller_amount != null && selectedSale.admin_amount != null && (
+                <>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                    <span className="text-sm font-medium text-green-700 dark:text-green-400">{lbl('Seu Lucro', 'Your Profit', 'Tu Ganancia')} ({selectedSale.seller_rate}%)</span>
+                    <span className="text-sm font-bold text-green-600 dark:text-green-400">{formatPrice(selectedSale.seller_amount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                    <span className="text-sm font-medium text-red-700 dark:text-red-400">{lbl('Taxa da Plataforma', 'Platform Fee', 'Comisión Plataforma')} ({selectedSale.admin_rate}%)</span>
+                    <span className="text-sm font-bold text-red-500 dark:text-red-400">{formatPrice(selectedSale.admin_amount)}</span>
+                  </div>
+                </>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Status', 'Status', 'Estado')}</span>
                 {getStatusBadge(selectedSale.status)}

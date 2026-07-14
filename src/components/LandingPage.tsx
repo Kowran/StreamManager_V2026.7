@@ -10,6 +10,7 @@ import { Footer } from './Footer';
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onSellerRecruitment?: () => void;
 }
 
 interface StoreConfig {
@@ -32,6 +33,12 @@ interface StoreConfig {
     address?: string;
   };
   copyright?: string;
+}
+
+interface SiteSettings {
+  site_name?: string;
+  header_logo_url?: string;
+  footer_logo_url?: string;
 }
 
 interface Banner {
@@ -64,13 +71,14 @@ interface StoreProduct {
   seller_slug?: string | null;
 }
 
-export function LandingPage({ onGetStarted }: LandingPageProps) {
+export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPageProps) {
   const { t, language } = useLanguage();
   const { formatPrice } = useCurrency();
   // Rendered before rest of component when a product is selected
   // (see early return below)
   const { theme, toggleTheme } = useTheme();
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<StoreProduct | null>(null);
@@ -215,13 +223,14 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
   async function loadStoreConfig() {
     try {
-      const { data, error } = await supabase
-        .from('system_config')
-        .select('value')
-        .eq('key', 'store_config')
-        .maybeSingle();
-      if (error && error.code !== 'PGRST116') throw error;
-      setStoreConfig(data?.value || null);
+      const [storeRes, siteRes] = await Promise.all([
+        supabase.from('system_config').select('value').eq('key', 'store_config').maybeSingle(),
+        supabase.from('system_config').select('value').eq('key', 'site_settings').maybeSingle(),
+      ]);
+      if (storeRes.error && storeRes.error.code !== 'PGRST116') throw storeRes.error;
+      if (siteRes.error && siteRes.error.code !== 'PGRST116') throw siteRes.error;
+      setStoreConfig(storeRes.data?.value || null);
+      setSiteSettings(siteRes.data?.value || null);
     } catch (error) {
       console.error('Error loading store config:', error);
     }
@@ -313,16 +322,16 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           )}
 
           <div className="flex items-center space-x-3">
-            {storeConfig?.store_logo_url ? (
-              <img src={storeConfig.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
+            {(siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
+              <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : null}
-            <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+            <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-2 rounded-lg ${(siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? 'hidden' : ''}`}>
               <CreditCard className="h-5 w-5 text-white" />
             </div>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {storeConfig?.store_name || 'StreamManager'}
+              {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
             </h1>
           </div>
 
@@ -331,6 +340,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             <button onClick={toggleTheme} className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
               {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
             </button>
+            {onSellerRecruitment && (
+              <button onClick={onSellerRecruitment} className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white text-sm font-medium rounded-lg transition-all hover:scale-105 shadow-md">
+                <Store className="h-4 w-4 mr-2" />
+                <span>{t.language === 'pt' ? 'Vender' : t.language === 'en' ? 'Sell' : 'Vender'}</span>
+              </button>
+            )}
             <button onClick={onGetStarted} className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
               <LogIn className="h-4 w-4 mr-2" />
               <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
@@ -367,6 +382,13 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   <LogIn className="h-5 w-5 mr-2" />
                   <span>{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
                 </button>
+                {onSellerRecruitment && (
+                  <button onClick={() => { onSellerRecruitment(); setIsMobileMenuOpen(false); }}
+                    className="w-full flex items-center justify-center p-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-medium rounded-lg transition-all">
+                    <Store className="h-5 w-5 mr-2" />
+                    <span>{t.language === 'pt' ? 'Seja um Vendedor' : t.language === 'en' ? 'Become a Seller' : 'Ser Vendedor'}</span>
+                  </button>
+                )}
                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                   <LanguageSelector />
                 </div>

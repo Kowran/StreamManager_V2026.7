@@ -602,42 +602,44 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       {/* Rotating Banner Carousel */}
       {banners.length > 0 && (
-        <div className="relative rounded-xl overflow-hidden shadow-lg group h-32 sm:h-44 lg:h-56">
+        <div className="relative rounded-2xl overflow-hidden shadow-2xl group h-[220px] sm:h-[400px] lg:h-[500px] select-none">
           {banners.map((banner, idx) => (
             <div
               key={banner.id}
               className={`absolute inset-0 transition-all duration-700 ${idx === currentBanner ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'}`}
             >
-              <div className="absolute inset-0" style={{ backgroundColor: banner.bg_color }} />
+              <div className="absolute inset-0" style={{ backgroundColor: banner.bg_color === 'transparent' ? 'transparent' : banner.bg_color }} />
               {banner.image_url && (
                 <img
                   src={banner.image_url}
                   alt={banner.title}
-                  className="absolute inset-0 w-full h-full object-cover opacity-40"
+                  className={`absolute inset-0 w-full h-full object-cover ${
+                    banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'
+                  }`}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               )}
               <div
-                className={`relative h-full flex flex-col justify-center px-4 sm:px-8 lg:px-12 ${
+                className={`relative h-full flex flex-col justify-center px-6 sm:px-12 lg:px-16 ${
                   banner.text_position === 'center' ? 'items-center text-center' :
                   banner.text_position === 'right' ? 'items-end text-right' :
                   'items-start text-left'
                 }`}
                 style={{ color: banner.text_color }}
               >
-                <h2 className="text-base sm:text-xl lg:text-2xl font-bold mb-1 drop-shadow-lg line-clamp-2">{banner.title}</h2>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 drop-shadow-lg line-clamp-2">{banner.title}</h2>
                 {banner.subtitle && (
-                  <p className="text-xs sm:text-sm lg:text-base opacity-90 mb-2 max-w-md drop-shadow-md line-clamp-2">{banner.subtitle}</p>
+                  <p className="text-sm sm:text-base lg:text-lg opacity-90 mb-4 max-w-lg drop-shadow-md line-clamp-2">{banner.subtitle}</p>
                 )}
                 {banner.link_url && (
                   <a
                     href={banner.link_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-bold bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 transition-all hover:scale-105"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 transition-all hover:scale-105"
                   >
                     {banner.link_text || (t.language === 'pt' ? 'Ver mais' : t.language === 'en' ? 'See more' : 'Ver más')}
-                    <ArrowRight className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <ArrowRight className="w-4 h-4" />
                   </a>
                 )}
               </div>
@@ -647,22 +649,22 @@ export function Store({ onNavigate }: StoreProps = {}) {
             <>
               <button
                 onClick={() => setCurrentBanner(prev => (prev - 1 + banners.length) % banners.length)}
-                className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
+                className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setCurrentBanner(prev => (prev + 1) % banners.length)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 hover:bg-black/50 text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-5 h-5" />
               </button>
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
                 {banners.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentBanner(idx)}
-                    className={`h-1.5 rounded-full transition-all ${idx === currentBanner ? 'w-6 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70'}`}
+                    className={`h-2 rounded-full transition-all ${idx === currentBanner ? 'w-8 bg-white' : 'w-2 bg-white/50 hover:bg-white/70'}`}
                   />
                 ))}
               </div>
