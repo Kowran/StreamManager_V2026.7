@@ -3,7 +3,7 @@ import {
   ArrowLeft, Package, CreditCard, Calendar, User, Store, Copy, Check,
   Clock, AlertTriangle, CheckCircle, XCircle, Truck, ShoppingBag,
   ChevronRight, Star, RefreshCw, HelpCircle, Shield, ShieldAlert, ExternalLink,
-  DollarSign, Tag, Zap, CheckCheck, MessageCircle
+  DollarSign, Tag, Zap, CheckCheck, MessageCircle, Layers
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -276,6 +276,12 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
                   <h1 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
                     {purchase.product_name}
                   </h1>
+                  {purchase.credentials?.variation_name && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mt-1">
+                      <Layers className="h-3 w-3" />
+                      {purchase.credentials.variation_name}
+                    </span>
+                  )}
                   {purchase.store_products?.category && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 mt-1">
                       <Tag className="h-3 w-3 mr-1" />

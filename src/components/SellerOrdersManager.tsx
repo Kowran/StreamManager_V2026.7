@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Calendar, Package, Download, Eye, Truck, CheckCircle,
   Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert, AlertTriangle,
-  CreditCard, ExternalLink
+  CreditCard, ExternalLink, Layers
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -13,6 +13,7 @@ interface SellerOrder {
   id: string;
   product_id: string;
   product_name: string;
+  variation_name?: string | null;
   quantity: number;
   total_usdt: number;
   total_brl: number;
@@ -150,6 +151,7 @@ export function SellerOrdersManager() {
           id: o.id,
           product_id: o.product_id,
           product_name: (o.store_products as any)?.name || 'Unknown',
+          variation_name: (o as any).variation_name || null,
           quantity: o.quantity,
           total_usdt: o.total_usdt || 0,
           total_brl: o.total_brl || 0,
@@ -383,7 +385,12 @@ export function SellerOrdersManager() {
                   <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">
                     <div className="flex items-center gap-1.5">
                       <Package className="h-3.5 w-3.5 text-gray-400" />
-                      <span className="truncate max-w-[120px]">{order.product_name}</span>
+                      <div className="min-w-0">
+                        <span className="truncate max-w-[120px] block">{order.product_name}</span>
+                        {order.variation_name && (
+                          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium truncate block">{order.variation_name}</span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="hidden md:table-cell px-3 py-3 text-sm text-gray-900 dark:text-white">
@@ -443,6 +450,9 @@ export function SellerOrdersManager() {
             </div>
             <div className="px-5 py-4 space-y-3">
               <DetailRow icon={Package} label={lbl('Produto', 'Product', 'Producto')} value={selectedOrder.product_name} />
+              {selectedOrder.variation_name && (
+                <DetailRow icon={Layers} label={lbl('Variação', 'Variation', 'Variación')} value={selectedOrder.variation_name} />
+              )}
               <DetailRow icon={User} label={lbl('Cliente', 'Customer', 'Cliente')} value={selectedOrder.customer_name} />
               <DetailRow icon={Calendar} label={lbl('Data', 'Date', 'Fecha')} value={formatDate(selectedOrder.created_at)} />
               <DetailRow icon={DollarSign} label={lbl('Valor Total', 'Total Amount', 'Valor Total')} value={formatPrice(selectedOrder.total_usdt)} />

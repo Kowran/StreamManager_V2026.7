@@ -1317,10 +1317,16 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
   const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
   const [variations, setVariations] = useState<any[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<any>(null);
+  const [variationStocks, setVariationStocks] = useState<Record<string, number>>({});
+  const [showVariationDropdown, setShowVariationDropdown] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     setSelectedVariation(null);
     setVariations([]);
+    setVariationStocks({});
+    setShowVariationDropdown(false);
+    setQuantity(1);
     supabase
       .from('store_product_variations')
       .select('*')
@@ -1331,13 +1337,21 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
         if (data && data.length > 0) {
           setVariations(data);
           setSelectedVariation(data[0]);
+          // Fetch stock counts per variation
+          data.forEach(async (v) => {
+            const { data: count } = await supabase
+              .rpc('get_variation_stock_count', { p_variation_id: v.id });
+            setVariationStocks(prev => ({ ...prev, [v.id]: count || 0 }));
+          });
         }
       });
   }, [product.id]);
 
+  const variationStock = selectedVariation ? (variationStocks[selectedVariation.id] ?? 0) : product.stock_quantity;
   const variationPrice = selectedVariation ? Number(selectedVariation.price_usdt) : product.price_usdt;
-  const canAfford = userCredit ? userCredit.balance >= variationPrice : false;
-  const isAvailable = product.manual_delivery || (product as any).account_recharge || (selectedVariation ? selectedVariation.stock_quantity > 0 : product.stock_quantity > 0);
+  const canAfford = userCredit ? userCredit.balance >= variationPrice * quantity : false;
+  const isAvailable = product.manual_delivery || (product as any).account_recharge || variationStock > 0;
+  const maxQuantity = (product.manual_delivery || (product as any).account_recharge) ? 99 : Math.max(1, variationStock);
 
   return (
     <div
@@ -1484,6 +1498,74 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
             {formatPrice(variationPrice)}
           </span>
         </div>
+
+        {/* Variation Selector */}
+        {variations.length > 0 && (
+          <div className="mb-2 sm:mb-3 relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowVariationDropdown(!showVariationDropdown); }}
+              className="w-full flex items-center justify-between px-2.5 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:border-blue-400 transition-colors"
+            >
+              <span className="truncate">{selectedVariation ? selectedVariation.name : (t.language === 'pt' ? 'Selecione...' : t.language === 'en' ? 'Select...' : 'Seleccionar...')}</span>
+              <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${showVariationDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            {showVariationDropdown && (
+              <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {variations.map((v) => {
+                  const vStock = variationStocks[v.id] ?? 0;
+                  const vAvailable = product.manual_delivery || vStock > 0;
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedVariation(v);
+                        setQuantity(1);
+                        setShowVariationDropdown(false);
+                      }}
+                      disabled={!vAvailable}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors ${
+                        selectedVariation?.id === v.id ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-900 dark:text-white'
+                      } ${!vAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      <span className="truncate">{v.name}</span>
+                      <span className="flex items-center gap-1.5">
+                        {!product.manual_delivery && !((product as any).account_recharge) && (
+                          <span className={`text-[10px] ${vStock > 0 ? 'text-gray-400' : 'text-red-400'}`}>{vStock}</span>
+                        )}
+                        <span className="text-green-600 dark:text-green-400 font-bold">${Number(v.price_usdt).toFixed(2)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quantity Selector */}
+        {!isOwnProduct && isAvailable && (
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <span className="text-xs text-gray-500 dark:text-gray-400">{t.language === 'pt' ? 'Qtd:' : t.language === 'en' ? 'Qty:' : 'Cant:'}</span>
+            <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+              <button
+                onClick={(e) => { e.stopPropagation(); setQuantity(Math.max(1, quantity - 1)); }}
+                className="px-2 py-1 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-sm"
+              >−</button>
+              <span className="px-3 py-1 text-sm font-medium text-gray-900 dark:text-white min-w-[2rem] text-center">{quantity}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setQuantity(Math.min(maxQuantity, quantity + 1)); }}
+                disabled={quantity >= maxQuantity}
+                className="px-2 py-1 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+              >+</button>
+            </div>
+            {!product.manual_delivery && !((product as any).account_recharge) && (
+              <span className={`text-[10px] ${variationStock > 5 ? 'text-green-500' : variationStock > 0 ? 'text-yellow-500' : 'text-red-500'}`}>
+                {variationStock} {t.language === 'pt' ? 'disponível' : t.language === 'en' ? 'available' : 'disponible'}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <button

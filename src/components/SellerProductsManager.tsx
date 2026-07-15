@@ -1164,6 +1164,11 @@ function InventoryPage({
       return;
     }
 
+    if (variations.length > 0 && !selectedVariationId) {
+      alert(lbl('Selecione uma variação para adicionar estoque', 'Select a variation to add stock', 'Selecciona una variación para añadir stock'));
+      return;
+    }
+
     setSaving(true);
     try {
       const inventoryData = validItems.map(item => ({
@@ -1301,14 +1306,14 @@ function InventoryPage({
             {variations.length > 0 && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  {lbl('Selecionar Variação', 'Select Variation', 'Seleccionar Variación')}
+                  {lbl('Selecionar Variação *', 'Select Variation *', 'Seleccionar Variación *')}
                 </label>
                 <select
                   value={selectedVariationId}
                   onChange={(e) => setSelectedVariationId(e.target.value)}
                   className={`${inputClass} text-sm`}
                 >
-                  <option value="">{lbl('Produto base (sem variação)', 'Base product (no variation)', 'Producto base (sin variación)')}</option>
+                  <option value="">{lbl('— Selecione —', '— Select —', '— Seleccionar —')}</option>
                   {variations.map(v => (
                     <option key={v.id} value={v.id}>{v.name} — ${Number(v.price_usdt).toFixed(2)}</option>
                   ))}

@@ -162,9 +162,25 @@ Deno.serve(async (req: Request) => {
     }
 
     // Check stock only for non-manual, non-recharge delivery products
-    // If a variation is selected, check variation stock instead of product stock
+    // If a variation is selected, check variation inventory count instead of product stock
     if (!isManualDelivery && !isAccountRecharge) {
-      const availableStock = variationRecord ? variationRecord.stock_quantity : product.stock_quantity;
+      let availableStock: number;
+      if (variationRecord) {
+        const { count } = await supabaseAdmin
+          .from('product_inventory')
+          .select('*', { count: 'exact', head: true })
+          .eq('product_id', product_id)
+          .eq('variation_id', variation_id)
+          .eq('status', 'available');
+        availableStock = count || 0;
+      } else {
+        const { count } = await supabaseAdmin
+          .from('product_inventory')
+          .select('*', { count: 'exact', head: true })
+          .eq('product_id', product_id)
+          .eq('status', 'available');
+        availableStock = count || 0;
+      }
       if (availableStock < quantity) {
         return new Response(
           JSON.stringify({
@@ -447,6 +463,7 @@ Deno.serve(async (req: Request) => {
       cashback_used: cashbackUsed,
       recharge_data: isAccountRecharge ? recharge_data : null,
       variation_id: variation_id || null,
+      variation_name: variationRecord?.name || null,
     };
 
     let order: any = null;
@@ -498,6 +515,9 @@ Deno.serve(async (req: Request) => {
 
     let deliveryContent: any;
 
+    // Determine variation name for display
+    const variationName = variationRecord?.name || null;
+
     // For manual delivery products, skip inventory check
     if (isManualDelivery) {
       console.log('Manual delivery product - skipping inventory check');
@@ -507,6 +527,7 @@ Deno.serve(async (req: Request) => {
         password: '',
         instructions: 'Este produto requer entrega manual. Nossa equipe entrara em contato em breve com as credenciais.',
         product_name: productName,
+        variation_name: variationName,
         purchase_price: totalPrice,
         original_price: unitPrice * quantity,
         discount_amount: discountAmount,
@@ -523,6 +544,7 @@ Deno.serve(async (req: Request) => {
         password: '',
         instructions: 'Recarga de conta em processamento. O administrador ira recarregar sua conta e confirmara a entrega em breve.',
         product_name: productName,
+        variation_name: variationName,
         purchase_price: totalPrice,
         original_price: unitPrice * quantity,
         discount_amount: discountAmount,
@@ -628,6 +650,7 @@ Deno.serve(async (req: Request) => {
           password: String(inventoryItem.password || ''),
           instructions: String(inventoryItem.instructions || 'Use estas credenciais para acessar sua conta.'),
           product_name: productName,
+          variation_name: variationName,
           purchase_price: totalPrice,
           original_price: unitPrice * quantity,
           discount_amount: discountAmount,
@@ -643,6 +666,7 @@ Deno.serve(async (req: Request) => {
           instructions: '',
           accounts: accounts,
           product_name: productName,
+          variation_name: variationName,
           purchase_price: totalPrice,
           original_price: unitPrice * quantity,
           discount_amount: discountAmount,
@@ -817,14 +841,7 @@ Deno.serve(async (req: Request) => {
       console.error('Order update error:', updateOrderError);
     }
 
-    // Decrement variation stock if applicable
-    if (variationRecord && !isManualDelivery && !isAccountRecharge) {
-      const newVariationStock = Math.max(0, variationRecord.stock_quantity - quantity);
-      await supabaseAdmin
-        .from('store_product_variations')
-        .update({ stock_quantity: newVariationStock, updated_at: new Date().toISOString() })
-        .eq('id', variationRecord.id);
-    }
+    // Note: variation stock is now derived from product_inventory count, not stock_quantity field
 
     console.log('Purchase completed successfully. Status:', (isManualDelivery || isAccountRecharge) ? 'paid (will trigger chat)' : 'delivered');
 

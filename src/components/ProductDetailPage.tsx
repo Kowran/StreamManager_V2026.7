@@ -64,6 +64,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const [quantity, setQuantity] = useState(1);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
+  const [variationStocks, setVariationStocks] = useState<Record<string, number>>({});
 
   useEffect(() => {
     loadProduct();
@@ -146,6 +147,19 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       if (variationData && variationData.length > 0) {
         setVariations(variationData);
         setSelectedVariation(variationData[0]);
+        // Fetch stock counts per variation
+        const stocks: Record<string, number> = {};
+        for (const v of variationData) {
+          const { data: count } = await supabase.rpc('get_variation_stock_count', { p_variation_id: v.id });
+          stocks[v.id] = count || 0;
+        }
+        setVariationStocks(stocks);
+      } else {
+        // Fetch total stock for product without variations
+        const { data: totalStock } = await supabase.rpc('get_product_total_stock', { p_product_id: data.id });
+        if (totalStock !== null && totalStock !== undefined) {
+          setProduct(prev => prev ? { ...prev, stock_quantity: totalStock } : prev);
+        }
       }
     } catch (err) {
       console.error('Error loading product:', err);
@@ -214,8 +228,10 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
   const hasPromo = product?.promotion_active && product?.promotional_price_usdt;
   const variationPrice = selectedVariation ? Number(selectedVariation.price_usdt) : null;
+  const variationStock = selectedVariation ? (variationStocks[selectedVariation.id] ?? 0) : (product?.stock_quantity ?? 0);
   const effectivePrice = variationPrice !== null ? variationPrice : (hasPromo ? Number(product!.promotional_price_usdt) : Number(product?.price_usdt ?? 0));
-  const isAvailable = product ? (product.manual_delivery || (selectedVariation ? selectedVariation.stock_quantity > 0 : product.stock_quantity > 0)) : false;
+  const isAvailable = product ? (product.manual_delivery || (selectedVariation ? variationStock > 0 : (product.stock_quantity > 0))) : false;
+  const maxQuantity = (product?.manual_delivery || (product as any)?.account_recharge) ? 99 : Math.max(1, variationStock);
 
   function handleBuyNow() {
     if (!user) {
@@ -464,11 +480,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   <div className="space-y-2">
                     {variations.map((variation) => {
                       const isSelected = selectedVariation?.id === variation.id;
-                      const varAvailable = product.manual_delivery || variation.stock_quantity > 0;
+                      const varStock = variationStocks[variation.id] ?? 0;
+                      const varAvailable = product.manual_delivery || varStock > 0;
                       return (
                         <button
                           key={variation.id}
-                          onClick={() => setSelectedVariation(variation)}
+                          onClick={() => { setSelectedVariation(variation); setQuantity(1); }}
                           disabled={!varAvailable}
                           className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
                             isSelected
@@ -486,8 +503,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {!product.manual_delivery && (
-                              <span className={`text-xs ${variation.stock_quantity > 5 ? 'text-green-600 dark:text-green-400' : variation.stock_quantity > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500'}`}>
-                                {variation.stock_quantity} {t.language === 'pt' ? 'estoque' : t.language === 'en' ? 'stock' : 'stock'}
+                              <span className={`text-xs ${varStock > 5 ? 'text-green-600 dark:text-green-400' : varStock > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500'}`}>
+                                {varStock} {t.language === 'pt' ? 'estoque' : t.language === 'en' ? 'stock' : 'stock'}
                               </span>
                             )}
                             <span className="text-base font-bold text-green-600 dark:text-green-400">
@@ -539,15 +556,41 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       {t.language === 'pt' ? 'Disponibilidade' : t.language === 'en' ? 'Availability' : 'Disponibilidad'}
                     </span>
                     <span className={`font-bold text-base ${
-                      product.stock_quantity > 5
+                      variationStock > 5
                         ? 'text-green-600 dark:text-green-400'
-                        : product.stock_quantity > 0
+                        : variationStock > 0
                         ? 'text-yellow-600 dark:text-yellow-400'
                         : 'text-red-600 dark:text-red-400'
                     }`}>
-                      {product.stock_quantity} {t.language === 'pt' ? 'em estoque' : t.language === 'en' ? 'in stock' : 'en stock'}
+                      {variationStock} {t.language === 'pt' ? 'em estoque' : t.language === 'en' ? 'in stock' : 'en stock'}
                     </span>
                   </div>
+                </div>
+              )}
+
+              {/* Quantity Selector */}
+              {isAvailable && (
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {t.language === 'pt' ? 'Quantidade:' : t.language === 'en' ? 'Quantity:' : 'Cantidad:'}
+                  </span>
+                  <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+                    >−</button>
+                    <span className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white min-w-[3rem] text-center">{quantity}</span>
+                    <button
+                      onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
+                      disabled={quantity >= maxQuantity}
+                      className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    >+</button>
+                  </div>
+                  {!product.manual_delivery && !(product as any).account_recharge && (
+                    <span className={`text-xs ${variationStock > 5 ? 'text-green-500' : variationStock > 0 ? 'text-yellow-500' : 'text-red-500'}`}>
+                      {variationStock} {t.language === 'pt' ? 'disponível' : t.language === 'en' ? 'available' : 'disponible'}
+                    </span>
+                  )}
                 </div>
               )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, ExternalLink, ShieldAlert } from 'lucide-react';
+import { Package, Eye, Calendar, CreditCard, X, Copy, Check, Clock, AlertTriangle, ChevronLeft, ChevronRight, ChevronDown, Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, ExternalLink, ShieldAlert, Layers } from 'lucide-react';
 import { PurchaseDetailPage } from './PurchaseDetailPage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -445,6 +445,12 @@ export function UserPurchases() {
                     }`}>
                       {purchase.product_name}
                     </h3>
+                    {purchase.credentials?.variation_name && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 mt-0.5">
+                        <Layers className="h-2.5 w-2.5" />
+                        {purchase.credentials.variation_name}
+                      </span>
+                    )}
 
                     {/* Purchase Info */}
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1.5 sm:mt-2">
@@ -795,6 +801,9 @@ export function UserPurchases() {
                       {t.product}
                     </label>
                     <p className="mt-1 text-sm text-gray-900 dark:text-white">{selectedPurchase.product_name}</p>
+                    {selectedPurchase.credentials?.variation_name && (
+                      <p className="mt-0.5 text-xs text-purple-600 dark:text-purple-400 font-medium">{selectedPurchase.credentials.variation_name}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t.amountPaid}</label>
