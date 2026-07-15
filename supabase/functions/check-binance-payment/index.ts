@@ -24,6 +24,35 @@ async function generateSignature(timestamp: string, nonce: string, body: string,
   return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 }
 
+async function sendEmailNotification(
+  templateType: string,
+  recipientId: string,
+  variables: Record<string, string | number>
+): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        template_type: templateType,
+        recipient_id: recipientId,
+        variables,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`send-email failed for ${templateType}: ${errText}`);
+    }
+  } catch (err) {
+    console.error(`Failed to send ${templateType} email (non-fatal):`, err);
+  }
+}
+
 async function queryBinance(body: Record<string, string>, apiKey: string, apiSecret: string) {
   const timestamp = Date.now().toString();
   const nonce = generateNonce();
@@ -177,6 +206,12 @@ Deno.serve(async (req: Request) => {
         reference_type: 'binance_payment',
         reference_id: payment.id,
         metadata: { order_id, user_order_id: trimmedUserOrderId || null },
+      });
+
+      await sendEmailNotification('recharge_deposit', user.id, {
+        user_name: 'Cliente',
+        amount: paymentAmount.toFixed(2),
+        new_balance: newBalance.toFixed(2),
       });
 
     } else if (['EXPIRED', 'CANCELED', 'ERROR'].includes(orderStatus)) {

@@ -19,6 +19,35 @@ interface AsaasConfig {
   webhook_token: string;
 }
 
+async function sendEmailNotification(
+  templateType: string,
+  recipientId: string,
+  variables: Record<string, string | number>
+): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        template_type: templateType,
+        recipient_id: recipientId,
+        variables,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`send-email failed for ${templateType}: ${errText}`);
+    }
+  } catch (err) {
+    console.error(`Failed to send ${templateType} email (non-fatal):`, err);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -248,7 +277,7 @@ async function processCreditAddition(supabase: any, payment: any, paymentDetails
       p_user_id: payment.user_id,
       p_type: 'payment',
       p_title: 'Recarga Confirmada!',
-      p_message: `Sua recarga de $${amountUSD.toFixed(2)} via Asaas foi confirmada! Valor cobrado: R$${payment.amount_brl.toFixed(2)}.`,
+      p_message: `Sua recarga de ${amountUSD.toFixed(2)} via Asaas foi confirmada! Valor cobrado: R${payment.amount_brl.toFixed(2)}.`,
       p_data: {
         payment_id: paymentDetails.id,
         amount_usd: amountUSD,
@@ -260,7 +289,13 @@ async function processCreditAddition(supabase: any, payment: any, paymentDetails
       p_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     });
 
-    console.log(`Successfully processed Asaas payment: ${paymentDetails.id}, credited $${amountUSD} to user ${payment.user_id}`);
+    await sendEmailNotification('recharge_deposit', payment.user_id, {
+      user_name: 'Cliente',
+      amount: amountUSD.toFixed(2),
+      new_balance: newBalance.toFixed(2),
+    });
+
+    console.log(`Successfully processed Asaas payment: ${paymentDetails.id}, credited ${amountUSD} to user ${payment.user_id}`);
 
   } catch (error) {
     console.error('Error processing credit addition:', error);

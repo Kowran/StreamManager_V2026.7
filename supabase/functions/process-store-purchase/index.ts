@@ -17,261 +17,37 @@ interface SmtpConfig {
   enabled: boolean;
 }
 
-const SALE_EMAIL_TEMPLATES: Record<string, (data: { productName: string; quantity: number; totalPrice: number; orderId: string; buyerName: string }) => { subject: string; html: string }> = {
-  pt: (d) => ({
-    subject: 'Nova venda realizada!',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #10b981;">Parabéns! Você realizou uma nova venda!</h2>
-        <p>Olá,</p>
-        <p>Uma nova venda foi registrada em sua loja. Aqui estão os detalhes:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Produto:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.productName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Quantidade:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.quantity}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Valor Total:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.totalPrice.toFixed(2)} USDT</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Comprador:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.buyerName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Pedido #:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.orderId}</td></tr>
-        </table>
-        <p>Acesse seu painel do vendedor para mais detalhes sobre esta venda.</p>
-        <p style="color: #6b7280; font-size: 12px;">Este é um email automático, não responda.</p>
-      </div>
-    `
-  }),
-  en: (d) => ({
-    subject: 'New sale completed!',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #10b981;">Congratulations! You made a new sale!</h2>
-        <p>Hello,</p>
-        <p>A new sale has been registered in your store. Here are the details:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Product:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.productName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Quantity:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.quantity}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Total Amount:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.totalPrice.toFixed(2)} USDT</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Buyer:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.buyerName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Order #:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.orderId}</td></tr>
-        </table>
-        <p>Access your seller dashboard for more details about this sale.</p>
-        <p style="color: #6b7280; font-size: 12px;">This is an automated email, please do not reply.</p>
-      </div>
-    `
-  }),
-  es: (d) => ({
-    subject: '¡Nueva venta realizada!',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #10b981;">¡Felicidades! Has realizado una nueva venta!</h2>
-        <p>Hola,</p>
-        <p>Se ha registrado una nueva venta en tu tienda. Aquí están los detalles:</p>
-        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Producto:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.productName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Cantidad:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.quantity}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Monto Total:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.totalPrice.toFixed(2)} USDT</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Comprador:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.buyerName}</td></tr>
-          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Pedido #:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.orderId}</td></tr>
-        </table>
-        <p>Accede a tu panel de vendedor para más detalles sobre esta venta.</p>
-        <p style="color: #6b7280; font-size: 12px;">Este es un correo automático, no respondas.</p>
-      </div>
-    `
-  }),
-};
-
-async function sendSmtpEmail(
-  config: SmtpConfig,
-  to: string,
-  subject: string,
-  html: string
-): Promise<void> {
-  const CRLF = '\r\n';
-  const encoder = new TextEncoder();
-  const decoder = new TextDecoder();
-
-  let conn: Deno.Conn;
-
-  if (config.secure) {
-    conn = await Deno.connectTls({ hostname: config.host, port: config.port });
-  } else {
-    conn = await Deno.connect({ hostname: config.host, port: config.port });
-  }
-
-  const readLine = async (): Promise<string> => {
-    const buf: Uint8Array = [];
-    while (true) {
-      const chunk = new Uint8Array(1);
-      const n = await conn.read(chunk);
-      if (n === null) break;
-      buf.push(chunk[0]);
-      if (chunk[0] === 0x0a) break;
-    }
-    return decoder.decode(new Uint8Array(buf)).trimEnd();
-  };
-
-  const sendCmd = async (cmd: string): Promise<string> => {
-    await conn.write(encoder.encode(cmd + CRLF));
-    const resp = await readLine();
-    console.log(`SMTP < ${resp}`);
-    return resp;
-  };
-
-  try {
-    // Read greeting
-    let greeting = await readLine();
-    console.log(`SMTP < ${greeting}`);
-    while (!greeting.startsWith('220 ')) {
-      greeting = await readLine();
-      console.log(`SMTP < ${greeting}`);
-    }
-
-    // EHLO
-    let resp = await sendCmd('EHLO marketplace.local');
-    // Read multi-line EHLO response
-    while (resp.startsWith('250-')) {
-      resp = await readLine();
-      console.log(`SMTP < ${resp}`);
-    }
-    if (!resp.startsWith('250 ')) {
-      throw new Error(`EHLO failed: ${resp}`);
-    }
-
-    // STARTTLS if not secure connection
-    if (!config.secure) {
-      resp = await sendCmd('STARTTLS');
-      if (!resp.startsWith('220')) {
-        throw new Error(`STARTTLS failed: ${resp}`);
-      }
-
-      // Upgrade to TLS
-      conn = await Deno.startTls(conn, { hostname: config.host });
-
-      // EHLO again after TLS
-      resp = await sendCmd('EHLO marketplace.local');
-      while (resp.startsWith('250-')) {
-        resp = await readLine();
-        console.log(`SMTP < ${resp}`);
-      }
-      if (!resp.startsWith('250 ')) {
-        throw new Error(`EHLO after TLS failed: ${resp}`);
-      }
-    }
-
-    // AUTH LOGIN
-    resp = await sendCmd('AUTH LOGIN');
-    if (!resp.startsWith('334')) {
-      throw new Error(`AUTH LOGIN failed: ${resp}`);
-    }
-
-    // Send username (base64)
-    const b64Username = btoa(config.username);
-    resp = await sendCmd(b64Username);
-    if (!resp.startsWith('334')) {
-      throw new Error(`Username auth failed: ${resp}`);
-    }
-
-    // Send password (base64)
-    const b64Password = btoa(config.password);
-    resp = await sendCmd(b64Password);
-    if (!resp.startsWith('235')) {
-      throw new Error(`Password auth failed: ${resp}`);
-    }
-
-    // MAIL FROM
-    resp = await sendCmd(`MAIL FROM:<${config.from_email}>`);
-    if (!resp.startsWith('250')) {
-      throw new Error(`MAIL FROM failed: ${resp}`);
-    }
-
-    // RCPT TO
-    resp = await sendCmd(`RCPT TO:<${to}>`);
-    if (!resp.startsWith('250')) {
-      throw new Error(`RCPT TO failed: ${resp}`);
-    }
-
-    // DATA
-    resp = await sendCmd('DATA');
-    if (!resp.startsWith('354')) {
-      throw new Error(`DATA failed: ${resp}`);
-    }
-
-    // Build email headers + body
-    const dateStr = new Date().toUTCString();
-    const messageId = `<${Date.now()}.${Math.random().toString(36).substring(7)}@marketplace.local>`;
-    const headers = [
-      `From: "${config.from_name}" <${config.from_email}>`,
-      `To: <${to}>`,
-      `Subject: ${subject}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: text/html; charset=UTF-8`,
-      `Date: ${dateStr}`,
-      `Message-ID: ${messageId}`,
-      '',
-      '',
-    ].join(CRLF);
-
-    await conn.write(encoder.encode(headers + html + CRLF + '.' + CRLF));
-    resp = await readLine();
-    console.log(`SMTP < ${resp}`);
-    if (!resp.startsWith('250')) {
-      throw new Error(`DATA send failed: ${resp}`);
-    }
-
-    // QUIT
-    await sendCmd('QUIT');
-  } finally {
-    try {
-      conn.close();
-    } catch {
-      // ignore
-    }
-  }
-}
-
-async function sendSellerSaleEmail(
-  supabaseAdmin: ReturnType<typeof createClient>,
-  sellerId: string,
-  productName: string,
-  quantity: number,
-  totalPrice: number,
-  orderId: string,
-  buyerName: string
+async function sendEmailViaEdgeFunction(
+  templateType: string,
+  recipientId: string,
+  variables: Record<string, string | number>
 ): Promise<void> {
   try {
-    // Fetch seller profile (email + language)
-    const { data: sellerProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('email, language')
-      .eq('id', sellerId)
-      .maybeSingle();
-
-    if (profileError || !sellerProfile || !sellerProfile.email) {
-      console.error('Could not fetch seller profile for email:', profileError?.message || 'No profile/email');
-      return;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        template_type: templateType,
+        recipient_id: recipientId,
+        variables,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`send-email failed for ${templateType}: ${errText}`);
+    } else {
+      console.log(`Email sent: ${templateType} to user ${recipientId}`);
     }
-
-    // Fetch SMTP config
-    const { data: smtpConfig, error: smtpError } = await supabaseAdmin
-      .from('smtp_config')
-      .select('host, port, secure, username, password, from_email, from_name, enabled')
-      .eq('enabled', true)
-      .limit(1)
-      .maybeSingle();
-
-    if (smtpError || !smtpConfig) {
-      console.log('SMTP config not available or disabled, skipping seller email');
-      return;
-    }
-
-    const config = smtpConfig as SmtpConfig;
-    const lang = (sellerProfile.language === 'pt' || sellerProfile.language === 'es') ? sellerProfile.language : 'en';
-    const template = SALE_EMAIL_TEMPLATES[lang];
-    const emailContent = template({ productName, quantity, totalPrice, orderId, buyerName });
-
-    await sendSmtpEmail(config, sellerProfile.email, emailContent.subject, emailContent.html);
-    console.log(`Seller sale email sent to ${sellerProfile.email} (lang: ${lang})`);
   } catch (err) {
-    console.error('Failed to send seller sale email (non-fatal):', err);
+    console.error(`Failed to send ${templateType} email (non-fatal):`, err);
   }
 }
+
 
 interface PurchaseRequest {
   product_id: string;
@@ -1018,16 +794,23 @@ Deno.serve(async (req: Request) => {
     // Send sale notification email to the seller (non-fatal)
     if (product.seller_id) {
       const buyerName = user.user_metadata?.full_name || user.email || 'Cliente';
-      await sendSellerSaleEmail(
-        supabaseAdmin,
-        product.seller_id,
-        productName,
-        quantity,
-        totalPrice,
-        order.id,
-        buyerName
-      );
+      await sendEmailViaEdgeFunction('sale_notification', product.seller_id, {
+        product_name: productName,
+        quantity: String(quantity),
+        total_price: totalPrice.toFixed(2),
+        buyer_name: buyerName,
+        order_id: order.id,
+      });
     }
+
+    // Send purchase confirmation email to the buyer (non-fatal)
+    await sendEmailViaEdgeFunction('purchase_confirmed', user.id, {
+      user_name: user.user_metadata?.full_name || user.email || 'Cliente',
+      product_name: productName,
+      quantity: String(quantity),
+      total_price: totalPrice.toFixed(2),
+      order_id: order.id,
+    });
 
     return new Response(
       JSON.stringify({

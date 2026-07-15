@@ -196,6 +196,33 @@ export function PurchaseHelpModal({ isOpen, onClose, purchase, sellerId }: Purch
           .not('status', 'in', '("cancelled","refunded","disputed")');
       }
 
+      // Send dispute notification email to the seller (non-fatal)
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            template_type: 'dispute_opened',
+            recipient_id: sellerId,
+            variables: {
+              seller_name: 'Seller',
+              order_id: purchase.order_id || '',
+              product_name: purchase.product_name || '',
+              customer_name: user?.user_metadata?.full_name || user?.email || 'Customer',
+              dispute_subject: subject,
+              dispute_message: issueDescription.trim(),
+            },
+          }),
+        });
+        if (!response.ok) console.error('Failed to send dispute email');
+      } catch (emailErr) {
+        console.error('Dispute email error (non-fatal):', emailErr);
+      }
+
       if (data) {
         setExistingTicket(data);
         await loadMessages(data.id);

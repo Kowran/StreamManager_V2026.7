@@ -117,6 +117,28 @@ export function AdminSellerRequests() {
             console.error('Erro ao atualizar role do vendedor:', profileError);
             throw new Error(`Falha ao atualizar perfil: ${profileError.message}`);
           }
+
+          // Send seller approved email (non-fatal)
+          try {
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const session = (await supabase.auth.getSession()).data.session;
+            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token}`,
+              },
+              body: JSON.stringify({
+                template_type: 'seller_approved',
+                recipient_id: request.user_id,
+                variables: {
+                  user_name: (request as any).profiles?.full_name || (request as any).profiles?.email || 'User',
+                },
+              }),
+            });
+          } catch (emailErr) {
+            console.error('Seller approved email error (non-fatal):', emailErr);
+          }
         }
       }
 

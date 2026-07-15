@@ -12,6 +12,35 @@ interface AdminUserRequest {
   data?: any;
 }
 
+async function sendEmailNotification(
+  templateType: string,
+  recipientId: string,
+  variables: Record<string, string | number>
+): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        template_type: templateType,
+        recipient_id: recipientId,
+        variables,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`send-email failed for ${templateType}: ${errText}`);
+    }
+  } catch (err) {
+    console.error(`Failed to send ${templateType} email (non-fatal):`, err);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -76,6 +105,18 @@ Deno.serve(async (req: Request) => {
           action: 'ban_user',
           target_user_id: user_id,
           details: { reason: data?.reason || 'No reason provided' }
+        });
+
+        // Fetch the banned user's profile to get their name for the email
+        const { data: bannedUserProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('name, full_name')
+          .eq('id', user_id)
+          .maybeSingle();
+
+        await sendEmailNotification('user_banned', user_id, {
+          user_name: bannedUserProfile?.name || bannedUserProfile?.full_name || 'User',
+          ban_reason: data?.reason || 'No reason provided',
         });
 
         return new Response(

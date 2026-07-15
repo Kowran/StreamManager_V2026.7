@@ -203,6 +203,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Error creating profile:', profileError);
       }
     }
+
+    // Send account created email (non-fatal)
+    if (data.user) {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify({
+            template_type: 'account_created',
+            recipient_id: data.user.id,
+            recipient_email: email,
+            language: 'pt',
+            variables: {
+              user_name: fullName || email,
+            },
+          }),
+        });
+      } catch (emailErr) {
+        console.error('Account created email error (non-fatal):', emailErr);
+      }
+    }
   };
 
   const clearLocalSession = () => {

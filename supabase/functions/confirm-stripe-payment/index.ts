@@ -7,6 +7,35 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+async function sendEmailNotification(
+  templateType: string,
+  recipientId: string,
+  variables: Record<string, string | number>
+): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        template_type: templateType,
+        recipient_id: recipientId,
+        variables,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`send-email failed for ${templateType}: ${errText}`);
+    }
+  } catch (err) {
+    console.error(`Failed to send ${templateType} email (non-fatal):`, err);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -245,7 +274,13 @@ Deno.serve(async (req: Request) => {
       p_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     });
 
-    console.log(`Successfully confirmed Stripe payment via frontend: ${paymentIntent.id}, credited $${originalAmountUSD} to user ${payment.user_id}`);
+    console.log(`Successfully confirmed Stripe payment via frontend: ${paymentIntent.id}, credited ${originalAmountUSD} to user ${payment.user_id}`);
+
+    await sendEmailNotification('recharge_deposit', payment.user_id, {
+      user_name: payment.user_email || 'Cliente',
+      amount: originalAmountUSD.toFixed(2),
+      new_balance: newBalance.toFixed(2),
+    });
 
     return new Response(
       JSON.stringify({
@@ -254,7 +289,7 @@ Deno.serve(async (req: Request) => {
         new_balance: newBalance,
         charge_currency: chargeCurrency,
         total_charged: totalChargedInCurrency,
-        message: `Payment confirmed! $${originalAmountUSD.toFixed(2)} added to your balance.`
+        message: `Payment confirmed! ${originalAmountUSD.toFixed(2)} added to your balance.`
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

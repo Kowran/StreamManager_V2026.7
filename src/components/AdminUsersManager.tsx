@@ -128,6 +128,31 @@ export default function AdminUsersManager() {
 
       if (error) throw error;
 
+      // Send ban notification email (non-fatal)
+      if (action === 'ban') {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const session = (await supabase.auth.getSession()).data.session;
+          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({
+              template_type: 'user_banned',
+              recipient_id: userId,
+              variables: {
+                user_name: profiles.find(p => p.id === userId)?.full_name || 'User',
+                ban_reason: 'Violation of platform rules',
+              },
+            }),
+          });
+        } catch (emailErr) {
+          console.error('Ban email error (non-fatal):', emailErr);
+        }
+      }
+
       await fetchProfiles();
     } catch (error) {
       console.error(`Error ${action}ing user:`, error);
