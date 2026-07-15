@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap, ChevronDown } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
-import { supabase } from '../lib/supabase';
+import { supabase, ProductVariation } from '../lib/supabase';
 
 interface PurchaseConfirmModalProps {
   isOpen: boolean;
@@ -17,12 +17,13 @@ interface PurchaseConfirmModalProps {
   };
   userBalance: number;
   cashbackBalance?: number;
-  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number) => void;
+  onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number, variationId?: string | null) => void;
   onCancel: () => void;
   isLoading?: boolean;
   variationId?: string | null;
   variationName?: string | null;
   variationPrice?: number | null;
+  variations?: ProductVariation[] | null;
 }
 
 interface CouponValidation {
@@ -58,14 +59,39 @@ export function PurchaseConfirmModal({
   const [rechargeExtraData, setRechargeExtraData] = useState('');
   const [rechargeError, setRechargeError] = useState<string | null>(null);
   const [useCashback, setUseCashback] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  const [modalVariations, setModalVariations] = useState<ProductVariation[]>([]);
+  const [modalSelectedVariation, setModalSelectedVariation] = useState<ProductVariation | null>(null);
+  const [showVariationDropdown, setShowVariationDropdown] = useState(false);
 
-  const hasPromo = product.promotion_active && product.promotional_price_usdt && !variationPrice;
-  const basePrice = variationPrice !== null ? variationPrice : (hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt);
+  useEffect(() => {
+    if (variations && variations.length > 0) {
+      setModalVariations(variations);
+      const preSelected = variations.find(v => v.id === variationId) || variations[0];
+      setModalSelectedVariation(preSelected);
+    } else if (product?.id) {
+      supabase
+        .from('store_product_variations')
+        .select('*')
+        .eq('product_id', product.id)
+        .eq('active', true)
+        .order('sort_order', { ascending: true })
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setModalVariations(data);
+            const preSelected = data.find(v => v.id === variationId) || data[0];
+            setModalSelectedVariation(preSelected);
+          }
+        });
+    }
+  }, [product?.id, variations, variationId]);
+
+  const currentVariationPrice = modalSelectedVariation ? Number(modalSelectedVariation.price_usdt) : variationPrice;
+  const hasPromo = product.promotion_active && product.promotional_price_usdt && !currentVariationPrice;
+  const basePrice = currentVariationPrice !== null ? currentVariationPrice : (hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt);
   const unitPrice = basePrice;
-  const totalPrice = unitPrice * quantity;
-  const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount * quantity : 0;
-  const priceAfterCoupon = appliedCoupon ? appliedCoupon.finalPrice * quantity : totalPrice;
+  const totalPrice = unitPrice;
+  const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount : 0;
+  const priceAfterCoupon = appliedCoupon ? appliedCoupon.finalPrice : totalPrice;
   const cashbackToUse = useCashback ? Math.min(cashbackBalance, priceAfterCoupon) : 0;
   const effectivePrice = Math.max(0, priceAfterCoupon - cashbackToUse);
   const remainingBalance = userBalance - effectivePrice;
@@ -192,9 +218,9 @@ export function PurchaseConfirmModal({
         email: rechargeEmail.trim(),
         password: rechargePassword.trim(),
         extra_data: rechargeExtraData.trim(),
-      }, useCashback, quantity);
+      }, useCashback, 1, modalSelectedVariation?.id || null);
     } else {
-      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback, quantity);
+      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback, 1, modalSelectedVariation?.id || null);
     }
   }
 
@@ -319,37 +345,46 @@ export function PurchaseConfirmModal({
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
                   {product.name}
                 </p>
-                {variationName && (
+                {modalSelectedVariation && (
                   <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">
-                    {t.language === 'pt' ? 'Variação' : t.language === 'en' ? 'Variation' : 'Variación'}: {variationName}
+                    {t.language === 'pt' ? 'Variação' : t.language === 'en' ? 'Variation' : 'Variación'}: {modalSelectedVariation.name}
                   </p>
                 )}
               </div>
 
-              <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
-                {/* Original Price */}
-                {/* Quantity Selector */}
-                {!product.manual_delivery && (
-                  <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t.language === 'pt' ? 'Quantidade:' : t.language === 'en' ? 'Quantity:' : 'Cantidad:'}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors font-bold"
-                      >−</button>
-                      <span className="w-10 text-center text-sm font-bold text-gray-900 dark:text-white">{quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => setQuantity(quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors font-bold"
-                      >+</button>
+              {/* Variation Selector Dropdown */}
+              {modalVariations.length > 0 && (
+                <div className="mb-3 relative">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    {t.language === 'pt' ? 'Escolha uma variação' : t.language === 'en' ? 'Choose a variation' : 'Elige una variación'}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowVariationDropdown(!showVariationDropdown)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:border-blue-400 transition-colors"
+                  >
+                    <span className="truncate">{modalSelectedVariation?.name || (t.language === 'pt' ? 'Selecione...' : t.language === 'en' ? 'Select...' : 'Seleccionar...')}</span>
+                    <ChevronDown className={`h-4 w-4 flex-shrink-0 transition-transform ${showVariationDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showVariationDropdown && (
+                    <div className="absolute z-30 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {modalVariations.map((v) => (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => { setModalSelectedVariation(v); setShowVariationDropdown(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors ${modalSelectedVariation?.id === v.id ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-900 dark:text-white'}`}
+                        >
+                          <span className="truncate">{v.name}</span>
+                          <span className="text-green-600 dark:text-green-400 font-bold ml-2">{formatPrice(Number(v.price_usdt))}</span>
+                        </button>
+                      ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+              )}
 
+              <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm text-gray-600 dark:text-gray-400">
                     {t.language === 'pt' ? 'Preço unitário:' : t.language === 'en' ? 'Unit price:' : 'Precio unitario:'}
@@ -366,16 +401,6 @@ export function PurchaseConfirmModal({
                   </div>
                 </div>
 
-                {quantity > 1 && (
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {t.language === 'pt' ? 'Total (' + quantity + 'x):' : t.language === 'en' ? 'Total (' + quantity + 'x):' : 'Total (' + quantity + 'x):'}
-                    </span>
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {formatPrice(totalPrice)}
-                    </span>
-                  </div>
-                )}
 
                 {/* Coupon Discount */}
                 {appliedCoupon && (

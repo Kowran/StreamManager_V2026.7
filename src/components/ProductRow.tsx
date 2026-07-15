@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Package, Truck, Zap } from 'lucide-react';
 import { StoreProduct } from '../lib/supabase';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
@@ -115,6 +115,26 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
                     <span className="truncate">{(product as any).seller_name}</span>
                   </div>
                 )}
+                <div className="mb-1.5 flex items-center gap-1">
+                  {(product as any).manual_delivery ? (
+                    (product as any).account_recharge ? (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                        <Zap className="h-2.5 w-2.5 mr-0.5" />
+                        {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                        <Truck className="h-2.5 w-2.5 mr-0.5" />
+                        {t.language === 'pt' ? 'Manual' : t.language === 'en' ? 'Manual' : 'Manual'}
+                      </span>
+                    )
+                  ) : (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                      <Zap className="h-2.5 w-2.5 mr-0.5" />
+                      {t.language === 'pt' ? 'Automático' : t.language === 'en' ? 'Automatic' : 'Automático'}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-baseline gap-2">
                   {hasPromo ? (
                     <>

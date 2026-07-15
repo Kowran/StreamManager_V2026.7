@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, Package, Check, Truck, ShoppingCart, Star,
   AlertCircle, Loader, UserCheck, CreditCard,
-  Share2, CheckCircle2, Zap, Clock
+  Share2, CheckCircle2, Zap, Clock, ChevronDown
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -61,10 +61,10 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [purchaseSuccessData, setPurchaseSuccessData] = useState<{ productName: string; price: number; orderId: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [quantity, setQuantity] = useState(1);
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const [variationStocks, setVariationStocks] = useState<Record<string, number>>({});
+  const [showVariationDropdown, setShowVariationDropdown] = useState(false);
 
   useEffect(() => {
     loadProduct();
@@ -231,7 +231,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const variationStock = selectedVariation ? (variationStocks[selectedVariation.id] ?? 0) : (product?.stock_quantity ?? 0);
   const effectivePrice = variationPrice !== null ? variationPrice : (hasPromo ? Number(product!.promotional_price_usdt) : Number(product?.price_usdt ?? 0));
   const isAvailable = product ? (product.manual_delivery || (selectedVariation ? variationStock > 0 : (product.stock_quantity > 0))) : false;
-  const maxQuantity = (product?.manual_delivery || (product as any)?.account_recharge) ? 99 : Math.max(1, variationStock);
 
   function handleBuyNow() {
     if (!user) {
@@ -246,7 +245,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         return;
       }
       const unitPrice = effectivePrice;
-      const totalPrice = unitPrice * quantity;
+      const totalPrice = unitPrice;
       if (userCredit.balance < totalPrice) {
         onNavigate?.('credits', { presetAmount: totalPrice });
         return;
@@ -270,7 +269,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         },
         body: JSON.stringify({
           product_id: product.id,
-          quantity: quantity,
+          quantity: 1,
           coupon_code: couponCode || null,
           use_cashback: useCashback || false,
           variation_id: selectedVariation?.id || null,
@@ -280,7 +279,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Purchase failed');
 
-      setPurchaseSuccessData({ productName: product.name, price: effectivePrice * quantity, orderId: result.order_id || '' });
+      setPurchaseSuccessData({ productName: product.name, price: effectivePrice, orderId: result.order_id || '' });
       setShowSuccessModal(true);
       setShowConfirmModal(false);
       loadUserCredit();
@@ -390,6 +389,33 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               )}
             </div>
 
+            {/* Description - below photo */}
+            {product.description && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1.5 uppercase tracking-wide">
+                  {t.language === 'pt' ? 'Descrição' : t.language === 'en' ? 'Description' : 'Descripción'}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
+                  {product.description}
+                </p>
+              </div>
+            )}
+
+            {/* Estimated Delivery Time - prominent */}
+            {product.delivery_time && (
+              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                      {t.language === 'pt' ? 'Tempo estimado de entrega' : t.language === 'en' ? 'Estimated delivery time' : 'Tiempo estimado de entrega'}
+                    </p>
+                    <p className="text-sm text-blue-600 dark:text-blue-400">{product.delivery_time}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Product Info */}
             <div className="flex flex-col">
               {/* Delivery badges */}
@@ -461,73 +487,69 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                     {formatPrice(Number(product.price_usdt))}
                   </span>
                 )}
-                <span className={`text-3xl font-bold ${hasPromo && !selectedVariation ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
+                <span className="text-3xl font-bold text-gray-900 dark:text-white">
                   {formatPrice(effectivePrice)}
                 </span>
-                {quantity > 1 && (
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {t.language === 'pt' ? `Total: ${formatPrice(effectivePrice * quantity)}` : t.language === 'en' ? `Total: ${formatPrice(effectivePrice * quantity)}` : `Total: ${formatPrice(effectivePrice * quantity)}`}
-                  </span>
-                )}
               </div>
 
-              {/* Variation Selector */}
+              {/* Variation Selector - Dropdown */}
               {variations.length > 0 && (
-                <div className="mb-4">
+                <div className="mb-4 relative">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">
                     {t.language === 'pt' ? 'Escolha uma variação' : t.language === 'en' ? 'Choose a variation' : 'Elige una variación'}
                   </h3>
-                  <div className="space-y-2">
-                    {variations.map((variation) => {
-                      const isSelected = selectedVariation?.id === variation.id;
-                      const varStock = variationStocks[variation.id] ?? 0;
-                      const varAvailable = product.manual_delivery || varStock > 0;
-                      return (
-                        <button
-                          key={variation.id}
-                          onClick={() => { setSelectedVariation(variation); setQuantity(1); }}
-                          disabled={!varAvailable}
-                          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
-                            isSelected
-                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500'
-                              : varAvailable
-                              ? 'border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 bg-white dark:bg-gray-800'
-                              : 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'
-                          }`}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{variation.name}</p>
-                            {variation.description && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400">{variation.description}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {!product.manual_delivery && (
-                              <span className={`text-xs ${varStock > 5 ? 'text-green-600 dark:text-green-400' : varStock > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500'}`}>
-                                {varStock} {t.language === 'pt' ? 'estoque' : t.language === 'en' ? 'stock' : 'stock'}
+                  <button
+                    onClick={() => setShowVariationDropdown(!showVariationDropdown)}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 bg-white dark:bg-gray-800 transition-all text-left"
+                  >
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                      {selectedVariation ? selectedVariation.name : (t.language === 'pt' ? 'Selecione...' : t.language === 'en' ? 'Select...' : 'Seleccionar...')}
+                    </span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {selectedVariation && (
+                        <span className="text-base font-bold text-green-600 dark:text-green-400">
+                          {formatPrice(Number(selectedVariation.price_usdt))}
+                        </span>
+                      )}
+                      <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${showVariationDropdown ? 'rotate-180' : ''}`} />
+                    </div>
+                  </button>
+                  {showVariationDropdown && (
+                    <div className="absolute z-30 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                      {variations.map((variation) => {
+                        const isSelected = selectedVariation?.id === variation.id;
+                        const varStock = variationStocks[variation.id] ?? 0;
+                        const varAvailable = product.manual_delivery || varStock > 0;
+                        return (
+                          <button
+                            key={variation.id}
+                            onClick={() => { setSelectedVariation(variation); setShowVariationDropdown(false); }}
+                            disabled={!varAvailable}
+                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 transition-all text-left ${
+                              isSelected
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium'
+                                : varAvailable
+                                ? 'hover:bg-blue-50 dark:hover:bg-blue-900/20 text-gray-900 dark:text-white'
+                                : 'opacity-50 cursor-not-allowed text-gray-500'
+                            }`}
+                          >
+                            <span className="text-sm font-medium truncate">{variation.name}</span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {!product.manual_delivery && (
+                                <span className={`text-xs ${varStock > 5 ? 'text-green-600 dark:text-green-400' : varStock > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500'}`}>
+                                  {varStock}
+                                </span>
+                              )}
+                              <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                                {formatPrice(Number(variation.price_usdt))}
                               </span>
-                            )}
-                            <span className="text-base font-bold text-green-600 dark:text-green-400">
-                              {formatPrice(Number(variation.price_usdt))}
-                            </span>
-                            {isSelected && <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Description */}
-              {product.description && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1.5 uppercase tracking-wide">
-                    {t.language === 'pt' ? 'Descricao' : t.language === 'en' ? 'Description' : 'Descripcion'}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
-                    {product.description}
-                  </p>
+                              {isSelected && <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -568,38 +590,11 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                 </div>
               )}
 
-              {/* Quantity Selector */}
-              {isAvailable && (
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t.language === 'pt' ? 'Quantidade:' : t.language === 'en' ? 'Quantity:' : 'Cantidad:'}
-                  </span>
-                  <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                    >−</button>
-                    <span className="px-4 py-2 text-sm font-medium text-gray-900 dark:text-white min-w-[3rem] text-center">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}
-                      disabled={quantity >= maxQuantity}
-                      className="px-3 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    >+</button>
-                  </div>
-                  {!product.manual_delivery && !(product as any).account_recharge && (
-                    <span className={`text-xs ${variationStock > 5 ? 'text-green-500' : variationStock > 0 ? 'text-yellow-500' : 'text-red-500'}`}>
-                      {variationStock} {t.language === 'pt' ? 'disponível' : t.language === 'en' ? 'available' : 'disponible'}
-                    </span>
-                  )}
-                </div>
-              )}
-
               {/* Ratings */}
               <div className="mb-4">
                 <ProductRatingsDisplay productId={product.id} showTitle={true} compact={true} />
               </div>
 
-              {/* Quantity Selector */}
               {/* Action Buttons */}
               <div className="mt-auto space-y-2">
                 <button
