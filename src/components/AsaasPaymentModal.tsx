@@ -81,7 +81,13 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
         })
       });
 
-      const result = await response.json();
+      const text = await response.text();
+      let result: any;
+      try {
+        result = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error('Erro de comunicação com o servidor. Tente novamente.');
+      }
 
       if (!response.ok) {
         throw new Error(result.error || result.details || 'Erro ao criar pagamento');
@@ -113,7 +119,9 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
           body: JSON.stringify({ order_id: orderId })
         });
 
-        const result = await response.json();
+        const pollText = await response.text();
+        let result: any;
+        try { result = pollText ? JSON.parse(pollText) : {}; } catch { result = {}; }
 
         if (result.success && result.payment && result.payment.status === 'approved') {
           clearInterval(pollInterval);
@@ -152,7 +160,11 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
         body: JSON.stringify({ order_id: paymentData.external_reference })
       });
 
-      const result = await response.json();
+      const checkText = await response.text();
+      let result: any;
+      try { result = checkText ? JSON.parse(checkText) : {}; } catch {
+        throw new Error('Erro de comunicação com o servidor. Tente novamente.');
+      }
 
       if (result.success && result.payment) {
         if (result.payment.status === 'approved') {
