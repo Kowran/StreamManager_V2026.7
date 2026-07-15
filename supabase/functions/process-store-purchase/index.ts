@@ -161,6 +161,34 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // Calculate base price (use promotional price if active)
+    // If a variation is selected, use variation price instead
+    let unitPrice: number;
+    let variationRecord: any = null;
+
+    if (variation_id) {
+      const { data: variation, error: variationError } = await supabaseAdmin
+        .from('store_product_variations')
+        .select('*')
+        .eq('id', variation_id)
+        .eq('product_id', product_id)
+        .eq('active', true)
+        .single();
+
+      if (variationError || !variation) {
+        return new Response(
+          JSON.stringify({ error: 'Variação não encontrada ou inativa' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      variationRecord = variation;
+      unitPrice = Number(variation.price_usdt);
+    } else {
+      const hasPromo = product.promotion_active && product.promotional_price_usdt;
+      unitPrice = hasPromo ? Number(product.promotional_price_usdt) : Number(product.price_usdt);
+    }
+
     // Check stock only for non-manual, non-recharge delivery products
     // If a variation is selected, check variation inventory count instead of product stock
     if (!isManualDelivery && !isAccountRecharge) {
@@ -194,34 +222,6 @@ Deno.serve(async (req: Request) => {
           }
         );
       }
-    }
-
-    // Calculate base price (use promotional price if active)
-    // If a variation is selected, use variation price instead
-    let unitPrice: number;
-    let variationRecord: any = null;
-
-    if (variation_id) {
-      const { data: variation, error: variationError } = await supabaseAdmin
-        .from('store_product_variations')
-        .select('*')
-        .eq('id', variation_id)
-        .eq('product_id', product_id)
-        .eq('active', true)
-        .single();
-
-      if (variationError || !variation) {
-        return new Response(
-          JSON.stringify({ error: 'Variação não encontrada ou inativa' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      variationRecord = variation;
-      unitPrice = Number(variation.price_usdt);
-    } else {
-      const hasPromo = product.promotion_active && product.promotional_price_usdt;
-      unitPrice = hasPromo ? Number(product.promotional_price_usdt) : Number(product.price_usdt);
     }
 
     let totalPrice = unitPrice * quantity;
