@@ -31,6 +31,7 @@ interface InventoryItem {
   instructions: string;
   status?: string;
   created_at?: string;
+  variation_id?: string | null;
 }
 
 type View = 'list' | 'create' | 'edit' | 'inventory' | 'variations';
@@ -1474,6 +1475,12 @@ function InventoryPage({
                             onChange={(e) => updateInventoryItem(item, 'email', e.target.value)}
                             className={`${inputClass} text-sm py-1.5 ${item.status === 'reserved' ? 'opacity-60 cursor-not-allowed' : ''}`}
                           />
+                          {item.variation_id && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                              <Layers className="h-2.5 w-2.5" />
+                              {variations.find(v => v.id === item.variation_id)?.name || lbl('Variação', 'Variation', 'Variación')}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <label className="block text-[10px] font-medium text-gray-400 uppercase mb-0.5">{lbl('Senha', 'Password', 'Contraseña')}</label>
@@ -1599,7 +1606,6 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
     name: '',
     description: '',
     price_usdt: '',
-    stock_quantity: '',
   });
 
   useEffect(() => {
@@ -1625,7 +1631,7 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
   }
 
   function resetForm() {
-    setFormData({ name: '', description: '', price_usdt: '', stock_quantity: '' });
+    setFormData({ name: '', description: '', price_usdt: '' });
     setEditingVariation(null);
     setShowForm(false);
   }
@@ -1640,7 +1646,6 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
       name: variation.name,
       description: variation.description || '',
       price_usdt: String(variation.price_usdt),
-      stock_quantity: String(variation.stock_quantity),
     });
     setEditingVariation(variation);
     setShowForm(true);
@@ -1663,7 +1668,6 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
         description: formData.description.trim() || null,
         price_usdt: parseFloat(formData.price_usdt),
         price_brl: parseFloat(formData.price_usdt) * 5.5,
-        stock_quantity: parseInt(formData.stock_quantity) || 0,
         active: true,
         sort_order: editingVariation ? editingVariation.sort_order : variations.length,
       };
@@ -1791,21 +1795,6 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
                 placeholder={lbl('Opcional', 'Optional', 'Opcional')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
             </div>
-            {!isManualDelivery && (
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Estoque da Variação', 'Variation Stock', 'Stock de la Variación')}</label>
-                <input type="number" value={formData.stock_quantity} onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-                  placeholder="0"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
-                <p className="text-xs text-gray-400 mt-1">
-                  {lbl(
-                    'Para entrega automática, adicione contas no gerenciador de estoque selecionando esta variação.',
-                    'For automatic delivery, add accounts in the stock manager by selecting this variation.',
-                    'Para entrega automática, añade cuentas en el gestor de stock seleccionando esta variación.'
-                  )}
-                </p>
-              </div>
-            )}
           </div>
           <div className="flex items-center gap-2 pt-2">
             <button onClick={handleSave} disabled={saving}
@@ -1847,11 +1836,6 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
                 {variation.description && <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{variation.description}</p>}
                 <div className="flex items-center gap-4 text-xs">
                   <span className="text-green-600 dark:text-green-400 font-bold">${Number(variation.price_usdt).toFixed(2)}</span>
-                  {!isManualDelivery && (
-                    <span className={variation.stock_quantity > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}>
-                      {variation.stock_quantity} {lbl('estoque', 'stock', 'stock')}
-                    </span>
-                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1">
