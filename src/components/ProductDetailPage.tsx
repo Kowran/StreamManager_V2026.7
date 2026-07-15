@@ -231,6 +231,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const variationStock = selectedVariation ? (variationStocks[selectedVariation.id] ?? 0) : (product?.stock_quantity ?? 0);
   const effectivePrice = variationPrice !== null ? variationPrice : (hasPromo ? Number(product!.promotional_price_usdt) : Number(product?.price_usdt ?? 0));
   const isAvailable = product ? (product.manual_delivery || (selectedVariation ? variationStock > 0 : (product.stock_quantity > 0))) : false;
+  const isAccountRecharge = product?.account_recharge === true;
+  const maxStock = product?.manual_delivery ? 99 : (selectedVariation ? variationStock : (product?.stock_quantity ?? 0));
 
   function handleBuyNow() {
     if (!user) {
@@ -263,7 +265,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         },
         body: JSON.stringify({
           product_id: product.id,
-          quantity: quantity || 1,
+          quantity: _quantity || detailQuantity || 1,
           coupon_code: couponCode || null,
           use_cashback: useCashback || false,
           variation_id: variationId || selectedVariation?.id || null,
@@ -608,8 +610,9 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       <span className="w-12 text-center text-base font-bold text-gray-900 dark:text-white">{detailQuantity}</span>
                       <button
                         type="button"
-                        onClick={() => setDetailQuantity(detailQuantity + 1)}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                        onClick={() => setDetailQuantity(Math.min(maxStock, detailQuantity + 1))}
+                        disabled={detailQuantity >= maxStock}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
@@ -734,6 +737,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           variationPrice={selectedVariation ? Number(selectedVariation.price_usdt) : null}
           variations={variations}
           initialQuantity={detailQuantity}
+          onCheckout={(qty, varId) => {
+            setShowConfirmModal(false);
+            const vid = varId || selectedVariation?.id || '';
+            sessionStorage.setItem('checkout_data', JSON.stringify({ productId: product.id, variationId: vid, quantity: qty }));
+            window.location.hash = `checkout/${product.id}`;
+          }}
         />
       )}
 

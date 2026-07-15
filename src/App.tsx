@@ -19,6 +19,7 @@ import { SellersManager } from './components/SellersManager';
 import { ServicesManager } from './components/ServicesManager';
 import { Store } from './components/Store';
 import { ProductDetailPage } from './components/ProductDetailPage';
+import { CheckoutPage } from './components/CheckoutPage';
 import { AdminProductsManager } from './components/AdminProductsManager';
 import { UserPurchases } from './components/UserPurchases';
 import { Package } from 'lucide-react';
@@ -71,7 +72,7 @@ import { ChatInbox } from './components/ChatInbox';
 import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout';
 
 interface StoreConfig {
   store_name?: string;
@@ -85,6 +86,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('store');
   const [presetRechargeAmount, setPresetRechargeAmount] = useState<number | undefined>(undefined);
   const [productDetailId, setProductDetailId] = useState<string | null>(null);
+  const [checkoutData, setCheckoutData] = useState<{ productId: string; variationId: string; quantity: number } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -238,6 +240,15 @@ function AppContent() {
         const productId = hash.replace('product/', '');
         setProductDetailId(productId);
         setActiveTab('product-detail');
+      } else if (hash.startsWith('checkout/')) {
+        const productId = hash.replace('checkout/', '');
+        const stored = sessionStorage.getItem('checkout_data');
+        let parsed: { productId: string; variationId: string; quantity: number } | null = null;
+        if (stored) {
+          try { parsed = JSON.parse(stored); } catch {}
+        }
+        setCheckoutData(parsed || { productId, variationId: '', quantity: 1 });
+        setActiveTab('checkout');
       } else if (hash && hash !== activeTab) {
         setSellerSlug(null);
         setProductDetailId(null);
@@ -1114,6 +1125,22 @@ function AppContent() {
               setShowLanding(false);
             }}
             onNavigate={navigateWithRecharge}
+          />
+        ) : activeTab === 'checkout' && checkoutData ? (
+          <CheckoutPage
+            productId={checkoutData.productId}
+            variationId={checkoutData.variationId || undefined}
+            quantity={checkoutData.quantity}
+            onBack={() => {
+              setActiveTab('store');
+              setCheckoutData(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onSuccess={() => {
+              setActiveTab('purchases');
+              setCheckoutData(null);
+              window.history.pushState(null, '', '#purchases');
+            }}
           />
         ) : (
         <div className="min-w-0">

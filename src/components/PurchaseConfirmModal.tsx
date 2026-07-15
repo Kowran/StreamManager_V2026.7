@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap, ChevronDown, Minus, Plus } from 'lucide-react';
+import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap, ChevronDown, Minus, Plus, CreditCard } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { supabase, ProductVariation } from '../lib/supabase';
@@ -14,6 +14,8 @@ interface PurchaseConfirmModalProps {
     promotional_price_usdt?: number | null;
     promotion_active?: boolean;
     account_recharge?: boolean;
+    manual_delivery?: boolean;
+    stock_quantity?: number;
   };
   userBalance: number;
   cashbackBalance?: number;
@@ -25,6 +27,7 @@ interface PurchaseConfirmModalProps {
   variationPrice?: number | null;
   variations?: ProductVariation[] | null;
   initialQuantity?: number;
+  onCheckout?: (quantity: number, variationId: string | null) => void;
 }
 
 interface CouponValidation {
@@ -50,6 +53,7 @@ export function PurchaseConfirmModal({
   variationPrice = null,
   variations = null,
   initialQuantity = 1,
+  onCheckout,
 }: PurchaseConfirmModalProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -103,6 +107,7 @@ export function PurchaseConfirmModal({
   const remainingBalance = userBalance - effectivePrice;
 
   const isAccountRecharge = product.account_recharge === true;
+  const maxStock = product.manual_delivery ? 99 : (product.stock_quantity ?? 0);
 
   if (!isOpen) return null;
 
@@ -425,7 +430,8 @@ export function PurchaseConfirmModal({
                       <span className="w-10 text-center text-sm font-bold text-gray-900 dark:text-white">{quantity}</span>
                       <button
                         type="button"
-                        onClick={() => setQuantity(quantity + 1)}
+                        onClick={() => setQuantity(Math.min(maxStock, quantity + 1))}
+                        disabled={quantity >= maxStock}
                         className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
                       >
                         <Plus className="h-4 w-4" />
@@ -609,6 +615,18 @@ export function PurchaseConfirmModal({
             >
               {t.language === 'pt' ? 'Cancelar' : t.language === 'en' ? 'Cancel' : 'Cancelar'}
             </button>
+            {remainingBalance < 0 && onCheckout ? (
+              <button
+                onClick={() => onCheckout(quantity, variationId ?? null)}
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <CreditCard className="h-4 w-4" />
+                <span>
+                  {t.language === 'pt' ? 'Ir para Pagamento' : t.language === 'en' ? 'Go to Checkout' : 'Ir a Pagar'}
+                </span>
+              </button>
+            ) : (
             <button
               onClick={handleConfirm}
               disabled={!canConfirm}
@@ -630,6 +648,7 @@ export function PurchaseConfirmModal({
                 </>
               )}
             </button>
+            )}
           </div>
         </div>
       </div>
