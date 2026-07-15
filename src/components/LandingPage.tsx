@@ -7,6 +7,9 @@ import { useTheme } from './ThemeProvider';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
+import { ProductRow } from './ProductRow';
+import { Shuffle, TrendingUp, FolderTree, Eye } from 'lucide-react';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -112,8 +115,10 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     touchEndX.current = null;
   }, [banners.length]);
   const [products, setProducts] = useState<StoreProduct[]>([]);
+  const [bestSellers, setBestSellers] = useState<StoreProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const { getRecentlyViewedProducts, trackView } = useRecentlyViewed();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPrimaryCategory, setSelectedPrimaryCategory] = useState<'all' | PrimaryCategory>('all');
   const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
@@ -181,6 +186,34 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     loadBanners();
     loadProducts();
   }, []);
+
+  // Shuffle products for "recommended" row, re-shuffle periodically
+  const recommendedProducts = useMemo(() => {
+    const available = products.filter(p => p.manual_delivery || p.stock_quantity > 0);
+    const shuffled = [...available];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 20);
+  }, [products]);
+
+  // Products grouped by category for the "by category" rows
+  const productsByCategory = useMemo(() => {
+    const groups: Record<string, StoreProduct[]> = {};
+    products.forEach(p => {
+      const cat = p.category || 'other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(p);
+    });
+    return Object.entries(groups)
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([cat, items]) => ({ category: cat, products: items.slice(0, 20) }));
+  }, [products]);
+
+  const recentlyViewedProducts = useMemo(() => {
+    return getRecentlyViewedProducts(products).slice(0, 20);
+  }, [products, getRecentlyViewedProducts]);
 
   useEffect(() => {
     if (banners.length <= 1) return;
@@ -286,6 +319,26 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         return 0;
       });
       setProducts(sorted);
+
+      // Load best sellers from store_orders
+      try {
+        const { data: orders } = await supabase
+          .from('store_orders')
+          .select('product_id')
+          .in('status', ['delivered', 'paid', 'completed']);
+        if (orders && orders.length > 0) {
+          const salesCount: Record<string, number> = {};
+          orders.forEach(o => {
+            if (o.product_id) salesCount[o.product_id] = (salesCount[o.product_id] || 0) + 1;
+          });
+          const ranked = enriched
+            .map(p => ({ ...p, _sales: salesCount[p.id] || 0 }))
+            .filter(p => p._sales > 0)
+            .sort((a, b) => (b as any)._sales - (a as any)._sales)
+            .slice(0, 20);
+          setBestSellers(ranked);
+        }
+      } catch { /* ignore */ }
     } catch { /* ignore */ }
     finally { setProductsLoading(false); }
   }
@@ -592,7 +645,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             </div>
           </div>
 
-          {/* Products area */}
+          {/* Products area - Horizontal Rows */}
           <div>
           {productsLoading ? (
             <div className="flex justify-center py-12">
@@ -613,85 +666,150 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                 p.category.toLowerCase().includes(searchQuery.toLowerCase());
               return matchesCategory && matchesPrimary && matchesSearch;
             });
-            return filtered.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 dark:text-gray-500">
-                <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>{t.language === 'pt' ? 'Nenhum produto encontrado para sua busca' : t.language === 'en' ? 'No products found for your search' : 'No se encontraron productos para tu busqueda'}</p>
-              </div>
-            ) : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-                {filtered.map(product => {
-                  const available = product.manual_delivery || product.stock_quantity > 0;
-                  const hasPromo = product.promotion_active && product.promotional_price_usdt;
-                  return (
-                    <div key={product.id} onClick={() => {
-                      window.location.hash = `product/${product.id}`;
-                    }}
-                      className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1">
-                      <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
-                        {product.image_url ? (
-                          <img src={product.image_url} alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                            onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-10 h-10 text-gray-300 dark:text-gray-600" />
-                          </div>
-                        )}
-                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">{product.category}</span>
-                        {!available && (
-                          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/80 backdrop-blur-sm text-white">
-                            {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
-                          </span>
-                        )}
-                        {available && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-                          <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-500/80 backdrop-blur-sm text-white">
-                            {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-3 lg:p-4">
-                        <h3 className="font-bold text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1">{product.name}</h3>
-                        {product.description && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">{product.description}</p>
-                        )}
-                        <div className="flex items-baseline gap-2">
-                          {hasPromo ? (
-                            <>
-                              <span className="text-lg lg:text-xl font-bold text-red-500">{formatPrice(Number(product.promotional_price_usdt))}</span>
-                              <span className="text-xs text-gray-400 line-through">{formatPrice(Number(product.price_usdt))}</span>
-                            </>
-                          ) : (
-                            <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">{formatPrice(Number(product.price_usdt))}</span>
-                          )}
-                        </div>
-                        {product.seller_name && (
-                          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                            {product.seller_avatar ? (
-                              <img src={product.seller_avatar} alt={product.seller_name} className="h-4 w-4 rounded-full object-cover flex-shrink-0" />
+
+            if (filtered.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>{t.language === 'pt' ? 'Nenhum produto encontrado para sua busca' : t.language === 'en' ? 'No products found for your search' : 'No se encontraron productos para tu busqueda'}</p>
+                </div>
+              );
+            }
+
+            const isFiltering = selectedCategory !== 'all' || selectedPrimaryCategory !== 'all' || searchQuery;
+            const handleProductClick = (product: StoreProduct) => {
+              trackView(product);
+              window.location.hash = `product/${product.id}`;
+            };
+
+            if (isFiltering) {
+              return (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+                    {filtered.map(product => {
+                      const available = product.manual_delivery || product.stock_quantity > 0;
+                      const hasPromo = product.promotion_active && product.promotional_price_usdt;
+                      return (
+                        <div key={product.id} onClick={() => handleProductClick(product)}
+                          className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1">
+                          <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
+                            {product.image_url ? (
+                              <img src={product.image_url} alt={product.name}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
+                              />
                             ) : (
-                              <div className="h-4 w-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-                                <Store className="h-2.5 w-2.5 text-white" />
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="w-10 h-10 text-gray-300 dark:text-gray-600" />
                               </div>
                             )}
-                            <span className="truncate">{product.seller_name}</span>
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">{product.category}</span>
+                            {!available && (
+                              <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/80 backdrop-blur-sm text-white">
+                                {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
+                              </span>
+                            )}
+                            {available && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
+                              <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-500/80 backdrop-blur-sm text-white">
+                                {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
+                              </span>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="text-center mt-8">
-                <button onClick={onGetStarted}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all hover:scale-105 shadow-lg shadow-blue-500/30">
-                  {t.language === 'pt' ? 'Entrar para Comprar' : t.language === 'en' ? 'Sign In to Buy' : 'Iniciar Sesion para Comprar'}
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-            </>
+                          <div className="p-3 lg:p-4">
+                            <h3 className="font-bold text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1">{product.name}</h3>
+                            {product.description && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">{product.description}</p>
+                            )}
+                            <div className="flex items-baseline gap-2">
+                              {hasPromo ? (
+                                <>
+                                  <span className="text-lg lg:text-xl font-bold text-red-500">{formatPrice(Number(product.promotional_price_usdt))}</span>
+                                  <span className="text-xs text-gray-400 line-through">{formatPrice(Number(product.price_usdt))}</span>
+                                </>
+                              ) : (
+                                <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">{formatPrice(Number(product.price_usdt))}</span>
+                              )}
+                            </div>
+                            {product.seller_name && (
+                              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                                {product.seller_avatar ? (
+                                  <img src={product.seller_avatar} alt={product.seller_name} className="h-4 w-4 rounded-full object-cover flex-shrink-0" />
+                                ) : (
+                                  <div className="h-4 w-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                                    <Store className="h-2.5 w-2.5 text-white" />
+                                  </div>
+                                )}
+                                <span className="truncate">{product.seller_name}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="text-center mt-8">
+                    <button onClick={onGetStarted}
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all hover:scale-105 shadow-lg shadow-blue-500/30">
+                      {t.language === 'pt' ? 'Entrar para Comprar' : t.language === 'en' ? 'Sign In to Buy' : 'Iniciar Sesion para Comprar'}
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </>
+              );
+            }
+
+            // Default view: horizontal rows
+            return (
+              <>
+                {/* Row 1: Recommended (random) */}
+                <ProductRow
+                  title={t.language === 'pt' ? 'Recomendados para Você' : t.language === 'en' ? 'Recommended for You' : 'Recomendados para Ti'}
+                  subtitle={t.language === 'pt' ? 'Produtos selecionados aleatoriamente' : t.language === 'en' ? 'Randomly selected products' : 'Productos seleccionados al azar'}
+                  products={recommendedProducts}
+                  onProductClick={handleProductClick}
+                  icon={<Shuffle className="w-5 h-5 text-blue-500" />}
+                />
+
+                {/* Row 2: Best Sellers */}
+                {bestSellers.length > 0 && (
+                  <ProductRow
+                    title={t.language === 'pt' ? 'Mais Vendidos' : t.language === 'en' ? 'Best Sellers' : 'Más Vendidos'}
+                    subtitle={t.language === 'pt' ? 'Os produtos mais populares' : t.language === 'en' ? 'Most popular products' : 'Los productos más populares'}
+                    products={bestSellers}
+                    onProductClick={handleProductClick}
+                    icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
+                  />
+                )}
+
+                {/* Row 3+: By Category */}
+                {productsByCategory.map(({ category, products: catProducts }) => (
+                  <ProductRow
+                    key={category}
+                    title={t.language === 'pt' ? `Categoria: ${category}` : t.language === 'en' ? `Category: ${category}` : `Categoría: ${category}`}
+                    products={catProducts}
+                    onProductClick={handleProductClick}
+                    icon={<FolderTree className="w-5 h-5 text-amber-500" />}
+                  />
+                ))}
+
+                {/* Row 4: Recently Viewed */}
+                {recentlyViewedProducts.length > 0 && (
+                  <ProductRow
+                    title={t.language === 'pt' ? 'Vistos Recentemente' : t.language === 'en' ? 'Recently Viewed' : 'Vistos Recientemente'}
+                    products={recentlyViewedProducts}
+                    onProductClick={handleProductClick}
+                    icon={<Eye className="w-5 h-5 text-purple-500" />}
+                  />
+                )}
+
+                <div className="text-center mt-8">
+                  <button onClick={onGetStarted}
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all hover:scale-105 shadow-lg shadow-blue-500/30">
+                    {t.language === 'pt' ? 'Entrar para Comprar' : t.language === 'en' ? 'Sign In to Buy' : 'Iniciar Sesion para Comprar'}
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                </div>
+              </>
             );
           })()}
             </div>

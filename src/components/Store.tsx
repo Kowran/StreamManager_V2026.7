@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, type LucideIcon } from 'lucide-react';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -17,6 +17,8 @@ import { PurchaseConfirmModal } from './PurchaseConfirmModal';
 import { ProductRatingModal } from './ProductRatingModal';
 import { SellerRequestForm } from './SellerRequestForm';
 import { SMMPanel } from './SMMPanel';
+import { ProductRow } from './ProductRow';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 interface UserCredit {
   balance: number;
@@ -52,6 +54,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const { addNotification } = useNotificationContext();
   const { formatPrice } = useCurrency();
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
+  const [bestSellers, setBestSellers] = useState<ProductWithSeller[]>([]);
   const [userCredit, setUserCredit] = useState<UserCredit | null>(null);
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -64,6 +67,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [purchasing, setPurchasing] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const { trackView, getRecentlyViewedProducts } = useRecentlyViewed();
   const [purchaseAmount, setPurchaseAmount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 12;
@@ -198,6 +202,26 @@ export function Store({ onNavigate }: StoreProps = {}) {
       });
 
       setProducts(sortedProducts);
+
+      // Load best sellers from store_orders
+      try {
+        const { data: orders } = await supabase
+          .from('store_orders')
+          .select('product_id')
+          .in('status', ['delivered', 'paid', 'completed']);
+        if (orders && orders.length > 0) {
+          const salesCount: Record<string, number> = {};
+          orders.forEach(o => {
+            if (o.product_id) salesCount[o.product_id] = (salesCount[o.product_id] || 0) + 1;
+          });
+          const ranked = sortedProducts
+            .map(p => ({ ...p, _sales: salesCount[p.id] || 0 }))
+            .filter(p => p._sales > 0)
+            .sort((a, b) => (b as any)._sales - (a as any)._sales)
+            .slice(0, 20);
+          setBestSellers(ranked);
+        }
+      } catch { /* ignore */ }
     } catch (error) {
       console.error('Error loading store data:', error);
     } finally {
@@ -456,6 +480,43 @@ export function Store({ onNavigate }: StoreProps = {}) {
     const matchesPrimary = activePrimaryCategory === 'all' || ((product as any).primary_category || 'item') === activePrimaryCategory;
     return matchesSearch && matchesCategory && matchesPrimary;
   });
+
+  // Recommended products (shuffled random)
+  const recommendedProducts = useMemo(() => {
+    const available = products.filter(p => p.manual_delivery || p.stock_quantity > 0);
+    const shuffled = [...available];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 20);
+  }, [products]);
+
+  // Products grouped by category
+  const productsByCategory = useMemo(() => {
+    const groups: Record<string, StoreProduct[]> = {};
+    products.forEach(p => {
+      const cat = p.category || 'other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(p);
+    });
+    return Object.entries(groups)
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([cat, items]) => ({ category: cat, products: items.slice(0, 20) }));
+  }, [products]);
+
+  // Recently viewed products
+  const recentlyViewedProducts = useMemo(() => {
+    return getRecentlyViewedProducts(products).slice(0, 20);
+  }, [products, getRecentlyViewedProducts]);
+
+  const isFiltering = activeCategory !== 'all' || activePrimaryCategory !== 'all' || searchTerm;
+
+  const handleProductClick = useCallback((product: StoreProduct) => {
+    trackView(product);
+    setSelectedProduct(product);
+    setShowProductModal(true);
+  }, [trackView]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
@@ -788,6 +849,45 @@ export function Store({ onNavigate }: StoreProps = {}) {
           ))}
         </div>
       </div>
+
+      {/* Horizontal product rows - shown when not filtering */}
+      {!isFiltering && activeCategory !== 'smm' && !loading && products.length > 0 && (
+        <div className="mb-8">
+          <ProductRow
+            title={t.language === 'pt' ? 'Recomendados para Você' : t.language === 'en' ? 'Recommended for You' : 'Recomendados para Ti'}
+            subtitle={t.language === 'pt' ? 'Produtos selecionados aleatoriamente' : t.language === 'en' ? 'Randomly selected products' : 'Productos seleccionados al azar'}
+            products={recommendedProducts}
+            onProductClick={handleProductClick}
+            icon={<Shuffle className="w-5 h-5 text-blue-500" />}
+          />
+          {bestSellers.length > 0 && (
+            <ProductRow
+              title={t.language === 'pt' ? 'Mais Vendidos' : t.language === 'en' ? 'Best Sellers' : 'Más Vendidos'}
+              subtitle={t.language === 'pt' ? 'Os produtos mais populares' : t.language === 'en' ? 'Most popular products' : 'Los productos más populares'}
+              products={bestSellers}
+              onProductClick={handleProductClick}
+              icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
+            />
+          )}
+          {productsByCategory.map(({ category, products: catProducts }) => (
+            <ProductRow
+              key={category}
+              title={t.language === 'pt' ? `Categoria: ${category}` : t.language === 'en' ? `Category: ${category}` : `Categoría: ${category}`}
+              products={catProducts}
+              onProductClick={handleProductClick}
+              icon={<FolderTree className="w-5 h-5 text-amber-500" />}
+            />
+          ))}
+          {recentlyViewedProducts.length > 0 && (
+            <ProductRow
+              title={t.language === 'pt' ? 'Vistos Recentemente' : t.language === 'en' ? 'Recently Viewed' : 'Vistos Recientemente'}
+              products={recentlyViewedProducts}
+              onProductClick={handleProductClick}
+              icon={<Eye className="w-5 h-5 text-purple-500" />}
+            />
+          )}
+        </div>
+      )}
 
       {/* Products grid */}
       <div>
