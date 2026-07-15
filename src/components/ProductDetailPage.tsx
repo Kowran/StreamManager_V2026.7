@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, Package, Check, Truck, ShoppingCart, Star,
   AlertCircle, Loader, UserCheck, CreditCard,
-  Share2, CheckCircle2, Zap, Clock, ChevronDown
+  Share2, CheckCircle2, Zap, Clock, ChevronDown, Minus, Plus
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
 import { supabase, StoreProduct, ProductVariation } from '../lib/supabase';
 import { LoginModal } from './LoginModal';
-import { Footer } from './Footer';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { PurchaseConfirmModal } from './PurchaseConfirmModal';
 import { ProductRatingModal } from './ProductRatingModal';
@@ -65,6 +64,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const [variationStocks, setVariationStocks] = useState<Record<string, number>>({});
   const [showVariationDropdown, setShowVariationDropdown] = useState(false);
+  const [detailQuantity, setDetailQuantity] = useState(1);
 
   useEffect(() => {
     loadProduct();
@@ -263,7 +263,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         },
         body: JSON.stringify({
           product_id: product.id,
-          quantity: 1,
+          quantity: quantity || 1,
           coupon_code: couponCode || null,
           use_cashback: useCashback || false,
           variation_id: variationId || selectedVariation?.id || null,
@@ -591,6 +591,31 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
               {/* Action Buttons */}
               <div className="mt-auto space-y-2">
+                {!isAccountRecharge && (
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {t.language === 'pt' ? 'Quantidade:' : t.language === 'en' ? 'Quantity:' : 'Cantidad:'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDetailQuantity(Math.max(1, detailQuantity - 1))}
+                        disabled={detailQuantity <= 1}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-12 text-center text-base font-bold text-gray-900 dark:text-white">{detailQuantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => setDetailQuantity(detailQuantity + 1)}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button
                   onClick={handleBuyNow}
                   disabled={!isAvailable || purchasing}
@@ -708,6 +733,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           variationName={selectedVariation?.name || null}
           variationPrice={selectedVariation ? Number(selectedVariation.price_usdt) : null}
           variations={variations}
+          initialQuantity={detailQuantity}
         />
       )}
 
@@ -744,8 +770,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
 }

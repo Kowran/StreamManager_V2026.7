@@ -237,10 +237,13 @@ Deno.serve(async (req: Request) => {
 
       const isManualDelivery = productInfo?.manual_delivery === true;
 
+      const orderVariationId = order.variation_id || null;
+
       if (Array.isArray(credentials.accounts) && credentials.accounts.length > 0) {
         // Multi-item purchase: return each account to inventory
         const inventoryRows = credentials.accounts.map((acc: any) => ({
           product_id: sale.product_id,
+          variation_id: orderVariationId,
           email: String(acc.email || ''),
           password: String(acc.password || ''),
           instructions: String(acc.instructions || ''),
@@ -276,6 +279,7 @@ Deno.serve(async (req: Request) => {
             .from('product_inventory')
             .insert({
               product_id: sale.product_id,
+              variation_id: orderVariationId,
               email: credentials.email,
               password: credentials.password,
               instructions: credentials.instructions || 'Use estas credenciais para acessar sua conta.',

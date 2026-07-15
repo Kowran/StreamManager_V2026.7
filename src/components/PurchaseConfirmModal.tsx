@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap, ChevronDown } from 'lucide-react';
+import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap, ChevronDown, Minus, Plus } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { supabase, ProductVariation } from '../lib/supabase';
@@ -24,6 +24,7 @@ interface PurchaseConfirmModalProps {
   variationName?: string | null;
   variationPrice?: number | null;
   variations?: ProductVariation[] | null;
+  initialQuantity?: number;
 }
 
 interface CouponValidation {
@@ -48,6 +49,7 @@ export function PurchaseConfirmModal({
   variationName = null,
   variationPrice = null,
   variations = null,
+  initialQuantity = 1,
 }: PurchaseConfirmModalProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -63,6 +65,7 @@ export function PurchaseConfirmModal({
   const [modalVariations, setModalVariations] = useState<ProductVariation[]>([]);
   const [modalSelectedVariation, setModalSelectedVariation] = useState<ProductVariation | null>(null);
   const [showVariationDropdown, setShowVariationDropdown] = useState(false);
+  const [quantity, setQuantity] = useState(initialQuantity);
 
   useEffect(() => {
     if (variations && variations.length > 0) {
@@ -92,9 +95,9 @@ export function PurchaseConfirmModal({
   const hasPromo = product.promotion_active && product.promotional_price_usdt && !currentVariationPrice;
   const basePrice = currentVariationPrice !== null ? currentVariationPrice : (hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt);
   const unitPrice = basePrice;
-  const totalPrice = unitPrice;
+  const totalPrice = unitPrice * quantity;
   const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount : 0;
-  const priceAfterCoupon = appliedCoupon ? appliedCoupon.finalPrice : totalPrice;
+  const priceAfterCoupon = appliedCoupon ? appliedCoupon.finalPrice * quantity : totalPrice;
   const cashbackToUse = useCashback ? Math.min(cashbackBalance, priceAfterCoupon) : 0;
   const effectivePrice = Math.max(0, priceAfterCoupon - cashbackToUse);
   const remainingBalance = userBalance - effectivePrice;
@@ -221,9 +224,9 @@ export function PurchaseConfirmModal({
         email: rechargeEmail.trim(),
         password: rechargePassword.trim(),
         extra_data: rechargeExtraData.trim(),
-      }, useCashback, 1, modalSelectedVariation?.id || null);
+      }, useCashback, quantity, modalSelectedVariation?.id || null);
     } else {
-      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback, 1, modalSelectedVariation?.id || null);
+      onConfirm(appliedCoupon?.code || undefined, undefined, useCashback, quantity, modalSelectedVariation?.id || null);
     }
   }
 
@@ -395,7 +398,7 @@ export function PurchaseConfirmModal({
                   <div className="flex items-center gap-2">
                     {hasPromo && (
                       <span className="text-sm text-gray-400 line-through">
-                        {formatPrice(product.price_usdt)}
+                        {formatPrice(Number(product.price_usdt))}
                       </span>
                     )}
                     <span className="text-lg font-bold text-green-600 dark:text-green-400">
@@ -403,6 +406,33 @@ export function PurchaseConfirmModal({
                     </span>
                   </div>
                 </div>
+
+                {/* Quantity Selector */}
+                {!isAccountRecharge && (
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {t.language === 'pt' ? 'Quantidade:' : t.language === 'en' ? 'Quantity:' : 'Cantidad:'}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        disabled={quantity <= 1}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-10 text-center text-sm font-bold text-gray-900 dark:text-white">{quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(quantity + 1)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
 
 
                 {/* Coupon Discount */}
