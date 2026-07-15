@@ -213,8 +213,9 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   }
 
   const hasPromo = product?.promotion_active && product?.promotional_price_usdt;
-  const effectivePrice = hasPromo ? Number(product!.promotional_price_usdt) : Number(product?.price_usdt ?? 0);
-  const isAvailable = product ? (product.manual_delivery || product.stock_quantity > 0) : false;
+  const variationPrice = selectedVariation ? Number(selectedVariation.price_usdt) : null;
+  const effectivePrice = variationPrice !== null ? variationPrice : (hasPromo ? Number(product!.promotional_price_usdt) : Number(product?.price_usdt ?? 0));
+  const isAvailable = product ? (product.manual_delivery || (selectedVariation ? selectedVariation.stock_quantity > 0 : product.stock_quantity > 0)) : false;
 
   function handleBuyNow() {
     if (!user) {
@@ -228,7 +229,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         setShowRatingModal(true);
         return;
       }
-      const unitPrice = hasPromo ? Number(product!.promotional_price_usdt) : product!.price_usdt;
+      const unitPrice = effectivePrice;
       const totalPrice = unitPrice * quantity;
       if (userCredit.balance < totalPrice) {
         onNavigate?.('credits', { presetAmount: totalPrice });
@@ -256,6 +257,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           quantity: quantity,
           coupon_code: couponCode || null,
           use_cashback: useCashback || false,
+          variation_id: selectedVariation?.id || null,
         }),
       });
 
@@ -438,12 +440,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
               {/* Price */}
               <div className="flex items-baseline gap-2 mb-3">
-                {hasPromo && (
+                {hasPromo && !selectedVariation && (
                   <span className="text-lg text-gray-400 line-through">
                     {formatPrice(Number(product.price_usdt))}
                   </span>
                 )}
-                <span className={`text-3xl font-bold ${hasPromo ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
+                <span className={`text-3xl font-bold ${hasPromo && !selectedVariation ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
                   {formatPrice(effectivePrice)}
                 </span>
                 {quantity > 1 && (
@@ -452,6 +454,53 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   </span>
                 )}
               </div>
+
+              {/* Variation Selector */}
+              {variations.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 uppercase tracking-wide">
+                    {t.language === 'pt' ? 'Escolha uma variação' : t.language === 'en' ? 'Choose a variation' : 'Elige una variación'}
+                  </h3>
+                  <div className="space-y-2">
+                    {variations.map((variation) => {
+                      const isSelected = selectedVariation?.id === variation.id;
+                      const varAvailable = product.manual_delivery || variation.stock_quantity > 0;
+                      return (
+                        <button
+                          key={variation.id}
+                          onClick={() => setSelectedVariation(variation)}
+                          disabled={!varAvailable}
+                          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left ${
+                            isSelected
+                              ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500'
+                              : varAvailable
+                              ? 'border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-600 bg-white dark:bg-gray-800'
+                              : 'border-gray-200 dark:border-gray-700 opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{variation.name}</p>
+                            {variation.description && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{variation.description}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {!product.manual_delivery && (
+                              <span className={`text-xs ${variation.stock_quantity > 5 ? 'text-green-600 dark:text-green-400' : variation.stock_quantity > 0 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-500'}`}>
+                                {variation.stock_quantity} {t.language === 'pt' ? 'estoque' : t.language === 'en' ? 'stock' : 'stock'}
+                              </span>
+                            )}
+                            <span className="text-base font-bold text-green-600 dark:text-green-400">
+                              {formatPrice(Number(variation.price_usdt))}
+                            </span>
+                            {isSelected && <Check className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               {product.description && (
@@ -483,7 +532,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               )}
 
               {/* Stock Info */}
-              {!product.manual_delivery && (
+              {!product.manual_delivery && variations.length === 0 && (
                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-blue-700 dark:text-blue-300 font-medium">
@@ -623,6 +672,9 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           onConfirm={handleConfirmPurchase}
           onCancel={() => setShowConfirmModal(false)}
           isLoading={purchasing}
+          variationId={selectedVariation?.id || null}
+          variationName={selectedVariation?.name || null}
+          variationPrice={selectedVariation ? Number(selectedVariation.price_usdt) : null}
         />
       )}
 

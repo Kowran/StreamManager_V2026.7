@@ -55,6 +55,7 @@ interface PurchaseRequest {
   coupon_code?: string;
   recharge_data?: { email: string; password: string; extra_data?: string };
   use_cashback?: boolean;
+  variation_id?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -92,7 +93,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestData: PurchaseRequest = await req.json();
-    const { product_id, quantity, coupon_code, recharge_data, use_cashback } = requestData;
+    const { product_id, quantity, coupon_code, recharge_data, use_cashback, variation_id } = requestData;
 
     // Validate input
     if (!product_id || !quantity || quantity < 1) {
@@ -161,23 +162,52 @@ Deno.serve(async (req: Request) => {
     }
 
     // Check stock only for non-manual, non-recharge delivery products
-    if (!isManualDelivery && !isAccountRecharge && product.stock_quantity < quantity) {
-      return new Response(
-        JSON.stringify({
-          error: 'Insufficient stock',
-          available: product.stock_quantity,
-          requested: quantity
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    // If a variation is selected, check variation stock instead of product stock
+    if (!isManualDelivery && !isAccountRecharge) {
+      const availableStock = variationRecord ? variationRecord.stock_quantity : product.stock_quantity;
+      if (availableStock < quantity) {
+        return new Response(
+          JSON.stringify({
+            error: 'Insufficient stock',
+            available: availableStock,
+            requested: quantity
+          }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
     }
 
     // Calculate base price (use promotional price if active)
-    const hasPromo = product.promotion_active && product.promotional_price_usdt;
-    const unitPrice = hasPromo ? Number(product.promotional_price_usdt) : Number(product.price_usdt);
+    // If a variation is selected, use variation price instead
+    let unitPrice: number;
+    let variationRecord: any = null;
+
+    if (variation_id) {
+      const { data: variation, error: variationError } = await supabaseAdmin
+        .from('store_product_variations')
+        .select('*')
+        .eq('id', variation_id)
+        .eq('product_id', product_id)
+        .eq('active', true)
+        .single();
+
+      if (variationError || !variation) {
+        return new Response(
+          JSON.stringify({ error: 'Variação não encontrada ou inativa' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      variationRecord = variation;
+      unitPrice = Number(variation.price_usdt);
+    } else {
+      const hasPromo = product.promotion_active && product.promotional_price_usdt;
+      unitPrice = hasPromo ? Number(product.promotional_price_usdt) : Number(product.price_usdt);
+    }
+
     let totalPrice = unitPrice * quantity;
 
     // ============================================
@@ -415,7 +445,8 @@ Deno.serve(async (req: Request) => {
       coupon_id: couponId,
       discount_amount: discountAmount,
       cashback_used: cashbackUsed,
-      recharge_data: isAccountRecharge ? recharge_data : null
+      recharge_data: isAccountRecharge ? recharge_data : null,
+      variation_id: variation_id || null,
     };
 
     let order: any = null;
@@ -503,13 +534,20 @@ Deno.serve(async (req: Request) => {
       };
     } else {
       // Get available inventory for automatic delivery - fetch 'quantity' items
-      const { data: inventory, error: inventoryError } = await supabaseAdmin
+      // If a variation is selected, filter inventory by variation_id
+      let inventoryQuery = supabaseAdmin
         .from('product_inventory')
         .select('*')
         .eq('product_id', product_id)
         .eq('status', 'available')
         .order('created_at', { ascending: true })
         .limit(quantity);
+
+      if (variation_id) {
+        inventoryQuery = inventoryQuery.eq('variation_id', variation_id);
+      }
+
+      const { data: inventory, error: inventoryError } = await inventoryQuery;
 
       if (inventoryError) {
         console.error('Inventory error:', inventoryError);
@@ -777,6 +815,15 @@ Deno.serve(async (req: Request) => {
 
     if (updateOrderError) {
       console.error('Order update error:', updateOrderError);
+    }
+
+    // Decrement variation stock if applicable
+    if (variationRecord && !isManualDelivery && !isAccountRecharge) {
+      const newVariationStock = Math.max(0, variationRecord.stock_quantity - quantity);
+      await supabaseAdmin
+        .from('store_product_variations')
+        .update({ stock_quantity: newVariationStock, updated_at: new Date().toISOString() })
+        .eq('id', variationRecord.id);
     }
 
     console.log('Purchase completed successfully. Status:', (isManualDelivery || isAccountRecharge) ? 'paid (will trigger chat)' : 'delivered');

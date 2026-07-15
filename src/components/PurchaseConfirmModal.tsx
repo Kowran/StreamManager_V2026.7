@@ -20,6 +20,9 @@ interface PurchaseConfirmModalProps {
   onConfirm: (couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  variationId?: string | null;
+  variationName?: string | null;
+  variationPrice?: number | null;
 }
 
 interface CouponValidation {
@@ -39,7 +42,10 @@ export function PurchaseConfirmModal({
   cashbackBalance = 0,
   onConfirm,
   onCancel,
-  isLoading = false
+  isLoading = false,
+  variationId = null,
+  variationName = null,
+  variationPrice = null,
 }: PurchaseConfirmModalProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -54,8 +60,8 @@ export function PurchaseConfirmModal({
   const [useCashback, setUseCashback] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
-  const hasPromo = product.promotion_active && product.promotional_price_usdt;
-  const basePrice = hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt;
+  const hasPromo = product.promotion_active && product.promotional_price_usdt && !variationPrice;
+  const basePrice = variationPrice !== null ? variationPrice : (hasPromo ? Number(product.promotional_price_usdt) : product.price_usdt);
   const unitPrice = basePrice;
   const totalPrice = unitPrice * quantity;
   const couponDiscount = appliedCoupon ? appliedCoupon.discountAmount * quantity : 0;
@@ -313,6 +319,11 @@ export function PurchaseConfirmModal({
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
                   {product.name}
                 </p>
+                {variationName && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-0.5">
+                    {t.language === 'pt' ? 'Variação' : t.language === 'en' ? 'Variation' : 'Variación'}: {variationName}
+                  </p>
+                )}
               </div>
 
               <div className="pt-3 border-t border-gray-200 dark:border-gray-600">

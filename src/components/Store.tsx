@@ -77,6 +77,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [showSellerProfile, setShowSellerProfile] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedVariation, setSelectedVariation] = useState<any>(null);
+  const [productVariations, setProductVariations] = useState<any[]>([]);
   const [productToConfirm, setProductToConfirm] = useState<ProductWithSeller | null>(null);
   const [banners, setBanners] = useState<any[]>([]);
   const [currentBanner, setCurrentBanner] = useState(0);
@@ -308,7 +310,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     }
   }
 
-  function handlePurchase(product: ProductWithSeller) {
+  function handlePurchase(product: ProductWithSeller, variation?: any) {
     if (!user || !userCredit) return;
 
     if (product.seller_id && product.seller_id === user.id) {
@@ -324,7 +326,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
         return;
       }
 
-      const price = product.price_usdt;
+      const price = variation ? Number(variation.price_usdt) : product.price_usdt;
 
       if (userCredit.balance < price) {
         onNavigate?.('credits', { presetAmount: price });
@@ -332,6 +334,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       }
 
       setProductToConfirm(product);
+      setSelectedVariation(variation || null);
       setShowConfirmModal(true);
     });
   }
@@ -360,7 +363,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
           quantity: quantity || 1,
           coupon_code: couponCode,
           recharge_data: rechargeData,
-          use_cashback: useCashback || false
+          use_cashback: useCashback || false,
+          variation_id: selectedVariation?.id || null,
         })
       });
 
@@ -1149,8 +1153,12 @@ export function Store({ onNavigate }: StoreProps = {}) {
           onCancel={() => {
             setShowConfirmModal(false);
             setProductToConfirm(null);
+            setSelectedVariation(null);
           }}
           isLoading={purchasing}
+          variationId={selectedVariation?.id || null}
+          variationName={selectedVariation?.name || null}
+          variationPrice={selectedVariation ? Number(selectedVariation.price_usdt) : null}
         />
       )}
 
@@ -1296,7 +1304,7 @@ function PurchaseSuccessModal({ isOpen, onClose, productName, price, orderId, on
 interface ProductCardProps {
   product: ProductWithSeller;
   userCredit: UserCredit | null;
-  onPurchase: (product: ProductWithSeller) => void;
+  onPurchase: (product: ProductWithSeller, variation?: any) => void;
   onCardClick: (product: ProductWithSeller) => void;
   purchasing: boolean;
   onViewSellerProfile: (sellerId: string | null, sellerSlug?: string) => void;
@@ -1307,8 +1315,31 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
   const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
-  const canAfford = userCredit ? userCredit.balance >= product.price_usdt : false;
-  const isAvailable = product.manual_delivery || (product as any).account_recharge || product.stock_quantity > 0;
+  const [variations, setVariations] = useState<any[]>([]);
+  const [selectedVariation, setSelectedVariation] = useState<any>(null);
+  const [showVariationDropdown, setShowVariationDropdown] = useState(false);
+
+  useEffect(() => {
+    setSelectedVariation(null);
+    setVariations([]);
+    setShowVariationDropdown(false);
+    supabase
+      .from('store_product_variations')
+      .select('*')
+      .eq('product_id', product.id)
+      .eq('active', true)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setVariations(data);
+          setSelectedVariation(data[0]);
+        }
+      });
+  }, [product.id]);
+
+  const variationPrice = selectedVariation ? Number(selectedVariation.price_usdt) : product.price_usdt;
+  const canAfford = userCredit ? userCredit.balance >= variationPrice : false;
+  const isAvailable = product.manual_delivery || (product as any).account_recharge || (selectedVariation ? selectedVariation.stock_quantity > 0 : product.stock_quantity > 0);
 
   return (
     <div
@@ -1452,15 +1483,54 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
         {/* Price */}
         <div className="flex items-baseline gap-1.5 sm:gap-2 mb-2 sm:mb-3">
           <span className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
-            {formatPrice(product.price_usdt)}
+            {formatPrice(variationPrice)}
           </span>
         </div>
+
+        {/* Variation Selector */}
+        {variations.length > 0 && (
+          <div className="mb-2 sm:mb-3">
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowVariationDropdown(!showVariationDropdown); }}
+                className="w-full flex items-center justify-between px-2.5 py-2 text-xs sm:text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:border-blue-400 transition-colors"
+              >
+                <span className="truncate">{selectedVariation ? selectedVariation.name : (t.language === 'pt' ? 'Selecione...' : t.language === 'en' ? 'Select...' : 'Seleccionar...')}</span>
+                <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${showVariationDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              {showVariationDropdown && (
+                <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {variations.map((v) => {
+                    const vAvailable = product.manual_delivery || v.stock_quantity > 0;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedVariation(v);
+                          setShowVariationDropdown(false);
+                        }}
+                        disabled={!vAvailable}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors ${
+                          selectedVariation?.id === v.id ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : 'text-gray-900 dark:text-white'
+                        } ${!vAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      >
+                        <span className="truncate">{v.name}</span>
+                        <span className="text-green-600 dark:text-green-400 font-bold ml-2">${Number(v.price_usdt).toFixed(2)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Actions */}
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onPurchase(product);
+            onPurchase(product, selectedVariation || undefined);
           }}
           disabled={isOwnProduct || !canAfford || !isAvailable || purchasing}
           className={`w-full px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${

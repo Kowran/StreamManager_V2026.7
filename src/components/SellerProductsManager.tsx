@@ -1080,10 +1080,30 @@ function InventoryPage({
   const [newItems, setNewItems] = useState<InventoryItem[]>([]);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkText, setBulkText] = useState('');
+  const [variations, setVariations] = useState<ProductVariation[]>([]);
+  const [selectedVariationId, setSelectedVariationId] = useState<string>('');
 
   useEffect(() => {
-    if (product) loadInventory();
+    if (product) {
+      loadInventory();
+      loadVariations();
+    }
   }, [product]);
+
+  async function loadVariations() {
+    if (!product) return;
+    try {
+      const { data, error } = await supabase
+        .from('store_product_variations')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('sort_order', { ascending: true });
+      if (error) throw error;
+      setVariations(data || []);
+    } catch {
+      // ignore
+    }
+  }
 
   async function loadInventory() {
     if (!product) return;
@@ -1151,6 +1171,7 @@ function InventoryPage({
         password: item.password.trim(),
         instructions: item.instructions.trim() || lbl('Use estas credenciais.', 'Use these credentials.', 'Use estas credenciales.'),
         status: 'available',
+        variation_id: selectedVariationId || null,
       }));
       const { error } = await supabase.from('product_inventory').insert(inventoryData);
       if (error) throw error;
@@ -1274,6 +1295,28 @@ function InventoryPage({
                 </button>
               </div>
             </div>
+
+            {/* Variation selector for inventory */}
+            {variations.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {lbl('Selecionar Variação', 'Select Variation', 'Seleccionar Variación')}
+                </label>
+                <select
+                  value={selectedVariationId}
+                  onChange={(e) => setSelectedVariationId(e.target.value)}
+                  className={`${inputClass} text-sm`}
+                >
+                  <option value="">{lbl('Produto base (sem variação)', 'Base product (no variation)', 'Producto base (sin variación)')}</option>
+                  {variations.map(v => (
+                    <option key={v.id} value={v.id}>{v.name} — ${Number(v.price_usdt).toFixed(2)}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  {lbl('As contas adicionadas serão vinculadas à variação selecionada.', 'Added accounts will be linked to the selected variation.', 'Las cuentas añadidas serán vinculadas a la variación seleccionada.')}
+                </p>
+              </div>
+            )}
 
             {bulkMode ? (
               <div className="space-y-4">
@@ -1545,6 +1588,7 @@ interface VariationsPageProps {
 }
 
 function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPageProps) {
+  const isManualDelivery = product.manual_delivery === true || (product as any).account_recharge === true;
   const [variations, setVariations] = useState<ProductVariation[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1704,6 +1748,16 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
             'Crea variaciones de este producto con precios y stock independientes. El cliente podrá elegir qué variación desea comprar.'
           )}
         </p>
+        {isManualDelivery && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
+            <Hand className="h-3.5 w-3.5" />
+            {lbl(
+              'Este produto tem entrega manual/recarga. Variações não precisam de estoque — a entrega é feita manualmente.',
+              'This product has manual/recharge delivery. Variations do not need stock — delivery is done manually.',
+              'Este producto tiene entrega manual/recarga. Las variaciones no necesitan stock — la entrega se hace manualmente.'
+            )}
+          </p>
+        )}
       </div>
 
       {error && (
@@ -1732,17 +1786,26 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Estoque', 'Stock', 'Stock')}</label>
-              <input type="number" value={formData.stock_quantity} onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-                placeholder="0"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
-            </div>
-            <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Descrição', 'Description', 'Descripción')}</label>
               <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder={lbl('Opcional', 'Optional', 'Opcional')}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
             </div>
+            {!isManualDelivery && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Estoque da Variação', 'Variation Stock', 'Stock de la Variación')}</label>
+                <input type="number" value={formData.stock_quantity} onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+                <p className="text-xs text-gray-400 mt-1">
+                  {lbl(
+                    'Para entrega automática, adicione contas no gerenciador de estoque selecionando esta variação.',
+                    'For automatic delivery, add accounts in the stock manager by selecting this variation.',
+                    'Para entrega automática, añade cuentas en el gestor de stock seleccionando esta variación.'
+                  )}
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 pt-2">
             <button onClick={handleSave} disabled={saving}
@@ -1784,9 +1847,11 @@ function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPag
                 {variation.description && <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{variation.description}</p>}
                 <div className="flex items-center gap-4 text-xs">
                   <span className="text-green-600 dark:text-green-400 font-bold">${Number(variation.price_usdt).toFixed(2)}</span>
-                  <span className={variation.stock_quantity > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}>
-                    {variation.stock_quantity} {lbl('estoque', 'stock', 'stock')}
-                  </span>
+                  {!isManualDelivery && (
+                    <span className={variation.stock_quantity > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}>
+                      {variation.stock_quantity} {lbl('estoque', 'stock', 'stock')}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1">
