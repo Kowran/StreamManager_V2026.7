@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -610,9 +610,9 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   return (
     <div className="space-y-4 sm:space-y-6 min-w-0 overflow-x-hidden">
-      {/* Header - Store Name and Balance */}
+      {/* Header - Store Name, Search (desktop), and Balance */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div>
+        <div className="flex-1 min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{t.store}</h2>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
             {t.language === 'pt' ? 'Compre produtos premium com seus créditos' :
@@ -620,6 +620,31 @@ export function Store({ onNavigate }: StoreProps = {}) {
              'Compra productos premium con tus créditos'}
           </p>
         </div>
+
+        {/* Desktop Search - inline in header */}
+        <div className="hidden lg:block relative w-72 xl:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder={
+              t.language === 'pt' ? 'Buscar produtos...' :
+              t.language === 'en' ? 'Search products...' :
+              'Buscar productos...'
+            }
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all text-sm"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
         <div className="flex flex-row sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {userRole === 'seller' && onNavigate ? (
             <button
@@ -735,8 +760,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       )}
 
-      {/* Search Bar + Secondary Filter Dropdown */}
-      <div className="mb-3 sm:mb-4">
+      {/* Search Bar + Secondary Filter Dropdown - mobile only */}
+      <div className="mb-3 sm:mb-4 lg:hidden">
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Search */}
           <div className="relative flex-1">

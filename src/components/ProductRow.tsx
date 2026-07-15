@@ -71,8 +71,8 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
       <div
         ref={scrollRef}
         onScroll={updateScrollButtons}
-        className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth pb-2 -mx-1 px-1 snap-x"
-        style={{ scrollbarWidth: 'thin' }}
+        className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth pb-2 -mx-1 px-1 snap-x product-row-scroll"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {products.map(product => {
           const available = (product as any).manual_delivery || product.stock_quantity > 0;
