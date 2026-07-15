@@ -1,5 +1,4 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.54.0';
-import nodemailer from 'npm:nodemailer@6.9.16';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -78,6 +77,155 @@ const SALE_EMAIL_TEMPLATES: Record<string, (data: { productName: string; quantit
   }),
 };
 
+async function sendSmtpEmail(
+  config: SmtpConfig,
+  to: string,
+  subject: string,
+  html: string
+): Promise<void> {
+  const CRLF = '\r\n';
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let conn: Deno.Conn;
+
+  if (config.secure) {
+    conn = await Deno.connectTls({ hostname: config.host, port: config.port });
+  } else {
+    conn = await Deno.connect({ hostname: config.host, port: config.port });
+  }
+
+  const readLine = async (): Promise<string> => {
+    const buf: Uint8Array = [];
+    while (true) {
+      const chunk = new Uint8Array(1);
+      const n = await conn.read(chunk);
+      if (n === null) break;
+      buf.push(chunk[0]);
+      if (chunk[0] === 0x0a) break;
+    }
+    return decoder.decode(new Uint8Array(buf)).trimEnd();
+  };
+
+  const sendCmd = async (cmd: string): Promise<string> => {
+    await conn.write(encoder.encode(cmd + CRLF));
+    const resp = await readLine();
+    console.log(`SMTP < ${resp}`);
+    return resp;
+  };
+
+  try {
+    // Read greeting
+    let greeting = await readLine();
+    console.log(`SMTP < ${greeting}`);
+    while (!greeting.startsWith('220 ')) {
+      greeting = await readLine();
+      console.log(`SMTP < ${greeting}`);
+    }
+
+    // EHLO
+    let resp = await sendCmd('EHLO marketplace.local');
+    // Read multi-line EHLO response
+    while (resp.startsWith('250-')) {
+      resp = await readLine();
+      console.log(`SMTP < ${resp}`);
+    }
+    if (!resp.startsWith('250 ')) {
+      throw new Error(`EHLO failed: ${resp}`);
+    }
+
+    // STARTTLS if not secure connection
+    if (!config.secure) {
+      resp = await sendCmd('STARTTLS');
+      if (!resp.startsWith('220')) {
+        throw new Error(`STARTTLS failed: ${resp}`);
+      }
+
+      // Upgrade to TLS
+      conn = await Deno.startTls(conn, { hostname: config.host });
+
+      // EHLO again after TLS
+      resp = await sendCmd('EHLO marketplace.local');
+      while (resp.startsWith('250-')) {
+        resp = await readLine();
+        console.log(`SMTP < ${resp}`);
+      }
+      if (!resp.startsWith('250 ')) {
+        throw new Error(`EHLO after TLS failed: ${resp}`);
+      }
+    }
+
+    // AUTH LOGIN
+    resp = await sendCmd('AUTH LOGIN');
+    if (!resp.startsWith('334')) {
+      throw new Error(`AUTH LOGIN failed: ${resp}`);
+    }
+
+    // Send username (base64)
+    const b64Username = btoa(config.username);
+    resp = await sendCmd(b64Username);
+    if (!resp.startsWith('334')) {
+      throw new Error(`Username auth failed: ${resp}`);
+    }
+
+    // Send password (base64)
+    const b64Password = btoa(config.password);
+    resp = await sendCmd(b64Password);
+    if (!resp.startsWith('235')) {
+      throw new Error(`Password auth failed: ${resp}`);
+    }
+
+    // MAIL FROM
+    resp = await sendCmd(`MAIL FROM:<${config.from_email}>`);
+    if (!resp.startsWith('250')) {
+      throw new Error(`MAIL FROM failed: ${resp}`);
+    }
+
+    // RCPT TO
+    resp = await sendCmd(`RCPT TO:<${to}>`);
+    if (!resp.startsWith('250')) {
+      throw new Error(`RCPT TO failed: ${resp}`);
+    }
+
+    // DATA
+    resp = await sendCmd('DATA');
+    if (!resp.startsWith('354')) {
+      throw new Error(`DATA failed: ${resp}`);
+    }
+
+    // Build email headers + body
+    const dateStr = new Date().toUTCString();
+    const messageId = `<${Date.now()}.${Math.random().toString(36).substring(7)}@marketplace.local>`;
+    const headers = [
+      `From: "${config.from_name}" <${config.from_email}>`,
+      `To: <${to}>`,
+      `Subject: ${subject}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset=UTF-8`,
+      `Date: ${dateStr}`,
+      `Message-ID: ${messageId}`,
+      '',
+      '',
+    ].join(CRLF);
+
+    await conn.write(encoder.encode(headers + html + CRLF + '.' + CRLF));
+    resp = await readLine();
+    console.log(`SMTP < ${resp}`);
+    if (!resp.startsWith('250')) {
+      throw new Error(`DATA send failed: ${resp}`);
+    }
+
+    // QUIT
+    await sendCmd('QUIT');
+  } finally {
+    try {
+      conn.close();
+    } catch {
+      // ignore
+    }
+  }
+}
+
 async function sendSellerSaleEmail(
   supabaseAdmin: ReturnType<typeof createClient>,
   sellerId: string,
@@ -118,21 +266,7 @@ async function sendSellerSaleEmail(
     const template = SALE_EMAIL_TEMPLATES[lang];
     const emailContent = template({ productName, quantity, totalPrice, orderId, buyerName });
 
-    const transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: { user: config.username, pass: config.password },
-    });
-
-    await transporter.sendMail({
-      from: `"${config.from_name}" <${config.from_email}>`,
-      to: sellerProfile.email,
-      subject: emailContent.subject,
-      html: emailContent.html,
-    });
-
-    transporter.close();
+    await sendSmtpEmail(config, sellerProfile.email, emailContent.subject, emailContent.html);
     console.log(`Seller sale email sent to ${sellerProfile.email} (lang: ${lang})`);
   } catch (err) {
     console.error('Failed to send seller sale email (non-fatal):', err);
