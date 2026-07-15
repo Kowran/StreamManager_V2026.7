@@ -7,7 +7,7 @@ import {
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
-import { supabase, StoreProduct } from '../lib/supabase';
+import { supabase, StoreProduct, ProductVariation } from '../lib/supabase';
 import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
@@ -62,6 +62,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const [purchaseSuccessData, setPurchaseSuccessData] = useState<{ productName: string; price: number; orderId: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [variations, setVariations] = useState<ProductVariation[]>([]);
+  const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
 
   useEffect(() => {
     loadProduct();
@@ -133,6 +135,18 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       }
 
       setProduct(productData);
+
+      // Load variations for this product
+      const { data: variationData } = await supabase
+        .from('store_product_variations')
+        .select('*')
+        .eq('product_id', data.id)
+        .eq('active', true)
+        .order('sort_order', { ascending: true });
+      if (variationData && variationData.length > 0) {
+        setVariations(variationData);
+        setSelectedVariation(variationData[0]);
+      }
     } catch (err) {
       console.error('Error loading product:', err);
       setError('Failed to load product');

@@ -5,7 +5,7 @@ import {
   ArrowLeft, Boxes, Zap, Hand, CheckCircle2, AlertCircle, Layers,
   Eye, EyeOff, Copy, FileText, UserCheck, Smartphone, Gamepad2, Gift, Coins
 } from 'lucide-react';
-import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
+import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES, ProductVariation } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
@@ -33,7 +33,7 @@ interface InventoryItem {
   created_at?: string;
 }
 
-type View = 'list' | 'create' | 'edit' | 'inventory';
+type View = 'list' | 'create' | 'edit' | 'inventory' | 'variations';
 
 export function SellerProductsManager() {
   const { user } = useAuth();
@@ -127,6 +127,12 @@ export function SellerProductsManager() {
     setView('inventory');
   }
 
+  function openVariationsManager(product: StoreProduct) {
+    setEditingProduct(product);
+    setSelectedProductId(product.id);
+    setView('variations');
+  }
+
   function backToList() {
     setView('list');
     setEditingProduct(null);
@@ -186,6 +192,18 @@ export function SellerProductsManager() {
     return (
       <InventoryPage
         product={product}
+        onBack={backToList}
+        lbl={lbl}
+        userId={user?.id || ''}
+        onSaved={loadProducts}
+      />
+    );
+  }
+
+  if (view === 'variations' && editingProduct) {
+    return (
+      <VariationsPage
+        product={editingProduct}
         onBack={backToList}
         lbl={lbl}
         userId={user?.id || ''}
@@ -341,6 +359,13 @@ export function SellerProductsManager() {
                 {/* Actions */}
                 <div className="col-span-2 flex items-center justify-end gap-1">
                   <button
+                    onClick={() => openVariationsManager(product)}
+                    className="p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                    title={lbl('Variações', 'Variations', 'Variaciones')}
+                  >
+                    <Layers className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => openInventoryManager(product.id)}
                     className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     title={lbl('Gerenciar Estoque', 'Manage Stock', 'Gestionar Stock')}
@@ -399,6 +424,9 @@ export function SellerProductsManager() {
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
               <button onClick={() => openInventoryManager(product.id)} className="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <Boxes className="h-3.5 w-3.5 mr-1" />{lbl('Estoque', 'Stock', 'Stock')}
+              </button>
+              <button onClick={() => openVariationsManager(product)} className="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <Layers className="h-3.5 w-3.5 mr-1" />{lbl('Variações', 'Variations', 'Variaciones')}
               </button>
               <button onClick={() => openEditView(product)} className="flex-1 inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg">
                 <FileText className="h-3.5 w-3.5 mr-1" />{lbl('Editar', 'Edit', 'Editar')}
@@ -1499,6 +1527,284 @@ function InventoryPage({
               ))}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// VARIATIONS PAGE — manage product variations
+// ============================================================
+interface VariationsPageProps {
+  product: StoreProduct;
+  onBack: () => void;
+  lbl: (pt: string, en: string, es: string) => string;
+  userId: string;
+  onSaved: () => void;
+}
+
+function VariationsPage({ product, onBack, lbl, userId, onSaved }: VariationsPageProps) {
+  const [variations, setVariations] = useState<ProductVariation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingVariation, setEditingVariation] = useState<ProductVariation | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    price_usdt: '',
+    stock_quantity: '',
+  });
+
+  useEffect(() => {
+    loadVariations();
+  }, [product.id]);
+
+  async function loadVariations() {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('store_product_variations')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('sort_order', { ascending: true });
+      if (error) throw error;
+      setVariations(data || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load variations');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function resetForm() {
+    setFormData({ name: '', description: '', price_usdt: '', stock_quantity: '' });
+    setEditingVariation(null);
+    setShowForm(false);
+  }
+
+  function openCreateForm() {
+    resetForm();
+    setShowForm(true);
+  }
+
+  function openEditForm(variation: ProductVariation) {
+    setFormData({
+      name: variation.name,
+      description: variation.description || '',
+      price_usdt: String(variation.price_usdt),
+      stock_quantity: String(variation.stock_quantity),
+    });
+    setEditingVariation(variation);
+    setShowForm(true);
+  }
+
+  async function handleSave() {
+    if (!formData.name.trim() || !formData.price_usdt) {
+      setError(lbl('Nome e preço são obrigatórios', 'Name and price are required', 'Nombre y precio son obligatorios'));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const payload = {
+        product_id: product.id,
+        seller_id: userId,
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        price_usdt: parseFloat(formData.price_usdt),
+        price_brl: parseFloat(formData.price_usdt) * 5.5,
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
+        active: true,
+        sort_order: editingVariation ? editingVariation.sort_order : variations.length,
+      };
+
+      if (editingVariation) {
+        const { error } = await supabase
+          .from('store_product_variations')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editingVariation.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('store_product_variations')
+          .insert(payload);
+        if (error) throw error;
+      }
+
+      resetForm();
+      await loadVariations();
+      onSaved();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save variation');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(variation: ProductVariation) {
+    if (!confirm(lbl('Excluir esta variação?', 'Delete this variation?', '¿Eliminar esta variación?'))) return;
+    try {
+      const { error } = await supabase
+        .from('store_product_variations')
+        .delete()
+        .eq('id', variation.id);
+      if (error) throw error;
+      await loadVariations();
+      onSaved();
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete variation');
+    }
+  }
+
+  async function toggleActive(variation: ProductVariation) {
+    try {
+      const { error } = await supabase
+        .from('store_product_variations')
+        .update({ active: !variation.active, updated_at: new Date().toISOString() })
+        .eq('id', variation.id);
+      if (error) throw error;
+      await loadVariations();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update variation');
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Layers className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              {lbl('Variações', 'Variations', 'Variaciones')}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{product.name}</p>
+          </div>
+        </div>
+        <button onClick={openCreateForm} className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors">
+          <Zap className="h-4 w-4" />
+          {lbl('Nova Variação', 'New Variation', 'Nueva Variación')}
+        </button>
+      </div>
+
+      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+        <p className="text-sm text-purple-700 dark:text-purple-300">
+          {lbl(
+            'Crie variações deste produto com preços e estoques independentes. O cliente poderá escolher qual variação deseja comprar.',
+            'Create variations of this product with independent prices and stock. The customer can choose which variation they want to buy.',
+            'Crea variaciones de este producto con precios y stock independientes. El cliente podrá elegir qué variación desea comprar.'
+          )}
+        </p>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        </div>
+      )}
+
+      {showForm && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+            {editingVariation ? lbl('Editar Variação', 'Edit Variation', 'Editar Variación') : lbl('Nova Variação', 'New Variation', 'Nueva Variación')}
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Nome *', 'Name *', 'Nombre *')}</label>
+              <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder={lbl('Ex: 1 mês, 3 meses, Premium...', 'Ex: 1 month, 3 months, Premium...', 'Ej: 1 mes, 3 meses, Premium...')}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Preço USDT *', 'Price USDT *', 'Precio USDT *')}</label>
+              <input type="number" step="0.01" value={formData.price_usdt} onChange={(e) => setFormData({ ...formData, price_usdt: e.target.value })}
+                placeholder="0.00"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Estoque', 'Stock', 'Stock')}</label>
+              <input type="number" value={formData.stock_quantity} onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                placeholder="0"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{lbl('Descrição', 'Description', 'Descripción')}</label>
+              <input type="text" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder={lbl('Opcional', 'Optional', 'Opcional')}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <button onClick={handleSave} disabled={saving}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2">
+              {saving ? (
+                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />{lbl('Salvando...', 'Saving...', 'Guardando...')}</>
+              ) : (
+                <><CheckCircle2 className="h-4 w-4" />{editingVariation ? lbl('Salvar', 'Save', 'Guardar') : lbl('Criar', 'Create', 'Crear')}</>
+              )}
+            </button>
+            <button onClick={resetForm} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium rounded-lg transition-colors">
+              {lbl('Cancelar', 'Cancel', 'Cancelar')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : variations.length === 0 && !showForm ? (
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-600">
+          <Layers className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+          <p className="text-gray-500 dark:text-gray-400 mb-2">{lbl('Nenhuma variação criada', 'No variations created', 'Ninguna variación creada')}</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500">{lbl('Clique em "Nova Variação" para começar', 'Click "New Variation" to start', 'Haz clic en "Nueva Variación" para empezar')}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {variations.map((variation) => (
+            <div key={variation.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white">{variation.name}</h4>
+                  {!variation.active && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded">{lbl('Inativo', 'Inactive', 'Inactivo')}</span>
+                  )}
+                </div>
+                {variation.description && <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{variation.description}</p>}
+                <div className="flex items-center gap-4 text-xs">
+                  <span className="text-green-600 dark:text-green-400 font-bold">${Number(variation.price_usdt).toFixed(2)}</span>
+                  <span className={variation.stock_quantity > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500'}>
+                    {variation.stock_quantity} {lbl('estoque', 'stock', 'stock')}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => toggleActive(variation)} className="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title={variation.active ? lbl('Desativar', 'Deactivate', 'Desactivar') : lbl('Ativar', 'Activate', 'Activar')}>
+                  {variation.active ? <Zap className="h-4 w-4" /> : <Hand className="h-4 w-4" />}
+                </button>
+                <button onClick={() => openEditForm(variation)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  title={lbl('Editar', 'Edit', 'Editar')}>
+                  <CheckCircle2 className="h-4 w-4" />
+                </button>
+                <button onClick={() => handleDelete(variation)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  title={lbl('Excluir', 'Delete', 'Eliminar')}>
+                  <AlertCircle className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

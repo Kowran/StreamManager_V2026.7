@@ -103,6 +103,21 @@ export interface StoreProduct {
   updated_at: string;
 }
 
+export interface ProductVariation {
+  id: string;
+  product_id: string;
+  seller_id?: string | null;
+  name: string;
+  description?: string;
+  price_usdt: number;
+  price_brl: number;
+  stock_quantity: number;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProductWithSeller extends StoreProduct {
   seller_info?: {
     id: string;
