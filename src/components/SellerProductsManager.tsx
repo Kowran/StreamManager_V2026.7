@@ -227,8 +227,8 @@ export function SellerProductsManager() {
         />
       </div>
 
-      {/* Product List - Row-based */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Product List - Row-based (desktop only) */}
+      <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Table header - desktop */}
         <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           <div className="col-span-4">{lbl('Produto', 'Product', 'Producto')}</div>

@@ -915,7 +915,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       )}
 
       {/* Products grid */}
-      <div>
+      <div className={(!isFiltering && activeCategory !== 'smm' && !loading && products.length > 0) ? 'hidden' : ''}>
 
       {/* SMM Panel - shown when Social Media category is active */}
       {activeCategory === 'smm' ? (
