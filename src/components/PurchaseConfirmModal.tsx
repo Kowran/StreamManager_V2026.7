@@ -47,6 +47,7 @@ export function PurchaseConfirmModal({
   variationId = null,
   variationName = null,
   variationPrice = null,
+  variations = null,
 }: PurchaseConfirmModalProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -75,13 +76,15 @@ export function PurchaseConfirmModal({
         .eq('product_id', product.id)
         .eq('active', true)
         .order('sort_order', { ascending: true })
-        .then(({ data }) => {
+        .then(({ data, error }) => {
+          if (error) return;
           if (data && data.length > 0) {
             setModalVariations(data);
             const preSelected = data.find(v => v.id === variationId) || data[0];
             setModalSelectedVariation(preSelected);
           }
-        });
+        })
+        .catch(() => {});
     }
   }, [product?.id, variations, variationId]);
 

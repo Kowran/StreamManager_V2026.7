@@ -244,17 +244,11 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         setShowRatingModal(true);
         return;
       }
-      const unitPrice = effectivePrice;
-      const totalPrice = unitPrice;
-      if (userCredit.balance < totalPrice) {
-        onNavigate?.('credits', { presetAmount: totalPrice });
-        return;
-      }
       setShowConfirmModal(true);
     });
   }
 
-  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean) {
+  async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, _quantity?: number, variationId?: string | null) {
     if (!user || !userCredit || !product) return;
     setPurchasing(true);
     try {
@@ -272,7 +266,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           quantity: 1,
           coupon_code: couponCode || null,
           use_cashback: useCashback || false,
-          variation_id: selectedVariation?.id || null,
+          variation_id: variationId || selectedVariation?.id || null,
         }),
       });
 
@@ -713,6 +707,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           variationId={selectedVariation?.id || null}
           variationName={selectedVariation?.name || null}
           variationPrice={selectedVariation ? Number(selectedVariation.price_usdt) : null}
+          variations={variations}
         />
       )}
 

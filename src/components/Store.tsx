@@ -152,6 +152,15 @@ export function Store({ onNavigate }: StoreProps = {}) {
           const { data: productSalesCount } = await supabase.rpc('get_product_sales_count', { product_uuid: product.id });
           const salesCount = Number(productSalesCount) || 0;
 
+          // Fetch total stock (includes variation stock)
+          let totalStock = product.stock_quantity;
+          if (!product.manual_delivery && !(product as any).account_recharge) {
+            const { data: stockCount } = await supabase.rpc('get_product_total_stock', { p_product_id: product.id });
+            if (stockCount !== null && stockCount !== undefined) {
+              totalStock = stockCount;
+            }
+          }
+
           if (product.seller_id) {
             let sellerData: { full_name: string; seller_slug: string; username: string } | null = null;
             if (sellerProfileCache[product.seller_id]) {
@@ -170,6 +179,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             }
             return {
               ...product,
+              stock_quantity: totalStock,
               seller_info: {
                 business_name: sellerData?.full_name || sellerData?.username || sellerData?.seller_slug || 'Vendedor',
                 sales_count: salesCount,
@@ -180,6 +190,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
           return {
             ...product,
+            stock_quantity: totalStock,
             seller_id: adminProfile?.id ?? null,
             seller_info: {
               business_name: adminProfile?.full_name || 'Admin',
@@ -323,13 +334,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
     checkPendingRatings().then(hasPending => {
       if (hasPending) {
         setShowRatingModal(true);
-        return;
-      }
-
-      const price = product.price_usdt;
-
-      if (userCredit.balance < price) {
-        onNavigate?.('credits', { presetAmount: price });
         return;
       }
 
@@ -1316,7 +1320,7 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
   const { formatPrice } = useCurrency();
   const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
   const isAvailable = product.manual_delivery || (product as any).account_recharge || product.stock_quantity > 0;
-  const canAfford = userCredit ? userCredit.balance >= product.price_usdt : false;
+  const canAfford = userCredit ? userCredit.balance >= Number(product.price_usdt) : false;
 
   return (
     <div
@@ -1457,7 +1461,7 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
         {/* Price */}
         <div className="flex items-baseline gap-1.5 sm:gap-2 mb-2 sm:mb-3">
           <span className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
-            {formatPrice(product.price_usdt)}
+            {formatPrice(Number(product.price_usdt))}
           </span>
         </div>
 
@@ -1467,9 +1471,9 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
             e.stopPropagation();
             onPurchase(product);
           }}
-          disabled={isOwnProduct || !canAfford || !isAvailable || purchasing}
+          disabled={isOwnProduct || !isAvailable || purchasing}
           className={`w-full px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
-            !isOwnProduct && canAfford && isAvailable && !purchasing
+            !isOwnProduct && isAvailable && !purchasing
               ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
           }`}
@@ -1482,8 +1486,6 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
           <span>
             {isOwnProduct ?
               (t.language === 'pt' ? 'Seu Produto' : t.language === 'en' ? 'Your Product' : 'Tu Producto') :
-            !canAfford ?
-              (t.language === 'pt' ? 'Saldo Insuf.' : t.language === 'en' ? 'Insufficient' : 'Insuficiente') :
               !isAvailable ?
               (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado') :
               (t.language === 'pt' ? 'Comprar' : t.language === 'en' ? 'Buy' : 'Comprar')
@@ -1637,7 +1639,7 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
   const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
-  const canAfford = userCredit ? userCredit.balance >= product.price_usdt : false;
+  const canAfford = userCredit ? userCredit.balance >= Number(product.price_usdt) : false;
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -1692,7 +1694,7 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
               </div>
               <div className="text-left sm:text-right flex-shrink-0">
                 <div className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400">
-                  {formatPrice(product.price_usdt)}
+                  {formatPrice(Number(product.price_usdt))}
                 </div>
               </div>
             </div>
@@ -1827,7 +1829,7 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
                   {formatPrice(userCredit?.balance || 0)}
                 </span>
               </div>
-              {!canAfford && (
+              {(!canAfford && product.stock_quantity > 0 && !product.manual_delivery) && (
                 <div className="mt-2 flex items-center text-red-600 dark:text-red-400">
                   <AlertCircle className="h-4 w-4 mr-1" />
                   <span className="text-xs">
@@ -1870,9 +1872,9 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
                 e.stopPropagation();
                 onPurchase(product);
               }}
-              disabled={isOwnProduct || !canAfford || (!product.manual_delivery && product.stock_quantity === 0) || purchasing}
+              disabled={isOwnProduct || (!product.manual_delivery && product.stock_quantity === 0) || purchasing}
               className={`flex-1 px-4 py-2.5 sm:py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium ${
-                !isOwnProduct && canAfford && (product.manual_delivery || product.stock_quantity > 0) && !purchasing
+                !isOwnProduct && (product.manual_delivery || product.stock_quantity > 0) && !purchasing
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
               }`}
@@ -1885,8 +1887,6 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
               <span>
                 {isOwnProduct ?
                   (t.language === 'pt' ? 'Seu Produto' : t.language === 'en' ? 'Your Product' : 'Tu Producto') :
-                  !canAfford ?
-                  (t.language === 'pt' ? 'Saldo Insuficiente' : t.language === 'en' ? 'Insufficient Balance' : 'Saldo Insuficiente') :
                   (!product.manual_delivery && product.stock_quantity === 0) ?
                   (t.language === 'pt' ? 'Fora de Estoque' : t.language === 'en' ? 'Out of Stock' : 'Agotado') :
                   (t.language === 'pt' ? 'Comprar Agora' : t.language === 'en' ? 'Buy Now' : 'Comprar Ahora')
