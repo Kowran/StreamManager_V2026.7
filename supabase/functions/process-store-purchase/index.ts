@@ -1,10 +1,143 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.54.0';
+import nodemailer from 'npm:nodemailer@6.9.16';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
+
+interface SmtpConfig {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  from_email: string;
+  from_name: string;
+  enabled: boolean;
+}
+
+const SALE_EMAIL_TEMPLATES: Record<string, (data: { productName: string; quantity: number; totalPrice: number; orderId: string; buyerName: string }) => { subject: string; html: string }> = {
+  pt: (d) => ({
+    subject: 'Nova venda realizada!',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #10b981;">Parabéns! Você realizou uma nova venda!</h2>
+        <p>Olá,</p>
+        <p>Uma nova venda foi registrada em sua loja. Aqui estão os detalhes:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Produto:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.productName}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Quantidade:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.quantity}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Valor Total:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.totalPrice.toFixed(2)} USDT</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Comprador:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.buyerName}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Pedido #:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.orderId}</td></tr>
+        </table>
+        <p>Acesse seu painel do vendedor para mais detalhes sobre esta venda.</p>
+        <p style="color: #6b7280; font-size: 12px;">Este é um email automático, não responda.</p>
+      </div>
+    `
+  }),
+  en: (d) => ({
+    subject: 'New sale completed!',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #10b981;">Congratulations! You made a new sale!</h2>
+        <p>Hello,</p>
+        <p>A new sale has been registered in your store. Here are the details:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Product:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.productName}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Quantity:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.quantity}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Total Amount:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.totalPrice.toFixed(2)} USDT</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Buyer:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.buyerName}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Order #:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.orderId}</td></tr>
+        </table>
+        <p>Access your seller dashboard for more details about this sale.</p>
+        <p style="color: #6b7280; font-size: 12px;">This is an automated email, please do not reply.</p>
+      </div>
+    `
+  }),
+  es: (d) => ({
+    subject: '¡Nueva venta realizada!',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #10b981;">¡Felicidades! Has realizado una nueva venta!</h2>
+        <p>Hola,</p>
+        <p>Se ha registrado una nueva venta en tu tienda. Aquí están los detalles:</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Producto:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.productName}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Cantidad:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.quantity}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Monto Total:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.totalPrice.toFixed(2)} USDT</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Comprador:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.buyerName}</td></tr>
+          <tr><td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Pedido #:</td><td style="padding: 8px; border: 1px solid #ddd;">${d.orderId}</td></tr>
+        </table>
+        <p>Accede a tu panel de vendedor para más detalles sobre esta venta.</p>
+        <p style="color: #6b7280; font-size: 12px;">Este es un correo automático, no respondas.</p>
+      </div>
+    `
+  }),
+};
+
+async function sendSellerSaleEmail(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  sellerId: string,
+  productName: string,
+  quantity: number,
+  totalPrice: number,
+  orderId: string,
+  buyerName: string
+): Promise<void> {
+  try {
+    // Fetch seller profile (email + language)
+    const { data: sellerProfile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('email, language')
+      .eq('id', sellerId)
+      .maybeSingle();
+
+    if (profileError || !sellerProfile || !sellerProfile.email) {
+      console.error('Could not fetch seller profile for email:', profileError?.message || 'No profile/email');
+      return;
+    }
+
+    // Fetch SMTP config
+    const { data: smtpConfig, error: smtpError } = await supabaseAdmin
+      .from('smtp_config')
+      .select('host, port, secure, username, password, from_email, from_name, enabled')
+      .eq('enabled', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (smtpError || !smtpConfig) {
+      console.log('SMTP config not available or disabled, skipping seller email');
+      return;
+    }
+
+    const config = smtpConfig as SmtpConfig;
+    const lang = (sellerProfile.language === 'pt' || sellerProfile.language === 'es') ? sellerProfile.language : 'en';
+    const template = SALE_EMAIL_TEMPLATES[lang];
+    const emailContent = template({ productName, quantity, totalPrice, orderId, buyerName });
+
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: { user: config.username, pass: config.password },
+    });
+
+    await transporter.sendMail({
+      from: `"${config.from_name}" <${config.from_email}>`,
+      to: sellerProfile.email,
+      subject: emailContent.subject,
+      html: emailContent.html,
+    });
+
+    transporter.close();
+    console.log(`Seller sale email sent to ${sellerProfile.email} (lang: ${lang})`);
+  } catch (err) {
+    console.error('Failed to send seller sale email (non-fatal):', err);
+  }
+}
 
 interface PurchaseRequest {
   product_id: string;
@@ -746,6 +879,20 @@ Deno.serve(async (req: Request) => {
       }
     } catch (levelErr) {
       console.error('Level update error (non-fatal):', levelErr);
+    }
+
+    // Send sale notification email to the seller (non-fatal)
+    if (product.seller_id) {
+      const buyerName = user.user_metadata?.full_name || user.email || 'Cliente';
+      await sendSellerSaleEmail(
+        supabaseAdmin,
+        product.seller_id,
+        productName,
+        quantity,
+        totalPrice,
+        order.id,
+        buyerName
+      );
     }
 
     return new Response(

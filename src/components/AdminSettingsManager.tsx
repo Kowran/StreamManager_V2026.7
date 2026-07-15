@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, DollarSign, Coins, CreditCard, CheckCircle, AlertCircle, Loader2, Mail } from 'lucide-react';
+import { Settings, DollarSign, Coins, CreditCard, CheckCircle, AlertCircle, Loader2, Mail, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StripeConfigModal } from './StripeConfigModal';
 import { PayPalConfigModal } from './PayPalConfigModal';
@@ -9,6 +9,7 @@ import { BinanceConfigModal } from './BinanceConfigModal';
 import { TripleAConfigModal } from './TripleAConfigModal';
 import { AsaasConfigModal } from './AsaasConfigModal';
 import { ImapConfigModal } from './ImapConfigModal';
+import { SmtpConfigModal } from './SmtpConfigModal';
 
 interface PaymentGateway {
   id: string;
@@ -173,6 +174,11 @@ export default function AdminSettingsManager() {
         .select('id')
         .maybeSingle();
 
+      const { data: smtpData } = await supabase
+        .from('smtp_config')
+        .select('id, enabled')
+        .maybeSingle();
+
       const configList: SystemConfig[] = [
         {
           id: 'imap',
@@ -183,6 +189,16 @@ export default function AdminSettingsManager() {
           color: 'border-green-500',
           hoverColor: 'hover:bg-green-50 dark:hover:bg-green-900/20',
           iconColor: 'text-green-600 dark:text-green-400'
+        },
+        {
+          id: 'smtp',
+          name: 'SMTP Email',
+          icon: <Send className="w-8 h-8" />,
+          description: 'Configure SMTP server for seller sale email notifications',
+          configured: !!smtpData,
+          color: 'border-emerald-500',
+          hoverColor: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20',
+          iconColor: 'text-emerald-600 dark:text-emerald-400'
         }
       ];
 
@@ -443,6 +459,15 @@ export default function AdminSettingsManager() {
         onClose={handleModalClose}
         onSave={() => {
           showSuccessMessage('IMAP Email');
+          handleModalClose();
+        }}
+      />
+
+      <SmtpConfigModal
+        isOpen={activeModal === 'smtp'}
+        onClose={handleModalClose}
+        onSave={() => {
+          showSuccessMessage('SMTP Email');
           handleModalClose();
         }}
       />
