@@ -5,7 +5,6 @@ import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { ChatModal } from './ChatModal';
 import { OnlineBadge } from './OnlineBadge';
-import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface ChatPreview {
   id: string;
@@ -28,7 +27,6 @@ export function ChatInbox() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [openChatUserId, setOpenChatUserId] = useState<string | null>(null);
-  const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -269,13 +267,6 @@ export function ChatInbox() {
         </div>
       )}
 
-      {/* Profile modal */}
-      {profileUserId && (
-        <PublicUserProfileModal
-          userId={profileUserId}
-          onClose={() => setProfileUserId(null)}
-        />
-      )}
     </div>
   );
 }

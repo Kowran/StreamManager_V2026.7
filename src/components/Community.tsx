@@ -271,6 +271,24 @@ export default function Community() {
     return author.username || author.full_name || author.email;
   };
 
+  const navigateToProfile = (author?: { email: string; full_name?: string; username?: string }, authorId?: string) => {
+    if (!author && !authorId) return;
+    const ident = author?.username || authorId;
+    if (ident) window.location.hash = `#user/${ident}`;
+  };
+
+  const AuthorLink = ({ author, authorId, className }: { author?: { email: string; full_name?: string; username?: string }, authorId?: string, className?: string }) => {
+    if (!author && !authorId) return <span className={className}>—</span>;
+    return (
+      <button
+        onClick={() => navigateToProfile(author, authorId)}
+        className={`${className || ''} hover:underline cursor-pointer`}
+      >
+        {authorName(author)}
+      </button>
+    );
+  };
+
   // ---------- CREATE TOPIC VIEW ----------
   if (currentView === 'create') {
     return (
@@ -396,7 +414,7 @@ export default function Community() {
               </div>
               <h1 className={`text-2xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedTopic.title}</h1>
               <div className={`flex items-center gap-4 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                <span>{authorName(selectedTopic.author)}</span>
+                <AuthorLink author={selectedTopic.author} authorId={selectedTopic.author_id} />
                 <span>•</span>
                 <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{timeAgo(selectedTopic.created_at, t.language)}</span>
                 <span>•</span>
@@ -444,7 +462,7 @@ export default function Community() {
                   dangerouslySetInnerHTML={{ __html: formatContent(reply.content, theme) }} />
                 <div className={`flex items-center justify-between pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
                   <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {authorName(reply.author)} • {timeAgo(reply.created_at, t.language)}
+                    <AuthorLink author={reply.author} authorId={reply.author_id} /> • {timeAgo(reply.created_at, t.language)}
                   </div>
                   <div className="flex items-center gap-2">
                     {isAdmin && (
@@ -637,7 +655,7 @@ export default function Community() {
                           <p className={`text-sm line-clamp-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}
                             dangerouslySetInnerHTML={{ __html: formatContent(topic.content, theme) }} />
                           <div className={`flex items-center gap-3 mt-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            <span>{authorName(topic.author)}</span>
+                            <AuthorLink author={topic.author} authorId={topic.author_id} />
                             <span>•</span>
                             <span>{timeAgo(topic.created_at, t.language)}</span>
                           </div>

@@ -62,6 +62,7 @@ import AdminFlyingBalloonManager from './components/AdminFlyingBalloonManager';
 import { NotificationsPage } from './components/NotificationsPage';
 import { SellerStore } from './components/SellerStore';
 import { PublicSellerProfilePage } from './components/PublicSellerProfilePage';
+import { PublicProfilePage } from './components/PublicProfilePage';
 import { AdminGuard } from './components/AdminGuard';
 import { PopupDisplay } from './components/PopupDisplay';
 import { AnnouncementBar } from './components/AnnouncementBar';
@@ -73,7 +74,7 @@ import { ChatInbox } from './components/ChatInbox';
 import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile';
 
 interface StoreConfig {
   store_name?: string;
@@ -99,6 +100,7 @@ function AppContent() {
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [siteSettings, setSiteSettings] = useState<{ site_name?: string; header_logo_url?: string; browser_title?: string; favicon_url?: string } | null>(null);
   const [sellerSlug, setSellerSlug] = useState<string | null>(null);
+  const [profileIdentifier, setProfileIdentifier] = useState<string | null>(null);
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
 
   useOnlineHeartbeat(user?.id);
@@ -232,8 +234,13 @@ function AppContent() {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1) || 'store';
 
-      // Check if it's a seller profile route
-      if (hash.startsWith('seller/')) {
+      // Check if it's a user profile route
+      if (hash.startsWith('user/')) {
+        const identifier = hash.replace('user/', '');
+        setProfileIdentifier(identifier);
+        setSellerSlug(null);
+        setActiveTab('user-profile');
+      } else if (hash.startsWith('seller/')) {
         const slug = hash.replace('seller/', '');
         setSellerSlug(slug);
         setActiveTab('seller-profile');
@@ -253,6 +260,7 @@ function AppContent() {
       } else if (hash && hash !== activeTab) {
         setSellerSlug(null);
         setProductDetailId(null);
+        setProfileIdentifier(null);
         setActiveTab(hash as ActiveTab);
       }
     };
@@ -265,9 +273,9 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Update URL when tab changes (skip product-detail, which uses #product/<id>)
+  // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
-    if (user && !loading && activeTab !== 'product-detail') {
+    if (user && !loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout') {
       const currentHash = window.location.hash.slice(1);
       if (currentHash !== activeTab) {
         window.history.pushState(null, '', `#${activeTab}`);
@@ -448,8 +456,27 @@ function AppContent() {
             <AdminDisputeManager />
           </AdminGuard>
         );
-      case 'profile':
+      case 'profile': {
+        const ident = user?.id;
+        if (ident) {
+          window.location.hash = `#user/${ident}`;
+          return null;
+        }
         return <UserProfile onNavigate={navigateWithRecharge} />;
+      }
+      case 'user-profile':
+        if (!profileIdentifier) return <Store onNavigate={navigateWithRecharge} />;
+        return (
+          <PublicProfilePage
+            identifier={profileIdentifier}
+            onBack={() => {
+              setActiveTab('store');
+              setProfileIdentifier(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onNavigate={navigateWithRecharge}
+          />
+        );
       case 'admin-payments':
         return (
           <AdminGuard page="admin-payments">

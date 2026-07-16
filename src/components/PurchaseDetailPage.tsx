@@ -10,7 +10,6 @@ import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { ChatModal } from './ChatModal';
-import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface PurchaseDetailProps {
   purchaseId: string;
@@ -61,6 +60,7 @@ interface SellerProfile {
   avatar_url?: string;
   seller_slug?: string;
   theme_color?: string;
+  username?: string | null;
 }
 
 function calculateExpiryDate(purchaseDate: string): Date {
@@ -87,7 +87,6 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [disputeTicket, setDisputeTicket] = useState<any | null>(null);
 
   const lang = (t as any).language || 'pt';
@@ -128,7 +127,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
       if (sellerId) {
         const { data: sellerData } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url, seller_slug, theme_color')
+          .select('id, full_name, avatar_url, seller_slug, theme_color, username')
           .eq('id', sellerId)
           .maybeSingle();
         if (sellerData) setSeller(sellerData);
@@ -574,7 +573,10 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
             </div>
             <div className="flex-1 min-w-0">
               <button
-                onClick={() => seller.seller_slug ? (window.location.hash = `#seller/${seller.seller_slug}`) : setShowProfile(true)}
+                onClick={() => {
+                  const ident = seller.username || seller.id;
+                  if (ident) window.location.hash = `#user/${ident}`;
+                }}
                 className="font-semibold text-gray-900 dark:text-white hover:underline text-left"
               >
                 {seller.full_name}
@@ -599,7 +601,10 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
             {lbl('Conversar com vendedor', 'Chat with seller', 'Chatear con vendedor')}
           </button>
           <button
-            onClick={() => setShowProfile(true)}
+            onClick={() => {
+              const ident = seller.username || seller.id;
+              if (ident) window.location.hash = `#user/${ident}`;
+            }}
             className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
             <User className="h-4 w-4" />
@@ -798,12 +803,6 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
             totalUsdt: order.total_usdt || 0,
             customerName: order.customer_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || '',
           }}
-        />
-      )}
-      {showProfile && seller && (
-        <PublicUserProfileModal
-          userId={seller.id}
-          onClose={() => setShowProfile(false)}
         />
       )}
     </div>

@@ -76,7 +76,7 @@ export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [creditBalance, setCreditBalance] = useState(0);
-  const [profile, setProfile] = useState<{ avatar_url?: string; user_level?: number; full_name?: string } | null>(null);
+  const [profile, setProfile] = useState<{ avatar_url?: string; user_level?: number; full_name?: string; username?: string } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -90,7 +90,7 @@ export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('avatar_url, user_level, full_name')
+        .select('avatar_url, user_level, full_name, username')
         .eq('id', user.id)
         .maybeSingle();
       if (error && error.code !== 'PGRST116') throw error;
@@ -256,7 +256,11 @@ export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
                 {/* Navigation items */}
                 <div className="py-1">
                   <button
-                    onClick={() => handleNavigate('profile')}
+                    onClick={() => {
+                      const ident = profile?.username || user.id;
+                      window.location.hash = `#user/${ident}`;
+                      handleClose();
+                    }}
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
                   >
                     <User className="h-4 w-4 text-gray-400" />

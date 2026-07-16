@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package, ChevronRight, Ban, CheckCircle, MoreVertical } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { OnlineBadge } from './OnlineBadge';
-import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface OtherUser {
   id: string;
@@ -13,6 +11,7 @@ interface OtherUser {
   avatar_url: string | null;
   theme_color: string | null;
   last_seen_at: string | null;
+  username: string | null;
 }
 
 interface Message {
@@ -57,7 +56,6 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockedByOther, setBlockedByOther] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -195,7 +193,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
   async function loadOtherUser() {
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, avatar_url, theme_color, last_seen_at')
+      .select('id, full_name, avatar_url, theme_color, last_seen_at, username')
       .eq('id', otherUserId)
       .maybeSingle();
     setOtherUser(data);
@@ -372,7 +370,10 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
           </div>
           <div className="flex-1 min-w-0">
             <button
-              onClick={() => setShowProfileModal(true)}
+              onClick={() => {
+                const ident = otherUser?.username || otherUser?.id;
+                if (ident) window.location.hash = `#user/${ident}`;
+              }}
               className="font-semibold text-white truncate text-sm hover:underline text-left"
             >
               {otherUser?.full_name || (language === 'pt' ? 'Usuário' : 'User')}
@@ -396,7 +397,11 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                 <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1">
                   <button
-                    onClick={() => { setShowProfileModal(true); setShowMenu(false); }}
+                    onClick={() => {
+                      const ident = otherUser?.username || otherUser?.id;
+                      if (ident) window.location.hash = `#user/${ident}`;
+                      setShowMenu(false);
+                    }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
                   >
                     <User className="h-4 w-4" />
@@ -611,13 +616,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
         </div>
       </div>
 
-      {showProfileModal && createPortal(
-        <PublicUserProfileModal
-          userId={otherUserId}
-          onClose={() => setShowProfileModal(false)}
-        />,
-        document.body
-      )}
+
     </div>
   );
 }
