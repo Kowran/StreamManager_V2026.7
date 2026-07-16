@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Plus, Search, Clock, CheckCircle, AlertTriangle, ArrowLeft, Send, Eye, User, Package, Calendar, HelpCircle, CreditCard, Settings, Shield } from 'lucide-react';
+import { MessageCircle, Plus, Search, Clock, CheckCircle, AlertTriangle, ArrowLeft, Send, Eye, User, Package, Calendar, HelpCircle, CreditCard, Settings, Shield, Inbox, TrendingUp, Store, BookOpen, ChevronDown, ChevronRight, Zap, Star, Crown, Award, Flame, ShoppingBag, Info, Lightbulb } from 'lucide-react';
 import { LevelBadge, getLevelTier } from './LevelBadge';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -91,6 +91,8 @@ export function SupportSystem() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [mainTab, setMainTab] = useState<'tickets' | 'levels' | 'seller' | 'faq'>('tickets');
+  const [ticketStatusTab, setTicketStatusTab] = useState<'all' | 'open' | 'in_progress' | 'resolved'>('all');
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
@@ -432,7 +434,13 @@ export function SupportSystem() {
     
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    // Also apply ticketStatusTab filter
+    const matchesTab = ticketStatusTab === 'all' ||
+      (ticketStatusTab === 'open' && (ticket.status === 'open' || ticket.status === 'waiting_user')) ||
+      (ticketStatusTab === 'in_progress' && ticket.status === 'in_progress') ||
+      (ticketStatusTab === 'resolved' && (ticket.status === 'resolved' || ticket.status === 'closed'));
+
+    return matchesSearch && matchesStatus && matchesTab;
   });
 
   function getStatusColor(status: string) {
@@ -965,237 +973,444 @@ export function SupportSystem() {
 
   // Tickets List View
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-            {t.language === 'pt' ? 'Central de Suporte' :
-             t.language === 'en' ? 'Support Center' :
-             'Centro de Soporte'}
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {t.language === 'pt' ? 'Gerencie seus tickets de suporte e obtenha ajuda da nossa equipe' :
-             t.language === 'en' ? 'Manage your support tickets and get help from our team' :
-             'Gestiona tus tickets de soporte y obtén ayuda de nuestro equipo'}
-          </p>
-        </div>
-        <button
-          onClick={() => setActiveView('create')}
-          className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-sm touch-manipulation"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {t.language === 'pt' ? 'Novo Ticket' : t.language === 'en' ? 'New Ticket' : 'Nuevo Ticket'}
-        </button>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">{t.totalTickets}</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{tickets.length}</p>
-            </div>
-            <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">{t.openTickets}</p>
-              <p className="text-lg sm:text-xl font-bold text-blue-600">{tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length}</p>
-            </div>
-            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">{t.language === 'pt' ? 'Aguardando' : t.language === 'en' ? 'Waiting' : 'Esperando'}</p>
-              <p className="text-lg sm:text-xl font-bold text-purple-600">{tickets.filter(t => t.status === 'waiting_user').length}</p>
-            </div>
-            <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500" />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-600 dark:text-gray-400 leading-tight">{t.resolvedTickets}</p>
-              <p className="text-lg sm:text-xl font-bold text-green-600">{tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length}</p>
-            </div>
-            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder={
-                  t.language === 'pt' ? 'Buscar tickets por assunto, número...' :
-                  t.language === 'en' ? 'Search tickets by subject, number...' :
-                  'Buscar tickets por asunto, número...'
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2.5 sm:py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm sm:text-base touch-manipulation"
-              />
-            </div>
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm sm:text-base touch-manipulation"
-          >
-            <option value="all">{t.allStatuses}</option>
-            <option value="open">{t.open}</option>
-            <option value="in_progress">{t.inProgress}</option>
-            <option value="waiting_user">{t.waitingUser}</option>
-            <option value="resolved">{t.resolved}</option>
-            <option value="closed">{t.closed}</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Tickets List */}
-      <div className="space-y-3 sm:space-y-4">
-        {filteredTickets.length === 0 ? (
-          <div className="text-center py-8 sm:py-12">
-            <MessageCircle className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white px-4">
-              {searchTerm || statusFilter !== 'all' ? t.noTicketsFound : t.noSupportTickets}
-            </h3>
-            <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400 px-4">
-              {searchTerm || statusFilter !== 'all'
-                ? t.adjustSearchFilters
-                : (t.language === 'pt' ? 'Crie seu primeiro ticket para obter ajuda da nossa equipe' :
-                   t.language === 'en' ? 'Create your first ticket to get help from our team' :
-                   'Crea tu primer ticket para obtener ayuda de nuestro equipo')
-              }
+    <div className="max-w-5xl mx-auto space-y-5">
+      {/* Hero header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 dark:from-blue-700 dark:via-blue-800 dark:to-cyan-800 p-5 sm:p-7 text-white shadow-lg">
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 80% 70%, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+              {t.language === 'pt' ? 'Central de Ajuda' : t.language === 'en' ? 'Help Center' : 'Centro de Ayuda'}
+            </h2>
+            <p className="text-sm text-blue-100 mt-1.5 max-w-md">
+              {t.language === 'pt' ? 'Gerencie seus tickets, entenda os níveis e saiba mais sobre vender na plataforma.' :
+               t.language === 'en' ? 'Manage your tickets, understand the level system, and learn about selling.' :
+               'Gestiona tus tickets, entiende el sistema de niveles y aprende sobre vender.'}
             </p>
-            {!searchTerm && statusFilter === 'all' && (
-              <button
-                onClick={() => setActiveView('create')}
-                className="mt-4 inline-flex items-center px-4 py-2.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors touch-manipulation"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t.createFirstTicket}
-              </button>
-            )}
           </div>
-        ) : (
-          filteredTickets.map((ticket) => (
-            <div key={ticket.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-md transition-shadow touch-manipulation">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3 mb-2">
-                    <span className="text-xs sm:text-sm font-mono text-blue-600 dark:text-blue-400">
-                      #{ticket.ticket_number}
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
-                        {getStatusLabel(ticket.status)}
-                      </span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
-                        {getPriorityLabel(ticket.priority)}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-                    {ticket.subject}
-                  </h3>
-                  
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
-                    {ticket.description}
-                  </p>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        {t.language === 'pt' ? 'Criado em' : t.language === 'en' ? 'Created on' : 'Creado el'} {new Date(ticket.created_at).toLocaleDateString(
-                          t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES'
-                        )}
-                      </span>
-                    </div>
-                    {ticket.support_categories && (
-                      <div className="flex items-center space-x-1">
-                        <span>{ticket.support_categories.icon}</span>
-                        <span>{ticket.support_categories.name}</span>
-                      </div>
-                    )}
-                    {ticket.store_products && (
-                      <div className="flex items-center space-x-1">
-                        <Package className="h-3 w-3" />
-                        <span>{ticket.store_products.name}</span>
-                      </div>
-                    )}
-                  </div>
+          <button
+            onClick={() => setActiveView('create')}
+            className="shrink-0 inline-flex items-center justify-center px-5 py-3 bg-white text-blue-700 hover:bg-blue-50 font-semibold rounded-xl transition-all shadow-md touch-manipulation"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {t.language === 'pt' ? 'Novo Ticket' : t.language === 'en' ? 'New Ticket' : 'Nuevo Ticket'}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tabs */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-1">
+        {([
+          { id: 'tickets' as const, icon: Inbox, label: t.language === 'pt' ? 'Tickets' : t.language === 'en' ? 'Tickets' : 'Tickets' },
+          { id: 'levels' as const, icon: TrendingUp, label: t.language === 'pt' ? 'Níveis' : t.language === 'en' ? 'Levels' : 'Niveles' },
+          { id: 'seller' as const, icon: Store, label: t.language === 'pt' ? 'Vendedor' : t.language === 'en' ? 'Seller' : 'Vendedor' },
+          { id: 'faq' as const, icon: BookOpen, label: 'FAQ' },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setMainTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
+              mainTab === tab.id
+                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm border border-gray-200 dark:border-gray-700'
+                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+            }`}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ===== TICKETS TAB ===== */}
+      {mainTab === 'tickets' && (
+        <div className="space-y-4">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{t.totalTickets}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-white">{tickets.length}</p>
                 </div>
-                
-                <button
-                  onClick={() => {
-                    setSelectedTicket(ticket);
-                    setActiveView('view');
-                    loadTicketMessages(ticket.id);
-                  }}
-                  className="w-full sm:w-auto sm:ml-4 inline-flex items-center justify-center px-3 py-2.5 sm:py-2 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation"
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  {t.language === 'pt' ? 'Ver Detalhes' : t.language === 'en' ? 'View Details' : 'Ver Detalles'}
-                </button>
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <Inbox className="h-4 w-4 text-blue-500" />
+                </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
-
-      {/* Level System Help */}
-      <LevelSystemHelp language={t.language} />
-
-      {/* Help Section */}
-      <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-4 sm:p-6 text-white">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-          <div className="flex-1">
-            <h3 className="text-base sm:text-lg font-semibold mb-2">{t.needQuickHelp}</h3>
-            <p className="text-blue-100 text-xs sm:text-sm mb-4">
-              {t.contactWhatsAppDirect}
-            </p>
-            <button
-              onClick={() => {
-                const phoneNumber = '5584996105167';
-                const message = encodeURIComponent(
-                  t.language === 'pt' 
-                    ? `Olá! Preciso de ajuda com a plataforma StreamManager.\n\nMeu email: ${user?.email}\n\nDescreva seu problema aqui...`
-                    : t.language === 'en'
-                    ? `Hello! I need help with the StreamManager platform.\n\nMy email: ${user?.email}\n\nDescribe your problem here...`
-                    : `¡Hola! Necesito ayuda con la plataforma StreamManager.\n\nMi email: ${user?.email}\n\nDescribe tu problema aquí...`
-                );
-                const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
-                window.open(whatsappUrl, '_blank');
-              }}
-              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 sm:py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2 touch-manipulation"
-            >
-              <MessageCircle className="h-4 w-4" />
-              <span>{t.talkOnWhatsApp}</span>
-            </button>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{t.openTickets}</p>
+                  <p className="text-lg font-bold text-blue-600">{tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length}</p>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-blue-500" />
+                </div>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{t.language === 'pt' ? 'Aguardando' : t.language === 'en' ? 'Waiting' : 'Esperando'}</p>
+                  <p className="text-lg font-bold text-purple-600">{tickets.filter(t => t.status === 'waiting_user').length}</p>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                  <AlertTriangle className="h-4 w-4 text-purple-500" />
+                </div>
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">{t.resolvedTickets}</p>
+                  <p className="text-lg font-bold text-green-600">{tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length}</p>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="hidden lg:block">
-            <div className="bg-white bg-opacity-20 p-3 rounded-lg">
-              <MessageCircle className="h-8 w-8" />
+
+          {/* Sub-tabs for ticket status */}
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {([
+              { id: 'all' as const, label: t.language === 'pt' ? 'Todos' : t.language === 'en' ? 'All' : 'Todos', count: tickets.length, color: 'gray' },
+              { id: 'open' as const, label: t.language === 'pt' ? 'Abertos' : t.language === 'en' ? 'Open' : 'Abiertos', count: tickets.filter(t => t.status === 'open' || t.status === 'waiting_user').length, color: 'blue' },
+              { id: 'in_progress' as const, label: t.language === 'pt' ? 'Em Andamento' : t.language === 'en' ? 'In Progress' : 'En Progreso', count: tickets.filter(t => t.status === 'in_progress').length, color: 'yellow' },
+              { id: 'resolved' as const, label: t.language === 'pt' ? 'Resolvidos' : t.language === 'en' ? 'Resolved' : 'Resueltos', count: tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length, color: 'green' },
+            ]).map(stab => {
+              const active = ticketStatusTab === stab.id;
+              const colorMap: Record<string, string> = {
+                gray: active ? 'bg-gray-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700',
+                blue: active ? 'bg-blue-600 text-white' : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20',
+                yellow: active ? 'bg-yellow-500 text-white' : 'text-yellow-600 dark:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20',
+                green: active ? 'bg-green-600 text-white' : 'text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20',
+              };
+              return (
+                <button
+                  key={stab.id}
+                  onClick={() => { setTicketStatusTab(stab.id); setStatusFilter('all'); }}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${colorMap[stab.color]}`}
+                >
+                  {stab.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                    {stab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder={
+                t.language === 'pt' ? 'Buscar tickets por assunto, número...' :
+                t.language === 'en' ? 'Search tickets by subject, number...' :
+                'Buscar tickets por asunto, número...'
+              }
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2.5 w-full border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm touch-manipulation"
+            />
+          </div>
+
+          {/* Tickets List */}
+          <div className="space-y-3">
+            {filteredTickets.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+                <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-3">
+                  <Inbox className="h-7 w-7 text-gray-400" />
+                </div>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white px-4">
+                  {searchTerm || statusFilter !== 'all' || ticketStatusTab !== 'all' ? t.noTicketsFound : t.noSupportTickets}
+                </h3>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 px-4">
+                  {searchTerm || statusFilter !== 'all' || ticketStatusTab !== 'all'
+                    ? t.adjustSearchFilters
+                    : (t.language === 'pt' ? 'Crie seu primeiro ticket para obter ajuda da nossa equipe' :
+                       t.language === 'en' ? 'Create your first ticket to get help from our team' :
+                       'Crea tu primer ticket para obtener ayuda de nuestro equipo')
+                  }
+                </p>
+                {!searchTerm && statusFilter === 'all' && ticketStatusTab === 'all' && (
+                  <button
+                    onClick={() => setActiveView('create')}
+                    className="mt-4 inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors touch-manipulation"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t.createFirstTicket}
+                  </button>
+                )}
+              </div>
+            ) : (
+              filteredTickets.map((ticket) => (
+                <div key={ticket.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-700 transition-all touch-manipulation">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3 mb-2">
+                        <span className="text-xs sm:text-sm font-mono text-blue-600 dark:text-blue-400">
+                          #{ticket.ticket_number}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                            {getStatusLabel(ticket.status)}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(ticket.priority)}`}>
+                            {getPriorityLabel(ticket.priority)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 line-clamp-2">
+                        {ticket.subject}
+                      </h3>
+                      
+                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                        {ticket.description}
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="h-3 w-3" />
+                          <span>
+                            {t.language === 'pt' ? 'Criado em' : t.language === 'en' ? 'Created on' : 'Creado el'} {new Date(ticket.created_at).toLocaleDateString(
+                              t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES'
+                            )}
+                          </span>
+                        </div>
+                        {ticket.support_categories && (
+                          <div className="flex items-center space-x-1">
+                            <span>{ticket.support_categories.icon}</span>
+                            <span>{ticket.support_categories.name}</span>
+                          </div>
+                        )}
+                        {ticket.store_products && (
+                          <div className="flex items-center space-x-1">
+                            <Package className="h-3 w-3" />
+                            <span>{ticket.store_products.name}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        setSelectedTicket(ticket);
+                        setActiveView('view');
+                        loadTicketMessages(ticket.id);
+                      }}
+                      className="w-full sm:w-auto sm:ml-4 inline-flex items-center justify-center px-3 py-2.5 border border-transparent text-sm font-medium rounded-lg text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      {t.language === 'pt' ? 'Ver Detalhes' : t.language === 'en' ? 'View Details' : 'Ver Detalles'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* WhatsApp contact */}
+          <div className="bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl p-5 text-white shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+              <div className="flex-1">
+                <h3 className="text-base font-semibold flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5" />
+                  {t.needQuickHelp}
+                </h3>
+                <p className="text-green-100 text-xs sm:text-sm mt-1">
+                  {t.contactWhatsAppDirect}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const phoneNumber = '5584996105167';
+                  const message = encodeURIComponent(
+                    t.language === 'pt' 
+                      ? `Olá! Preciso de ajuda com a plataforma StreamManager.\n\nMeu email: ${user?.email}\n\nDescreva seu problema aqui...`
+                      : t.language === 'en'
+                      ? `Hello! I need help with the StreamManager platform.\n\nMy email: ${user?.email}\n\nDescribe your problem here...`
+                      : `¡Hola! Necesito ayuda con la plataforma StreamManager.\n\nMi email: ${user?.email}\n\nDescribe tu problema aquí...`
+                  );
+                  window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+                }}
+                className="shrink-0 bg-white text-green-700 hover:bg-green-50 font-semibold py-2.5 px-5 rounded-xl transition-colors flex items-center justify-center space-x-2 touch-manipulation"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>{t.talkOnWhatsApp}</span>
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ===== LEVELS TAB ===== */}
+      {mainTab === 'levels' && (
+        <LevelSystemHelp language={t.language} />
+      )}
+
+      {/* ===== SELLER TAB ===== */}
+      {mainTab === 'seller' && (
+        <SellerInfoHelp language={t.language} />
+      )}
+
+      {/* ===== FAQ TAB ===== */}
+      {mainTab === 'faq' && (
+        <FaqHelp language={t.language} />
+      )}
+    </div>
+  );
+}
+
+function SellerInfoHelp({ language }: { language: string }) {
+  const pt = language === 'pt';
+  const en = language === 'en';
+  const lbl = (p: string, e: string, s: string) => (pt ? p : en ? e : s);
+
+  const steps = [
+    { icon: Store, title: lbl('Registre-se', 'Sign Up', 'Regístrate'), desc: lbl('Crie sua conta e faça login na plataforma.', 'Create your account and log in to the platform.', 'Crea tu cuenta e inicia sesión en la plataforma.') },
+    { icon: BookOpen, title: lbl('Solicite acesso', 'Request Access', 'Solicita acceso'), desc: lbl('Vá em Meu Perfil e clique em "Solicitar permissão para vender".', 'Go to My Profile and click "Request seller permission".', 'Ve a Mi Perfil y haz clic en "Solicitar permiso para vender".') },
+    { icon: Package, title: lbl('Cadastre produtos', 'List Products', 'Registra productos'), desc: lbl('Após aprovação, acesse a aba Vendedor para cadastrar seus produtos.', 'After approval, access the Seller tab to list your products.', 'Tras la aprobación, accede a la pestaña Vendedor para registrar tus productos.') },
+    { icon: ShoppingBag, title: lbl('Receba pedidos', 'Receive Orders', 'Recibe pedidos'), desc: lbl('Quando alguém compra, você recebe o pedido e entrega via chat.', 'When someone buys, you receive the order and deliver via chat.', 'Cuando alguien compra, recibes el pedido y entregas vía chat.') },
+    { icon: TrendingUp, title: lbl('Suba de nível', 'Level Up', 'Sube de nivel'), desc: lbl('Cada venda concluída gera XP e aumenta seu nível de vendedor.', 'Each completed sale generates XP and increases your seller level.', 'Cada venta completada genera XP y aumenta tu nivel de vendedor.') },
+  ];
+
+  const features = [
+    { icon: MessageCircle, title: lbl('Chat de entrega', 'Delivery Chat', 'Chat de entrega'), desc: lbl('Comunique-se diretamente com o comprador para entregar credenciais.', 'Communicate directly with the buyer to deliver credentials.', 'Comunícate directamente con el comprador para entregar credenciales.') },
+    { icon: Shield, title: lbl('Proteção de disputa', 'Dispute Protection', 'Protección de disputas'), desc: lbl('O sistema de disputas protege tanto vendedor quanto comprador.', 'The dispute system protects both seller and buyer.', 'El sistema de disputas protege tanto al vendedor como al comprador.') },
+    { icon: CreditCard, title: lbl('Saque seus ganhos', 'Withdraw Earnings', 'Retira tus ganancias'), desc: lbl('Solicite saques diretamente pela aba Vendedor, com período de retenção.', 'Request withdrawals directly from the Seller tab, with a hold period.', 'Solicita retiros directamente desde la pestaña Vendedor, con período de retención.') },
+    { icon: TrendingUp, title: lbl('Comissão automática', 'Automatic Commission', 'Comisión automática'), desc: lbl('A comissão da plataforma é descontada automaticamente de cada venda.', 'The platform commission is automatically deducted from each sale.', 'La comisión de la plataforma se descuenta automáticamente de cada venta.') },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Intro card */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-5 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center">
+              <Store className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">{lbl('Seja um Vendedor', 'Become a Seller', 'Conviértete en Vendedor')}</h3>
+              <p className="text-sm text-emerald-100 mt-0.5">{lbl('Venda seus produtos digitais na plataforma', 'Sell your digital products on the platform', 'Vende tus productos digitales en la plataforma')}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Steps */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <Lightbulb className="h-4 w-4 text-amber-500" />
+          {lbl('Como começar', 'How to Start', 'Cómo empezar')}
+        </h4>
+        <div className="space-y-3">
+          {steps.map((step, i) => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="flex flex-col items-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <step.icon className="h-4.5 w-4.5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                {i < steps.length - 1 && <div className="w-px h-full bg-emerald-200 dark:bg-emerald-800 my-1 min-h-[20px]" />}
+              </div>
+              <div className="pb-3">
+                <h5 className="text-sm font-medium text-gray-900 dark:text-white">{step.title}</h5>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{step.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Features */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {features.map((f, i) => (
+          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                <f.icon className="h-4.5 w-4.5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h5 className="text-sm font-medium text-gray-900 dark:text-white">{f.title}</h5>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{f.desc}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tips card */}
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
+        <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-400 flex items-center gap-2 mb-3">
+          <Info className="h-4 w-4" />
+          {lbl('Dicas para Vender Mais', 'Tips to Sell More', 'Consejos para Vender Más')}
+        </h4>
+        <ul className="space-y-2 text-xs text-amber-700 dark:text-amber-400">
+          <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{lbl('Mantenha imagens de produtos em alta qualidade e descrições claras.', 'Keep product images high quality and descriptions clear.', 'Mantén imágenes de productos en alta calidad y descripciones claras.')}</li>
+          <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{lbl('Responda rapidamente no chat de entrega para melhorar suas avaliações.', 'Respond quickly in the delivery chat to improve your ratings.', 'Responde rápidamente en el chat de entrega para mejorar tus reseñas.')}</li>
+          <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{lbl('Mantenha estoque atualizado para evitar vendas indisponíveis.', 'Keep stock updated to avoid unavailable sales.', 'Mantén el stock actualizado para evitar ventas no disponibles.')}</li>
+          <li className="flex items-start gap-2"><CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{lbl('Use o sistema de níveis para destacar sua reputação como vendedor.', 'Use the level system to highlight your seller reputation.', 'Usa el sistema de niveles para destacar tu reputación como vendedor.')}</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function FaqHelp({ language }: { language: string }) {
+  const pt = language === 'pt';
+  const en = language === 'en';
+  const lbl = (p: string, e: string, s: string) => (pt ? p : en ? e : s);
+
+  const faqs = [
+    { q: lbl('Como faço uma compra?', 'How do I make a purchase?', '¿Cómo hago una compra?'), a: lbl('Navegue pela Loja, selecione o produto desejado e clique em Comprar. Você será direcionado ao checkout para escolher o método de pagamento.', 'Browse the Store, select the desired product and click Buy. You will be directed to checkout to choose the payment method.', 'Navega por la Tienda, selecciona el producto deseado y haz clic en Comprar. Serás dirigido al checkout para elegir el método de pago.') },
+    { q: lbl('Como recebo meu produto após a compra?', 'How do I receive my product after purchase?', '¿Cómo recibo mi producto después de la compra?'), a: lbl('Após a confirmação do pagamento, a entrega é feita via chat direto com o vendedor. Você pode acessar o chat em "Meus Pedidos".', 'After payment confirmation, delivery is made via direct chat with the seller. You can access the chat in "My Orders".', 'Tras la confirmación del pago, la entrega se hace vía chat directo con el vendedor. Puedes acceder al chat en "Mis Pedidos".') },
+    { q: lbl('E se o produto não funcionar?', 'What if the product doesn\'t work?', '¿Qué pasa si el producto no funciona?'), a: lbl('Você pode abrir uma disputa no detalhe do pedido. O sistema de disputas conecta você, o vendedor e a administração para resolver o problema.', 'You can open a dispute in the order details. The dispute system connects you, the seller, and admin to resolve the issue.', 'Puedes abrir una disputa en los detalles del pedido. El sistema de disputas te conecta con el vendedor y la administración para resolver el problema.') },
+    { q: lbl('Como funciona o sistema de níveis?', 'How does the level system work?', '¿Cómo funciona el sistema de niveles?'), a: lbl('Você ganha XP a cada compra (10 XP/dólar) ou venda (15 XP/dólar). Acumulando XP, você sobe de nível e desbloqueia faixas: Iniciante, Intermediário, Avançado, até Lendário.', 'You earn XP for each purchase (10 XP/dollar) or sale (15 XP/dollar). By accumulating XP, you level up and unlock tiers: Beginner, Intermediate, Advanced, up to Legendary.', 'Ganas XP por cada compra (10 XP/dólar) o venta (15 XP/dólar). Acumulando XP, subes de nivel y desbloqueas rangos: Principiante, Intermedio, Avanzado, hasta Legendario.') },
+    { q: lbl('Como me torno vendedor?', 'How do I become a seller?', '¿Cómo me convierto en vendedor?'), a: lbl('Vá em Meu Perfil > Informações e clique em "Solicitar permissão para vender". Após aprovação da administração, você poderá cadastrar produtos.', 'Go to My Profile > Information and click "Request seller permission". After admin approval, you can list products.', 'Ve a Mi Perfil > Información y haz clic en "Solicitar permiso para vender". Tras la aprobación del administrador, podrás registrar productos.') },
+    { q: lbl('Quais métodos de pagamento estão disponíveis?', 'What payment methods are available?', '¿Qué métodos de pago están disponibles?'), a: lbl('Suportamos Stripe, PayPal, MercadoPago, Asaas, Cryptomus, Binance e TripleA. A disponibilidade pode variar conforme a configuração do admin.', 'We support Stripe, PayPal, MercadoPago, Asaas, Cryptomus, Binance, and TripleA. Availability may vary based on admin settings.', 'Soportamos Stripe, PayPal, MercadoPago, Asaas, Cryptomus, Binance y TripleA. La disponibilidad puede variar según la configuración del admin.') },
+    { q: lbl('Posso sacar meus ganhos de vendedor?', 'Can I withdraw my seller earnings?', '¿Puedo retirar mis ganancias de vendedor?'), a: lbl('Sim! Acesse a aba Vendedor > Saques. Há um período de retenção para segurança antes que o saque seja processado.', 'Yes! Access the Seller tab > Withdrawals. There is a hold period for security before the withdrawal is processed.', '¡Sí! Accede a la pestaña Vendedor > Retiros. Hay un período de retención por seguridad antes de que el retiro sea procesado.') },
+    { q: lbl('Como funciona o cashback?', 'How does cashback work?', '¿Cómo funciona el cashback?'), a: lbl('O cashback é creditado automaticamente após a conclusão da compra e pode ser usado em compras futuras como desconto.', 'Cashback is automatically credited after purchase completion and can be used on future purchases as a discount.', 'El cashback se acredita automáticamente tras la finalización de la compra y puede usarse en compras futuras como descuento.') },
+  ];
+
+  const [openIdx, setOpenIdx] = useState<number | null>(0);
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <BookOpen className="h-5 w-5 text-blue-500" />
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">FAQ</h3>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {lbl('Perguntas frequentes sobre a plataforma', 'Frequently asked questions about the platform', 'Preguntas frecuentes sobre la plataforma')}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        {faqs.map((faq, i) => (
+          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-all">
+            <button
+              onClick={() => setOpenIdx(openIdx === i ? null : i)}
+              className="w-full flex items-center justify-between px-4 py-3.5 text-left touch-manipulation"
+            >
+              <span className="text-sm font-medium text-gray-900 dark:text-white pr-3">{faq.q}</span>
+              {openIdx === i
+                ? <ChevronDown className="h-4 w-4 text-gray-400 shrink-0" />
+                : <ChevronRight className="h-4 w-4 text-gray-400 shrink-0" />
+              }
+            </button>
+            {openIdx === i && (
+              <div className="px-4 pb-4 text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+                {faq.a}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
