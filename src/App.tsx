@@ -32,6 +32,7 @@ import { AccountsAccessManager } from './components/AccountsAccessManager';
 import { MessageCircle } from 'lucide-react';
 import { SupportSystem } from './components/SupportSystem';
 import { AdminSupportManager } from './components/AdminSupportManager';
+import { AdminDisputeManager } from './components/AdminDisputeManager';
 import { UserProfile } from './components/UserProfile';
 import { CreditsManager } from './components/CreditsManager';
 import { DollarSign } from 'lucide-react';
@@ -72,7 +73,7 @@ import { ChatInbox } from './components/ChatInbox';
 import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout';
 
 interface StoreConfig {
   store_name?: string;
@@ -439,6 +440,12 @@ function AppContent() {
         return (
           <AdminGuard page="admin-support">
             <AdminSupportManager />
+          </AdminGuard>
+        );
+      case 'admin-disputes':
+        return (
+          <AdminGuard page="admin-disputes">
+            <AdminDisputeManager />
           </AdminGuard>
         );
       case 'profile':

@@ -22,7 +22,8 @@ import {
   Tag,
   Eye,
   Wallet,
-  Globe
+  Globe,
+  Scale
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -125,6 +126,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         { id: 'admin-flying-balloons', name: language === 'pt' ? 'Balões Voadores' : language === 'en' ? 'Flying Balloons' : 'Globos Voladores', icon: Eye, color: 'from-teal-500 to-emerald-600', description: language === 'pt' ? 'Balões flutuantes no canto da tela' : language === 'en' ? 'Floating balloons in the screen corner' : 'Globos flotantes en la esquina de la pantalla' },
         { id: 'admin-community', name: language === 'pt' ? 'Gerenciar Comunidade' : language === 'en' ? 'Manage Community' : 'Gestionar Comunidad', icon: Newspaper, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Poste novidades para os usuários' : language === 'en' ? 'Post news for users' : 'Publicar novedades para usuarios' },
         { id: 'admin-support', name: language === 'pt' ? 'Gerenciar Suporte' : language === 'en' ? 'Manage Support' : 'Gestionar Soporte', icon: MessageCircle, color: 'from-yellow-500 to-yellow-600', description: language === 'pt' ? 'Responda tickets de suporte' : language === 'en' ? 'Respond to support tickets' : 'Responder tickets de soporte' },
+        { id: 'admin-disputes', name: language === 'pt' ? 'Disputas e Mediação' : language === 'en' ? 'Disputes & Mediation' : 'Disputas y Mediación', icon: Scale, color: 'from-red-500 to-orange-600', description: language === 'pt' ? 'Medie disputas entre clientes e vendedores' : language === 'en' ? 'Mediate disputes between customers and sellers' : 'Mediar disputas entre clientes y vendedores' },
         { id: 'admin-netflix-accounts', name: language === 'pt' ? 'Contas Netflix' : language === 'en' ? 'Netflix Accounts' : 'Cuentas Netflix', icon: Mail, color: 'from-red-500 to-red-600', description: language === 'pt' ? 'Configure contas para buscar códigos' : language === 'en' ? 'Configure accounts to find codes' : 'Configure cuentas para buscar códigos' },
         { id: 'admin-settings', name: language === 'pt' ? 'Configurações' : language === 'en' ? 'Settings' : 'Configuraciones', icon: Settings, color: 'from-gray-500 to-gray-600', description: language === 'pt' ? 'Configure o sistema' : language === 'en' ? 'Configure the system' : 'Configurar el sistema' },
         { id: 'admin-email-templates', name: language === 'pt' ? 'Modelos de Email' : language === 'en' ? 'Email Templates' : 'Plantillas de Email', icon: Mail, color: 'from-emerald-500 to-teal-600', description: language === 'pt' ? 'Edite os modelos HTML de email' : language === 'en' ? 'Edit email HTML templates' : 'Editar plantillas HTML de email' },
