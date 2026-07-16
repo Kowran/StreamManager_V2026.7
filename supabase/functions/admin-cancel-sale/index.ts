@@ -323,6 +323,25 @@ Deno.serve(async (req: Request) => {
         } else {
           console.log(`Stock incremented by ${orderQuantity} for manual delivery product`);
         }
+
+        // Also increment variation stock if applicable
+        if (orderVariationId) {
+          const { data: varInfo } = await supabaseAdmin
+            .from('store_product_variations')
+            .select('stock_quantity')
+            .eq('id', orderVariationId)
+            .maybeSingle();
+          if (varInfo) {
+            const { error: varStockError } = await supabaseAdmin
+              .from('store_product_variations')
+              .update({
+                stock_quantity: (varInfo.stock_quantity || 0) + orderQuantity,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', orderVariationId);
+            if (varStockError) console.error('Error updating variation stock:', varStockError);
+          }
+        }
       }
     } else {
       console.log('Account not returned to stock (admin choice)');

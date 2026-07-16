@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Calendar, Package, Download, Eye, Truck, CheckCircle,
-  Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert, AlertTriangle,
-  CreditCard, ExternalLink, Layers
+  Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert,
+  CreditCard, Layers, ChevronRight, Filter, TrendingUp, Wallet,
+  ShoppingBag, AlertCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -41,8 +42,8 @@ export function SellerOrdersManager() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<SellerOrder | null>(null);
-  const [orderCommission, setOrderCommission] = useState<{ seller_amount: number; admin_amount: number; admin_rate: number; seller_rate: number } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es, [language]);
@@ -117,7 +118,6 @@ export function SellerOrdersManager() {
 
       if (error) throw error;
 
-      // Fetch commission data for all orders
       const orderIds = (data || []).map((o: any) => o.id);
       const commissionMap: Record<string, any> = {};
       if (orderIds.length > 0) {
@@ -274,7 +274,7 @@ export function SellerOrdersManager() {
   }
 
   function exportToCSV() {
-    const headers = ['ID', 'Data', 'Produto', 'Cliente', 'Email', 'Qtd', 'Valor (USD)', 'Status'];
+    const headers = ['ID', 'Data', 'Produto', 'Cliente', 'Qtd', 'Valor (USD)', 'Status'];
     const rows = filteredOrders.map(o => [
       o.id, formatDate(o.created_at), o.product_name, o.customer_name,
       o.quantity.toString(), o.total_usdt.toFixed(2), o.status,
@@ -293,20 +293,41 @@ export function SellerOrdersManager() {
     });
   }
 
-  function getStatusBadge(status: string) {
-    const config: Record<string, { color: string; label: string }> = {
-      pending: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400', label: lbl('Pendente', 'Pending', 'Pendiente') },
-      processing: { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400', label: lbl('Processando', 'Processing', 'Procesando') },
-      paid: { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400', label: lbl('Pago', 'Paid', 'Pagado') },
-      delivered: { color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400', label: lbl('Entregue', 'Delivered', 'Entregado') },
-      completed: { color: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400', label: lbl('Concluído', 'Completed', 'Completado') },
-      cancelled: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', label: lbl('Cancelado', 'Cancelled', 'Cancelado') },
-      refunded: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', label: lbl('Reembolsado', 'Refunded', 'Reembolsado') },
-      disputed: { color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400', label: lbl('Disputa Aberta', 'Disputed', 'Disputa Abierta') },
-    };
-    const c = config[status] || config.pending;
-    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${c.color}`}>{c.label}</span>;
+  function formatDateShort(d: string) {
+    return new Date(d).toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US', {
+      day: '2-digit', month: '2-digit',
+    });
   }
+
+  const statusConfig: Record<string, { color: string; bg: string; border: string; label: string; dot: string }> = {
+    pending: { color: 'text-amber-700 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', label: lbl('Pendente', 'Pending', 'Pendiente'), dot: 'bg-amber-500' },
+    processing: { color: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', label: lbl('Processando', 'Processing', 'Procesando'), dot: 'bg-blue-500' },
+    paid: { color: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', label: lbl('Pago', 'Paid', 'Pagado'), dot: 'bg-blue-500' },
+    delivered: { color: 'text-purple-700 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', label: lbl('Entregue', 'Delivered', 'Entregado'), dot: 'bg-purple-500' },
+    completed: { color: 'text-green-700 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-green-200 dark:border-green-800', label: lbl('Concluído', 'Completed', 'Completado'), dot: 'bg-green-500' },
+    cancelled: { color: 'text-red-700 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', label: lbl('Cancelado', 'Cancelled', 'Cancelado'), dot: 'bg-red-500' },
+    refunded: { color: 'text-red-700 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', label: lbl('Reembolsado', 'Refunded', 'Reembolsado'), dot: 'bg-red-500' },
+    disputed: { color: 'text-orange-700 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800', label: lbl('Disputa', 'Disputed', 'Disputa'), dot: 'bg-orange-500' },
+  };
+
+  function getStatusBadge(status: string) {
+    const c = statusConfig[status] || statusConfig.pending;
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${c.bg} ${c.color} border ${c.border}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+        {c.label}
+      </span>
+    );
+  }
+
+  // Stats
+  const stats = {
+    total: orders.length,
+    pending: orders.filter(o => ['pending', 'paid', 'processing'].includes(o.status)).length,
+    delivered: orders.filter(o => o.status === 'delivered').length,
+    completed: orders.filter(o => o.status === 'completed').length,
+    revenue: orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.seller_amount || o.total_usdt || 0), 0),
+  };
 
   if (loading) {
     return (
@@ -317,106 +338,181 @@ export function SellerOrdersManager() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder={lbl('Buscar por produto, cliente, email...', 'Search by product, customer, email...', 'Buscar por producto, cliente, email...')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
+    <div className="space-y-5">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{lbl('Total', 'Total', 'Total')}</span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+              <ShoppingBag className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
           </div>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
-            <option value="all">{lbl('Todos os status', 'All status', 'Todos los estados')}</option>
-            <option value="pending">{lbl('Pendente', 'Pending', 'Pendiente')}</option>
-            <option value="paid">{lbl('Pago', 'Paid', 'Pagado')}</option>
-            <option value="delivered">{lbl('Entregue', 'Delivered', 'Entregado')}</option>
-            <option value="completed">{lbl('Concluído', 'Completed', 'Completado')}</option>
-            <option value="cancelled">{lbl('Cancelado', 'Cancelled', 'Cancelado')}</option>
-            <option value="disputed">{lbl('Disputa', 'Disputed', 'Disputa')}</option>
-          </select>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{lbl('Ativos', 'Active', 'Activos')}</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pending}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{lbl('Entregues', 'Delivered', 'Entregados')}</span>
+            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
+              <Truck className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.delivered}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{lbl('Receita', 'Revenue', 'Ingresos')}</span>
+            <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+              <Wallet className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+          <p className="text-xl font-bold text-green-600 dark:text-green-400">{formatPrice(stats.revenue)}</p>
+        </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex flex-col gap-3">
+          {/* Search + Toggle */}
           <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={lbl('Buscar pedidos...', 'Search orders...', 'Buscar pedidos...')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`lg:hidden px-3 py-2.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+                showFilters || statusFilter !== 'all' || dateFilter !== 'all'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <Filter className="h-4 w-4" />
+            </button>
+            <button onClick={exportToCSV} disabled={filteredOrders.length === 0}
+              className="px-3 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">CSV</span>
+            </button>
+          </div>
+
+          {/* Desktop Filters */}
+          <div className="hidden lg:flex gap-3">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <option value="all">{lbl('Todos os status', 'All status', 'Todos los estados')}</option>
+              <option value="pending">{lbl('Pendente', 'Pending', 'Pendiente')}</option>
+              <option value="paid">{lbl('Pago', 'Paid', 'Pagado')}</option>
+              <option value="delivered">{lbl('Entregue', 'Delivered', 'Entregado')}</option>
+              <option value="completed">{lbl('Concluído', 'Completed', 'Completado')}</option>
+              <option value="cancelled">{lbl('Cancelado', 'Cancelled', 'Cancelado')}</option>
+              <option value="disputed">{lbl('Disputa', 'Disputed', 'Disputa')}</option>
+            </select>
             <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500">
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
               <option value="all">{lbl('Todo período', 'All time', 'Todo el período')}</option>
               <option value="today">{lbl('Hoje', 'Today', 'Hoy')}</option>
               <option value="week">{lbl('Semana', 'Week', 'Semana')}</option>
               <option value="month">{lbl('Mês', 'Month', 'Mes')}</option>
             </select>
-            <button onClick={exportToCSV} disabled={filteredOrders.length === 0}
-              className="px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1.5">
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">CSV</span>
-            </button>
           </div>
+
+          {/* Mobile Collapsible Filters */}
+          {showFilters && (
+            <div className="lg:hidden flex flex-col gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                <option value="all">{lbl('Todos os status', 'All status', 'Todos los estados')}</option>
+                <option value="pending">{lbl('Pendente', 'Pending', 'Pendiente')}</option>
+                <option value="paid">{lbl('Pago', 'Paid', 'Pagado')}</option>
+                <option value="delivered">{lbl('Entregue', 'Delivered', 'Entregado')}</option>
+                <option value="completed">{lbl('Concluído', 'Completed', 'Completado')}</option>
+                <option value="cancelled">{lbl('Cancelado', 'Cancelled', 'Cancelado')}</option>
+                <option value="disputed">{lbl('Disputa', 'Disputed', 'Disputa')}</option>
+              </select>
+              <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                <option value="all">{lbl('Todo período', 'All time', 'Todo el período')}</option>
+                <option value="today">{lbl('Hoje', 'Today', 'Hoy')}</option>
+                <option value="week">{lbl('Semana', 'Week', 'Semana')}</option>
+                <option value="month">{lbl('Mês', 'Month', 'Mes')}</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Desktop Table */}
+      <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{lbl('Data', 'Date', 'Fecha')}</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{lbl('Produto', 'Product', 'Producto')}</th>
-                <th className="hidden md:table-cell px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{lbl('Cliente', 'Customer', 'Cliente')}</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{lbl('Qtd', 'Qty', 'Cant')}</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{lbl('Valor', 'Amount', 'Valor')}</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{lbl('Status', 'Status', 'Estado')}</th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">{lbl('Ações', 'Actions', 'Acciones')}</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{lbl('Data', 'Date', 'Fecha')}</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{lbl('Produto', 'Product', 'Producto')}</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{lbl('Cliente', 'Customer', 'Cliente')}</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{lbl('Qtd', 'Qty', 'Cant')}</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{lbl('Valor', 'Amount', 'Valor')}</th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{lbl('Status', 'Status', 'Estado')}</th>
+                <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{lbl('Ações', 'Actions', 'Acciones')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                  <td className="px-3 py-3 text-sm text-gray-900 dark:text-white whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                      {formatDate(order.created_at)}
-                    </div>
+                <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                    {formatDateShort(order.created_at)}
                   </td>
-                  <td className="px-3 py-3 text-sm font-medium text-gray-900 dark:text-white">
-                    <div className="flex items-center gap-1.5">
-                      <Package className="h-3.5 w-3.5 text-gray-400" />
+                  <td className="px-4 py-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+                        <Package className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                      </div>
                       <div className="min-w-0">
-                        <span className="truncate max-w-[120px] block">{order.product_name}</span>
+                        <div className="font-medium text-gray-900 dark:text-white truncate max-w-[180px]">{order.product_name}</div>
                         {order.variation_name && (
-                          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium truncate block">{order.variation_name}</span>
+                          <div className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate max-w-[180px]">{order.variation_name}</div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="hidden md:table-cell px-3 py-3 text-sm text-gray-900 dark:text-white">
-                    <div>{order.customer_name}</div>
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-gray-400" />
+                      {order.customer_name}
+                    </div>
                   </td>
-                  <td className="px-3 py-3 text-sm text-gray-900 dark:text-white">{order.quantity}</td>
-                  <td className="px-3 py-3 text-sm font-semibold text-green-600 dark:text-green-400">{formatPrice(order.total_usdt)}</td>
-                  <td className="px-3 py-3">{getStatusBadge(order.status)}</td>
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1">
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{order.quantity}</td>
+                  <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">{formatPrice(order.total_usdt)}</td>
+                  <td className="px-4 py-3">{getStatusBadge(order.status)}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button onClick={() => setSelectedOrder(order)}
-                        className="p-1.5 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors" title={lbl('Detalhes', 'Details', 'Detalles')}>
+                        className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                        title={lbl('Detalhes', 'Details', 'Detalles')}>
                         <Eye className="h-4 w-4" />
                       </button>
                       {(order.status === 'paid' || order.status === 'processing') && (
                         <button onClick={() => updateOrderStatus(order.id, 'delivered')}
                           disabled={actionLoading}
-                          className="p-1.5 text-purple-600 hover:text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-md transition-colors disabled:opacity-50" title={lbl('Marcar entregue', 'Mark delivered', 'Marcar entregado')}>
+                          className="p-2 text-purple-600 hover:text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors disabled:opacity-50"
+                          title={lbl('Marcar entregue', 'Mark delivered', 'Marcar entregado')}>
                           <Truck className="h-4 w-4" />
-                        </button>
-                      )}
-                      {order.status === 'delivered' && (
-                        <button onClick={() => updateOrderStatus(order.id, 'completed')}
-                          disabled={actionLoading}
-                          className="p-1.5 text-green-600 hover:text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-md transition-colors disabled:opacity-50" title={lbl('Concluir', 'Complete', 'Completar')}>
-                          <CheckCircle className="h-4 w-4" />
                         </button>
                       )}
                     </div>
@@ -426,29 +522,103 @@ export function SellerOrdersManager() {
             </tbody>
           </table>
         </div>
-        {filteredOrders.length === 0 && (
-          <div className="text-center py-12">
-            <ShoppingCart className="mx-auto h-10 w-10 text-gray-400" />
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              {orders.length === 0 ? lbl('Nenhum pedido ainda', 'No orders yet', 'Sin pedidos aún') : lbl('Nenhum pedido encontrado', 'No orders found', 'Sin pedidos encontrados')}
-            </p>
-          </div>
-        )}
+        {filteredOrders.length === 0 && <EmptyState orders={orders} lbl={lbl} />}
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="lg:hidden space-y-3">
+        {filteredOrders.map((order) => {
+          const sc = statusConfig[order.status] || statusConfig.pending;
+          return (
+            <div key={order.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              {/* Card Header */}
+              <div className={`px-4 py-2.5 ${sc.bg} border-b ${sc.border} flex items-center justify-between`}>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${sc.dot}`} />
+                  <span className={`text-xs font-semibold ${sc.color}`}>{sc.label}</span>
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{formatDateShort(order.created_at)}</span>
+              </div>
+
+              {/* Card Body */}
+              <div className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
+                    <Package className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">{order.product_name}</h3>
+                    {order.variation_name && (
+                      <p className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate">{order.variation_name}</p>
+                    )}
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <User className="h-3 w-3 text-gray-400" />
+                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{order.customer_name}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                    <span>{lbl('Qtd', 'Qty', 'Cant')}: <strong className="text-gray-700 dark:text-gray-200">{order.quantity}</strong></span>
+                  </div>
+                  <span className="text-lg font-bold text-green-600 dark:text-green-400">{formatPrice(order.total_usdt)}</span>
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setSelectedOrder(order)}
+                    className="flex-1 px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                    <Eye className="h-4 w-4" />
+                    {lbl('Detalhes', 'Details', 'Detalles')}
+                  </button>
+                  {(order.status === 'paid' || order.status === 'processing') && (
+                    <button onClick={() => updateOrderStatus(order.id, 'delivered')}
+                      disabled={actionLoading}
+                      className="flex-1 px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5">
+                      <Truck className="h-4 w-4" />
+                      {lbl('Entregar', 'Deliver', 'Entregar')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {filteredOrders.length === 0 && <EmptyState orders={orders} lbl={lbl} />}
       </div>
 
       {/* Order Detail Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedOrder(null)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {lbl('Detalhes do Pedido', 'Order Details', 'Detalles del Pedido')}
-              </h3>
-              <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setSelectedOrder(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] sm:max-h-[85vh] overflow-y-auto animate-slide-up" onClick={e => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white dark:bg-gray-800 px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <ShoppingBag className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">{lbl('Detalhes do Pedido', 'Order Details', 'Detalles del Pedido')}</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">#{selectedOrder.id.slice(0, 8)}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Modal Body */}
             <div className="px-5 py-4 space-y-3">
+              {/* Status Banner */}
+              <div className={`rounded-xl p-3 border ${statusConfig[selectedOrder.status]?.bg || statusConfig.pending.bg} ${statusConfig[selectedOrder.status]?.border || statusConfig.pending.border}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-semibold ${statusConfig[selectedOrder.status]?.color || statusConfig.pending.color}`}>
+                    {statusConfig[selectedOrder.status]?.label || statusConfig.pending.label}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(selectedOrder.created_at)}</span>
+                </div>
+              </div>
+
               <DetailRow icon={Package} label={lbl('Produto', 'Product', 'Producto')} value={selectedOrder.product_name} />
               {selectedOrder.variation_name && (
                 <DetailRow icon={Layers} label={lbl('Variação', 'Variation', 'Variación')} value={selectedOrder.variation_name} />
@@ -456,35 +626,34 @@ export function SellerOrdersManager() {
               <DetailRow icon={User} label={lbl('Cliente', 'Customer', 'Cliente')} value={selectedOrder.customer_name} />
               <DetailRow icon={Calendar} label={lbl('Data', 'Date', 'Fecha')} value={formatDate(selectedOrder.created_at)} />
               <DetailRow icon={DollarSign} label={lbl('Valor Total', 'Total Amount', 'Valor Total')} value={formatPrice(selectedOrder.total_usdt)} />
+
+              {/* Commission Info */}
               {selectedOrder.seller_amount != null && selectedOrder.admin_amount != null ? (
-                <>
-                  <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                     <span className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
-                      <DollarSign className="h-4 w-4" />
+                      <Wallet className="h-4 w-4" />
                       {lbl('Seu Lucro', 'Your Profit', 'Tu Ganancia')} ({selectedOrder.seller_rate}%)
                     </span>
                     <span className="text-sm font-bold text-green-600 dark:text-green-400">{formatPrice(selectedOrder.seller_amount)}</span>
                   </div>
-                  <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                     <span className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
                       <ShieldAlert className="h-4 w-4" />
                       {lbl('Taxa da Plataforma', 'Platform Fee', 'Comisión Plataforma')} ({selectedOrder.admin_rate}%)
                     </span>
                     <span className="text-sm font-bold text-red-500 dark:text-red-400">{formatPrice(selectedOrder.admin_amount)}</span>
                   </div>
-                </>
+                </div>
               ) : (
-                <div className="flex items-center justify-between py-2 px-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                   <span className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-400">
                     <Clock className="h-4 w-4" />
                     {lbl('Comissão será calculada ao concluir', 'Commission calculated on completion', 'Comisión calculada al completar')}
                   </span>
                 </div>
               )}
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Status', 'Status', 'Estado')}</span>
-                {getStatusBadge(selectedOrder.status)}
-              </div>
+
               <div className="flex items-center justify-between py-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Quantidade', 'Quantity', 'Cantidad')}</span>
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">{selectedOrder.quantity}</span>
@@ -497,7 +666,7 @@ export function SellerOrdersManager() {
                     <Clock className="h-4 w-4 text-gray-400" />
                     {lbl('Período de Teste', 'Test Period', 'Período de Prueba')}
                   </span>
-                  <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${
+                  <span className={`text-sm font-medium px-2.5 py-1 rounded-full ${
                     (selectedOrder.test_days_left || 0) > 0
                       ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
@@ -517,15 +686,15 @@ export function SellerOrdersManager() {
                     {lbl('Contas Entregues', 'Delivered Accounts', 'Cuentas Entregadas')}
                     <span className="text-xs text-gray-500 dark:text-gray-400">({selectedOrder.delivered_accounts.length})</span>
                   </span>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {selectedOrder.delivered_accounts.map((acct, idx) => (
-                      <div key={idx} className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-mono text-gray-700 dark:text-gray-300">{acct.email}</span>
-                          <span className="font-mono text-gray-500 dark:text-gray-400 ml-2">{acct.password}</span>
+                      <div key={idx} className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center justify-between text-xs gap-2">
+                          <span className="font-mono text-gray-700 dark:text-gray-300 truncate">{acct.email}</span>
+                          <span className="font-mono text-gray-500 dark:text-gray-400 flex-shrink-0">{acct.password}</span>
                         </div>
                         {acct.instructions && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{acct.instructions}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">{acct.instructions}</p>
                         )}
                       </div>
                     ))}
@@ -533,21 +702,15 @@ export function SellerOrdersManager() {
                 </div>
               )}
             </div>
-            <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-white dark:bg-gray-800 px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-wrap gap-2">
               {(selectedOrder.status === 'paid' || selectedOrder.status === 'processing') && (
                 <button onClick={() => updateOrderStatus(selectedOrder.id, 'delivered')}
                   disabled={actionLoading}
-                  className="flex-1 px-3 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   <Truck className="h-4 w-4" />
                   {lbl('Marcar Entregue', 'Mark Delivered', 'Marcar Entregado')}
-                </button>
-              )}
-              {selectedOrder.status === 'delivered' && (
-                <button onClick={() => updateOrderStatus(selectedOrder.id, 'completed')}
-                  disabled={actionLoading}
-                  className="flex-1 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                  <CheckCircle className="h-4 w-4" />
-                  {lbl('Concluir Pedido', 'Complete Order', 'Completar Pedido')}
                 </button>
               )}
               {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'completed' && selectedOrder.status !== 'refunded' && (
@@ -557,7 +720,7 @@ export function SellerOrdersManager() {
                   }
                 }}
                   disabled={actionLoading}
-                  className="px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors disabled:opacity-50">
+                  className="px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50">
                   {lbl('Cancelar', 'Cancel', 'Cancelar')}
                 </button>
               )}
@@ -569,11 +732,27 @@ export function SellerOrdersManager() {
   );
 }
 
+function EmptyState({ orders, lbl }: { orders: SellerOrder[]; lbl: (pt: string, en: string, es: string) => string }) {
+  return (
+    <div className="text-center py-16 px-4">
+      <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
+        <ShoppingCart className="h-8 w-8 text-gray-400" />
+      </div>
+      <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
+        {orders.length === 0 ? lbl('Nenhum pedido ainda', 'No orders yet', 'Sin pedidos aún') : lbl('Nenhum pedido encontrado', 'No orders found', 'Sin pedidos encontrados')}
+      </p>
+      <p className="text-xs text-gray-400 dark:text-gray-500">
+        {orders.length === 0 ? lbl('Os pedidos aparecerão aqui quando clientes comprarem', 'Orders will appear here when customers buy', 'Los pedidos aparecerán aquí cuando los clientes compren') : lbl('Tente ajustar os filtros', 'Try adjusting filters', 'Intenta ajustar los filtros')}
+      </p>
+    </div>
+  );
+}
+
 function DetailRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
     <div className="flex items-center justify-between py-2">
-      <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-        <Icon className="h-4 w-4 text-gray-400" />
+      <span className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <Icon className="h-4 w-4 text-gray-400 flex-shrink-0" />
         {label}
       </span>
       <span className="text-sm font-medium text-gray-900 dark:text-white text-right max-w-[60%] truncate">{value}</span>
