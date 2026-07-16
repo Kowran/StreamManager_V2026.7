@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Save, X, Mail, Globe, Shield, Check, AlertCircle, Camera, Store, Bell, BellOff, CreditCard as Edit3, Palette, Sparkles, ImagePlus, Trash2 } from 'lucide-react';
+import { User, Save, X, Mail, Globe, Shield, Check, AlertCircle, Camera, Store, Bell, BellOff, CreditCard as Edit3, Palette, Sparkles, ImagePlus, Trash2, Star, ShoppingBag } from 'lucide-react';
 import { supabase, hasAccountsAccess } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -72,7 +72,10 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
   const [savingBalloonPref, setSavingBalloonPref] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
-  const [activeTab, setActiveTab] = useState<'info' | 'appearance' | 'security'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'appearance' | 'security' | 'reviews'>('info');
+  const [sellerReviews, setSellerReviews] = useState<any[]>([]);
+  const [customerReviews, setCustomerReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +95,12 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
       checkStreamingAccess();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user && activeTab === 'reviews') {
+      loadUserRatings();
+    }
+  }, [user, activeTab]);
 
   useEffect(() => {
     if (profile) {
@@ -134,6 +143,34 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     }
   }
 
+  async function loadUserRatings() {
+    if (!user) return;
+    setReviewsLoading(true);
+    try {
+      const { data: asSeller } = await supabase
+        .from('user_ratings')
+        .select('id, rating, comment, created_at, rater_role, profiles!user_ratings_rater_id_fkey(full_name)')
+        .eq('rated_user_id', user.id)
+        .eq('rater_role', 'customer')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setSellerReviews(asSeller || []);
+
+      const { data: asCustomer } = await supabase
+        .from('user_ratings')
+        .select('id, rating, comment, created_at, rater_role, profiles!user_ratings_rater_id_fkey(full_name)')
+        .eq('rated_user_id', user.id)
+        .eq('rater_role', 'seller')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setCustomerReviews(asCustomer || []);
+    } catch (err) {
+      console.error('Error loading user ratings:', err);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }
+
   async function checkSellerRequest() {
     if (!user) return;
     try {
@@ -156,6 +193,14 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     setUploading: (v: boolean) => void
   ): Promise<string | null> {
     if (!user) return null;
+    if (!file.type.startsWith('image/')) {
+      setError('Apenas imagens são permitidas');
+      return null;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('A imagem deve ter no máximo 2MB');
+      return null;
+    }
     setUploading(true);
     try {
       const ext = file.name.split('.').pop();
@@ -325,6 +370,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     { id: 'info' as const, label: language === 'pt' ? 'Informações' : 'Information', icon: User },
     { id: 'appearance' as const, label: language === 'pt' ? 'Aparência' : 'Appearance', icon: Palette },
     { id: 'security' as const, label: language === 'pt' ? 'Segurança' : 'Security', icon: Shield },
+    { id: 'reviews' as const, label: language === 'pt' ? 'Avaliações' : 'Reviews', icon: Star },
   ];
 
   return (
@@ -922,10 +968,87 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               </div>
             </div>
           )}
+
+          {/* REVIEWS TAB */}
+          {activeTab === 'reviews' && (
+            <div className="space-y-6">
+              {reviewsLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+                </div>
+              ) : (
+                <>
+                  {/* Reviews as Seller */}
+                  <div>
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                      <ShoppingBag className="h-4 w-4 text-blue-500" />
+                      {language === 'pt' ? 'Avaliações como Vendedor' : 'Reviews as Seller'}
+                      <span className="text-xs text-gray-400">({sellerReviews.length})</span>
+                    </h4>
+                    {sellerReviews.length === 0 ? (
+                      <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
+                        {language === 'pt' ? 'Nenhuma avaliação ainda' : 'No reviews yet'}
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {sellerReviews.map((r: any) => (
+                          <div key={r.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
+                            <div className="flex items-start justify-between mb-1">
+                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                {r.profiles?.full_name || 'Anonymous'}
+                              </span>
+                              <div className="flex items-center">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                                ))}
+                              </div>
+                            </div>
+                            <span className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
+                            {r.comment && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1.5">{r.comment}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Reviews as Customer */}
+                  <div>
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                      <User className="h-4 w-4 text-green-500" />
+                      {language === 'pt' ? 'Avaliações como Cliente' : 'Reviews as Customer'}
+                      <span className="text-xs text-gray-400">({customerReviews.length})</span>
+                    </h4>
+                    {customerReviews.length === 0 ? (
+                      <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
+                        {language === 'pt' ? 'Nenhuma avaliação ainda' : 'No reviews yet'}
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {customerReviews.map((r: any) => (
+                          <div key={r.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
+                            <div className="flex items-start justify-between mb-1">
+                              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                {r.profiles?.full_name || 'Anonymous'}
+                              </span>
+                              <div className="flex items-center">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                                ))}
+                              </div>
+                            </div>
+                            <span className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
+                            {r.comment && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1.5">{r.comment}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Password Modal */}
       <PasswordChangeModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}

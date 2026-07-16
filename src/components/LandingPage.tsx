@@ -49,11 +49,14 @@ interface Banner {
   title: string;
   subtitle: string | null;
   image_url: string | null;
+  image_url_mobile: string | null;
+  image_url_desktop: string | null;
   link_url: string | null;
   link_text: string | null;
   bg_color: string;
   text_color: string;
   text_position: string;
+  image_clickable: boolean;
 }
 
 interface StoreProduct {
@@ -187,7 +190,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     loadProducts();
   }, []);
 
-  // Shuffle products for "recommended" row, re-shuffle periodically
+  // Shuffle products for "recommended" row — stable shuffle to avoid recompute on every render
   const recommendedProducts = useMemo(() => {
     const available = products.filter(p => p.manual_delivery || p.stock_quantity > 0);
     const shuffled = [...available];
@@ -274,7 +277,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     try {
       const { data, error } = await supabase
         .from('landing_banners')
-        .select('id, title, subtitle, image_url, link_url, link_text, bg_color, text_color, text_position')
+        .select('id, title, subtitle, image_url, image_url_mobile, image_url_desktop, link_url, link_text, bg_color, text_color, text_position, image_clickable')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
       if (error) return;
@@ -320,12 +323,14 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       });
       setProducts(sorted);
 
-      // Load best sellers from store_orders
+      // Load best sellers from store_orders (limited to recent 500 for performance)
       try {
         const { data: orders } = await supabase
           .from('store_orders')
           .select('product_id')
-          .in('status', ['delivered', 'paid', 'completed']);
+          .in('status', ['delivered', 'paid', 'completed'])
+          .order('created_at', { ascending: false })
+          .limit(500);
         if (orders && orders.length > 0) {
           const salesCount: Record<string, number> = {};
           orders.forEach(o => {
@@ -345,22 +350,17 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors overflow-x-hidden">
-      {/* Animated Background */}
+      {/* Static Background (optimized: removed animated particles for performance) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 animate-grid-glow">
+        <div className="absolute inset-0">
           <div
             className="absolute inset-0"
             style={{
-              backgroundImage: `linear-gradient(to right, rgba(59, 130, 246, 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(59, 130, 246, 0.08) 1px, transparent 1px)`,
+              backgroundImage: `linear-gradient(to right, rgba(59, 130, 246, 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(59, 130, 246, 0.06) 1px, transparent 1px)`,
               backgroundSize: '60px 60px'
             }}
           />
         </div>
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-blue-400 dark:bg-blue-300 rounded-full animate-particle-drift" style={{ animationDelay: '0s' }}></div>
-        <div className="absolute top-1/3 right-1/4 w-1.5 h-1.5 bg-purple-400 dark:bg-purple-300 rounded-full animate-particle-drift-2" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-blue-400 dark:bg-blue-300 rounded-full animate-particle-drift-3" style={{ animationDelay: '4s' }}></div>
-        <div className="absolute top-1/2 right-1/3 w-1.5 h-1.5 bg-purple-400 dark:bg-purple-300 rounded-full animate-particle-drift" style={{ animationDelay: '3s' }}></div>
-        <div className="absolute bottom-1/4 right-1/4 w-2 h-2 bg-blue-400 dark:bg-blue-300 rounded-full animate-particle-drift-2" style={{ animationDelay: '5s' }}></div>
       </div>
 
       {/* Header */}
@@ -463,39 +463,67 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-              {banners.map((banner, idx) => (
-                <div key={banner.id}
-                  className={`absolute inset-0 transition-all duration-700 ${idx === currentBanner ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'}`}
-                >
-                  <div className="absolute inset-0" style={{ backgroundColor: banner.bg_color === 'transparent' ? 'transparent' : banner.bg_color }} />
-                  {banner.image_url && (
-                    <img src={banner.image_url} alt={banner.title}
-                      className={`absolute inset-0 w-full h-full object-cover ${
-                        banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'
-                      }`}
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
-                  )}
-                  <div className={`relative h-full flex flex-col justify-center px-6 sm:px-12 lg:px-16 ${
-                      banner.text_position === 'center' ? 'items-center text-center' :
-                      banner.text_position === 'right' ? 'items-end text-right ml-auto' : 'items-start text-left'
-                    }`}
-                    style={{ color: banner.text_color }}
-                  >
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 drop-shadow-lg">{banner.title}</h2>
-                    {banner.subtitle && (
-                      <p className="text-sm sm:text-base lg:text-lg opacity-90 mb-4 max-w-lg drop-shadow-md">{banner.subtitle}</p>
+              {banners.map((banner, idx) => {
+                const bannerImage = banner.image_url_mobile || banner.image_url_desktop || banner.image_url;
+                const isClickable = banner.image_clickable && banner.link_url;
+                const slideContent = (
+                  <>
+                    <div className="absolute inset-0" style={{ backgroundColor: banner.bg_color === 'transparent' ? 'transparent' : banner.bg_color }} />
+                    {banner.image_url_mobile && (
+                      <img src={banner.image_url_mobile} alt={banner.title}
+                        className={`absolute inset-0 w-full h-full object-cover sm:hidden ${banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'}`}
+                        loading="eager"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
                     )}
-                    {banner.link_url && (
-                      <a href={banner.link_url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 transition-all hover:scale-105">
-                        {banner.link_text || 'Ver mais'}
-                        <ArrowRight className="w-4 h-4" />
+                    {banner.image_url_desktop && (
+                      <img src={banner.image_url_desktop} alt={banner.title}
+                        className={`absolute inset-0 w-full h-full object-cover hidden sm:block ${banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'}`}
+                        loading="eager"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    {!banner.image_url_mobile && !banner.image_url_desktop && banner.image_url && (
+                      <img src={banner.image_url} alt={banner.title}
+                        className={`absolute inset-0 w-full h-full object-cover ${banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'}`}
+                        loading="eager"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
+                    <div className={`relative h-full flex flex-col justify-center px-6 sm:px-12 lg:px-16 ${
+                        banner.text_position === 'center' ? 'items-center text-center' :
+                        banner.text_position === 'right' ? 'items-end text-right ml-auto' : 'items-start text-left'
+                      }`}
+                      style={{ color: banner.text_color }}
+                    >
+                      <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 drop-shadow-lg">{banner.title}</h2>
+                      {banner.subtitle && (
+                        <p className="text-sm sm:text-base lg:text-lg opacity-90 mb-4 max-w-lg drop-shadow-md">{banner.subtitle}</p>
+                      )}
+                      {banner.link_url && !banner.image_clickable && (
+                        <a href={banner.link_url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 transition-all hover:scale-105">
+                          {banner.link_text || 'Ver mais'}
+                          <ArrowRight className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+                  </>
+                );
+                return (
+                  <div key={banner.id}
+                    className={`absolute inset-0 transition-all duration-700 ${idx === currentBanner ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'}`}
+                  >
+                    {isClickable ? (
+                      <a href={banner.link_url!} target="_blank" rel="noopener noreferrer" className="block w-full h-full cursor-pointer">
+                        {slideContent}
                       </a>
+                    ) : (
+                      slideContent
                     )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {banners.length > 1 && (
                 <>
                   <button onClick={() => setCurrentBanner(prev => (prev - 1 + banners.length) % banners.length)}
@@ -696,6 +724,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                             {product.image_url ? (
                               <img src={product.image_url} alt={product.name}
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                loading="lazy"
                                 onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
                               />
                             ) : (

@@ -88,6 +88,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [disputeTicket, setDisputeTicket] = useState<any | null>(null);
 
   const lang = (t as any).language || 'pt';
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -141,6 +142,20 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
         .eq('product_id', data.product_id)
         .maybeSingle();
       setUserRated(!!rating);
+
+      // Load dispute/support ticket for this order to show admin resolution
+      const orderId = (data.store_orders as any)?.id;
+      if (orderId) {
+        const { data: ticketData } = await supabase
+          .from('seller_support_tickets')
+          .select('id, ticket_number, subject, status, escalated, admin_resolved, resolution_type, resolution_notes, resolved_at')
+          .eq('order_id', orderId)
+          .eq('customer_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setDisputeTicket(ticketData);
+      }
     } catch (err) {
       console.error('Error loading purchase:', err);
     } finally {
@@ -702,6 +717,39 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
           {order?.dispute_opened_at && (
             <p className="text-xs text-orange-500 dark:text-orange-500 mt-1">
               {lbl('Aberto em', 'Opened on', 'Abierto el')}: {new Date(order.dispute_opened_at).toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US')}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Dispute Resolution by Admin */}
+      {disputeTicket?.admin_resolved && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="h-5 w-5 text-emerald-500" />
+            <span className="font-semibold text-emerald-800 dark:text-emerald-300">
+              {lbl('Disputa Resolvida pela Administração', 'Dispute Resolved by Admin', 'Disputa Resuelta por la Administración')}
+            </span>
+          </div>
+          <p className="text-sm text-emerald-700 dark:text-emerald-400 mb-2">
+            {lbl('A administração analisou sua disputa e tomou a seguinte decisão:', 'The administration analyzed your dispute and made the following decision:', 'La administración analizó tu disputa y tomó la siguiente decisión:')}
+          </p>
+          <div className="font-semibold text-emerald-800 dark:text-emerald-300 mb-2">
+            {disputeTicket.resolution_type === 'refund'
+              ? lbl('Reembolso ao cliente', 'Refund to customer', 'Reembolso al cliente')
+              : disputeTicket.resolution_type === 'replace_account'
+              ? lbl('Substituição de produto', 'Product replacement', 'Reemplazo de producto')
+              : lbl('Disputa encerrada', 'Dispute closed', 'Disputa cerrada')}
+          </div>
+          {disputeTicket.resolution_notes && (
+            <div className="text-sm text-emerald-700 dark:text-emerald-400 bg-white/60 dark:bg-gray-800/40 rounded-lg p-3 mb-2">
+              <div className="font-medium mb-1">{lbl('Notas do administrador:', 'Admin notes:', 'Notas del administrador:')}</div>
+              {disputeTicket.resolution_notes}
+            </div>
+          )}
+          {disputeTicket.resolved_at && (
+            <p className="text-xs text-emerald-500 dark:text-emerald-500">
+              {lbl('Resolvido em', 'Resolved on', 'Resuelto el')}: {new Date(disputeTicket.resolved_at).toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US')}
             </p>
           )}
         </div>

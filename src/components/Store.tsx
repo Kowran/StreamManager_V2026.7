@@ -522,8 +522,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     trackView(product);
-    setSelectedProduct(product);
-    setShowProductModal(true);
+    window.location.hash = `product/${product.id}`;
   }, [trackView]);
 
   // Pagination logic
@@ -940,7 +939,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             product={product}
             userCredit={userCredit}
             onPurchase={handlePurchase}
-            onCardClick={(product) => {
+            onCardClick={() => {
               window.location.hash = `product/${product.id}`;
             }}
             purchasing={purchasing}

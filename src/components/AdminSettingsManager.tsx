@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, DollarSign, Coins, CreditCard, CheckCircle, AlertCircle, Loader2, Mail, Send } from 'lucide-react';
+import { Settings, DollarSign, Coins, CreditCard, CheckCircle, AlertCircle, Loader2, Mail, Send, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { StripeConfigModal } from './StripeConfigModal';
 import { PayPalConfigModal } from './PayPalConfigModal';
@@ -39,6 +39,10 @@ export default function AdminSettingsManager() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [disputeEmailConfig, setDisputeEmailConfig] = useState<{ email: string; enabled: boolean }>({ email: '', enabled: false });
+  const [disputeEmailInput, setDisputeEmailInput] = useState('');
+  const [disputeEmailEnabled, setDisputeEmailEnabled] = useState(false);
+  const [savingDisputeEmail, setSavingDisputeEmail] = useState(false);
 
   useEffect(() => {
     checkConfiguredGateways();
@@ -179,6 +183,19 @@ export default function AdminSettingsManager() {
         .select('id, enabled')
         .maybeSingle();
 
+      const { data: disputeData } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'dispute_notification_email')
+        .maybeSingle();
+
+      const disputeCfg = disputeData?.value as { email?: string; enabled?: boolean } | null;
+      const disputeEmail = disputeCfg?.email || '';
+      const disputeEnabled = disputeCfg?.enabled || false;
+      setDisputeEmailConfig({ email: disputeEmail, enabled: disputeEnabled });
+      setDisputeEmailInput(disputeEmail);
+      setDisputeEmailEnabled(disputeEnabled);
+
       const configList: SystemConfig[] = [
         {
           id: 'imap',
@@ -199,12 +216,48 @@ export default function AdminSettingsManager() {
           color: 'border-emerald-500',
           hoverColor: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20',
           iconColor: 'text-emerald-600 dark:text-emerald-400'
+        },
+        {
+          id: 'dispute-email',
+          name: 'Dispute Notification Email',
+          icon: <ShieldCheck className="w-8 h-8" />,
+          description: 'Configure email to receive dispute resolution notifications',
+          configured: disputeEnabled && !!disputeEmail,
+          color: 'border-amber-500',
+          hoverColor: 'hover:bg-amber-50 dark:hover:bg-amber-900/20',
+          iconColor: 'text-amber-600 dark:text-amber-400'
         }
       ];
 
       setSystemConfigs(configList);
     } catch (error) {
       console.error('Error checking system configs:', error);
+    }
+  };
+
+  const saveDisputeEmailConfig = async () => {
+    setSavingDisputeEmail(true);
+    try {
+      const { error } = await supabase
+        .from('system_config')
+        .upsert({
+          key: 'dispute_notification_email',
+          value: { email: disputeEmailInput.trim(), enabled: disputeEmailEnabled },
+          description: 'Email address to receive notifications when a dispute is resolved by admin'
+        }, { onConflict: 'key' });
+
+      if (error) throw error;
+
+      setDisputeEmailConfig({ email: disputeEmailInput.trim(), enabled: disputeEmailEnabled });
+      setMessage({ type: 'success', text: 'Dispute notification email configured successfully' });
+      setTimeout(() => setMessage(null), 3000);
+      setActiveModal(null);
+      checkSystemConfigs();
+    } catch (error) {
+      console.error('Error saving dispute email config:', error);
+      setMessage({ type: 'error', text: 'Failed to save dispute email configuration' });
+    } finally {
+      setSavingDisputeEmail(false);
     }
   };
 
@@ -471,6 +524,62 @@ export default function AdminSettingsManager() {
           handleModalClose();
         }}
       />
+
+      {activeModal === 'dispute-email' && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setActiveModal(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-amber-500" />
+                Dispute Notification Email
+              </h3>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <AlertCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Configure an email address to receive notifications when a dispute is resolved by the admin, including the decision and resolution details.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Notification Email
+                </label>
+                <input
+                  type="email"
+                  value={disputeEmailInput}
+                  onChange={e => setDisputeEmailInput(e.target.value)}
+                  placeholder="admin@example.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="dispute-email-enabled"
+                  checked={disputeEmailEnabled}
+                  onChange={e => setDisputeEmailEnabled(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                />
+                <label htmlFor="dispute-email-enabled" className="text-sm text-gray-700 dark:text-gray-300">
+                  Enable dispute resolution email notifications
+                </label>
+              </div>
+              <button
+                onClick={saveDisputeEmailConfig}
+                disabled={savingDisputeEmail}
+                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingDisputeEmail ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Saving...</>
+                ) : (
+                  <><ShieldCheck className="h-4 w-4" />Save Configuration</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

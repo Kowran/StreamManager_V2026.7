@@ -64,6 +64,15 @@ interface ProductRating {
   product_name: string;
 }
 
+interface UserRating {
+  id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  rater_name: string;
+  rater_role: string;
+}
+
 export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: PublicSellerProfilePageProps) {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -74,9 +83,11 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [ratings, setRatings] = useState<ProductRating[]>([]);
+  const [userRatingsAsSeller, setUserRatingsAsSeller] = useState<UserRating[]>([]);
+  const [userRatingsAsCustomer, setUserRatingsAsCustomer] = useState<UserRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'products' | 'reviews'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'reviews' | 'seller-reviews' | 'customer-reviews'>('products');
 
   useEffect(() => {
     loadSellerData();
@@ -146,6 +157,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       await loadSellerStats(profileData.id);
       await loadSellerProducts(profileData.id);
       await loadSellerRatings(profileData.id);
+      await loadUserRatings(profileData.id);
     } catch (error) {
       console.error('Error loading seller data:', error);
       setError('Erro ao carregar dados do vendedor');
@@ -242,6 +254,52 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
     }
   }
 
+  async function loadUserRatings(userId: string) {
+    try {
+      const { data: sellerRatings, error: sellerErr } = await supabase
+        .from('user_ratings')
+        .select('id, rating, comment, created_at, rater_role, rater_id, profiles!user_ratings_rater_id_fkey(full_name)')
+        .eq('rated_user_id', userId)
+        .eq('rater_role', 'customer')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (sellerErr) console.error('Error loading seller ratings:', sellerErr);
+      if (sellerRatings) {
+        setUserRatingsAsSeller(sellerRatings.map((r: any) => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment || '',
+          created_at: r.created_at,
+          rater_name: r.profiles?.full_name || 'Anonymous',
+          rater_role: r.rater_role,
+        })));
+      }
+
+      const { data: customerRatings, error: customerErr } = await supabase
+        .from('user_ratings')
+        .select('id, rating, comment, created_at, rater_role, rater_id, profiles!user_ratings_rater_id_fkey(full_name)')
+        .eq('rated_user_id', userId)
+        .eq('rater_role', 'seller')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (customerErr) console.error('Error loading customer ratings:', customerErr);
+      if (customerRatings) {
+        setUserRatingsAsCustomer(customerRatings.map((r: any) => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment || '',
+          created_at: r.created_at,
+          rater_name: r.profiles?.full_name || 'Anonymous',
+          rater_role: r.rater_role,
+        })));
+      }
+    } catch (error) {
+      console.error('Error in loadUserRatings:', error);
+    }
+  }
+
   function formatDate(dateString: string | null) {
     if (!dateString) return '—';
     return new Date(dateString).toLocaleDateString('pt-BR', {
@@ -286,7 +344,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
   const tabs = [
     { id: 'products' as const, label: t.language === 'pt' ? 'Produtos' : t.language === 'en' ? 'Products' : 'Productos', icon: Package, count: products.length },
-    { id: 'reviews' as const, label: t.language === 'pt' ? 'Avaliações' : t.language === 'en' ? 'Reviews' : 'Reseñas', icon: Star, count: ratings.length },
+    { id: 'reviews' as const, label: t.language === 'pt' ? 'Avaliações de Produtos' : t.language === 'en' ? 'Product Reviews' : 'Reseñas de Productos', icon: Star, count: ratings.length },
+    { id: 'seller-reviews' as const, label: t.language === 'pt' ? 'Como Vendedor' : t.language === 'en' ? 'As Seller' : 'Como Vendedor', icon: ShoppingBag, count: userRatingsAsSeller.length },
+    { id: 'customer-reviews' as const, label: t.language === 'pt' ? 'Como Cliente' : t.language === 'en' ? 'As Customer' : 'Como Cliente', icon: User, count: userRatingsAsCustomer.length },
   ];
 
   return (
@@ -599,6 +659,84 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                           {rating.comment}
                         </p>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'seller-reviews' && (
+            <div>
+              {userRatingsAsSeller.length === 0 ? (
+                <div className="text-center py-12">
+                  <ShoppingBag className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" />
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    {t.language === 'pt' ? 'Nenhuma avaliação como vendedor' : t.language === 'en' ? 'No seller reviews yet' : 'Sin reseñas como vendedor'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userRatingsAsSeller.map((rating) => (
+                    <div key={rating.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-gray-900 dark:text-white">{rating.rater_name}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                              {t.language === 'pt' ? 'Cliente' : t.language === 'en' ? 'Customer' : 'Cliente'}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(rating.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} className={`h-4 w-4 ${i < rating.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      {rating.comment && <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{rating.comment}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'customer-reviews' && (
+            <div>
+              {userRatingsAsCustomer.length === 0 ? (
+                <div className="text-center py-12">
+                  <User className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" />
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    {t.language === 'pt' ? 'Nenhuma avaliação como cliente' : t.language === 'en' ? 'No customer reviews yet' : 'Sin reseñas como cliente'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {userRatingsAsCustomer.map((rating) => (
+                    <div key={rating.id} className="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-medium text-gray-900 dark:text-white">{rating.rater_name}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                              {t.language === 'pt' ? 'Vendedor' : t.language === 'en' ? 'Seller' : 'Vendedor'}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(rating.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star key={i} className={`h-4 w-4 ${i < rating.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                          ))}
+                        </div>
+                      </div>
+                      {rating.comment && <p className="text-sm text-gray-700 dark:text-gray-300 mt-2">{rating.comment}</p>}
                     </div>
                   ))}
                 </div>

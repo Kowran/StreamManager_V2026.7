@@ -133,6 +133,41 @@ export function UserPurchases() {
   const [selectedPurchaseForHelp, setSelectedPurchaseForHelp] = useState<{ id: string; product_id: string; order_id: string; product_name: string; purchase_price: number } | null>(null);
   const [sellerIdForHelp, setSellerIdForHelp] = useState<string | null>(null);
   const [helpTicketStatuses, setHelpTicketStatuses] = useState<Record<string, { status: string; escalated: boolean }>>({});
+  const [statusFilter, setStatusFilter] = useState<'all' | 'paid' | 'delivered' | 'completed' | 'cancelled'>('all');
+
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+  function isOlderThan30Days(purchaseDate: string): boolean {
+    return Date.now() - new Date(purchaseDate).getTime() > THIRTY_DAYS_MS;
+  }
+
+  function canRenewPurchase(purchase: UserPurchase): boolean {
+    const orderStatus = purchase.store_orders?.status;
+    // No renew for paid, delivered, completed, or cancelled orders
+    if (['paid', 'delivered', 'completed', 'cancelled'].includes(orderStatus || '')) {
+      return false;
+    }
+    // No renew for orders older than 30 days after purchase
+    if (isOlderThan30Days(purchase.purchase_date)) {
+      return false;
+    }
+    return true;
+  }
+
+  // Filter purchases by selected status tab
+  const filteredPurchases = purchases.filter((p) => {
+    if (statusFilter === 'all') return true;
+    return p.store_orders?.status === statusFilter;
+  });
+
+  // Counts for each filter tab
+  const filterCounts = {
+    all: purchases.length,
+    paid: purchases.filter((p) => p.store_orders?.status === 'paid').length,
+    delivered: purchases.filter((p) => p.store_orders?.status === 'delivered').length,
+    completed: purchases.filter((p) => p.store_orders?.status === 'completed').length,
+    cancelled: purchases.filter((p) => p.store_orders?.status === 'cancelled').length,
+  };
 
   useEffect(() => {
     if (user) {
@@ -276,15 +311,15 @@ export function UserPurchases() {
   }
 
   // Pagination logic
-  const totalPages = Math.ceil(purchases.length / purchasesPerPage);
+  const totalPages = Math.ceil(filteredPurchases.length / purchasesPerPage);
   const startIndex = (currentPage - 1) * purchasesPerPage;
   const endIndex = startIndex + purchasesPerPage;
-  const currentPurchases = purchases.slice(startIndex, endIndex);
+  const currentPurchases = filteredPurchases.slice(startIndex, endIndex);
 
-  // Reset to first page when purchases change
+  // Reset to first page when filter or purchases change
   useEffect(() => {
     setCurrentPage(1);
-  }, [purchases.length]);
+  }, [purchases.length, statusFilter]);
 
   function handleRateProduct(purchase: UserPurchase) {
     setSelectedPurchaseForRating(purchase);
@@ -400,6 +435,41 @@ export function UserPurchases() {
           </p>
         </div>
       ) : (
+        <>
+        {/* Status filter tabs */}
+        <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+          {([
+            { key: 'all', label: t.language === 'pt' ? 'Todos' : t.language === 'en' ? 'All' : 'Todos', count: filterCounts.all },
+            { key: 'paid', label: t.language === 'pt' ? 'Pagos' : t.language === 'en' ? 'Paid' : 'Pagados', count: filterCounts.paid },
+            { key: 'delivered', label: t.language === 'pt' ? 'Entregues' : t.language === 'en' ? 'Delivered' : 'Entregados', count: filterCounts.delivered },
+            { key: 'completed', label: t.language === 'pt' ? 'Finalizados' : t.language === 'en' ? 'Completed' : 'Finalizados', count: filterCounts.completed },
+            { key: 'cancelled', label: t.language === 'pt' ? 'Cancelados' : t.language === 'en' ? 'Cancelled' : 'Cancelados', count: filterCounts.cancelled },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors border ${
+                statusFilter === tab.key
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500'
+              }`}
+            >
+              {tab.label}
+              <span className={`ml-1.5 ${statusFilter === tab.key ? 'opacity-80' : 'opacity-60'}`}>({tab.count})</span>
+            </button>
+          ))}
+        </div>
+
+        {filteredPurchases.length === 0 ? (
+          <div className="text-center py-12">
+            <Package className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+              {t.language === 'pt' ? 'Nenhum pedido nesta categoria' :
+               t.language === 'en' ? 'No orders in this category' :
+               'No hay pedidos en esta categoría'}
+            </h3>
+          </div>
+        ) : (
         <div className="space-y-3 sm:space-y-4">
           {currentPurchases.map((purchase) => (
             <div key={purchase.id} className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border transition-colors p-3 sm:p-4 ${
@@ -514,11 +584,7 @@ export function UserPurchases() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  {!isCancelled(purchase) && (() => {
-                    const daysRemaining = getDaysRemaining(purchase.purchase_date);
-                    const canRenew = daysRemaining <= 7;
-                    return canRenew;
-                  })() && (
+                  {!isCancelled(purchase) && canRenewPurchase(purchase) && (
                     <button
                       onClick={() => handleRenewPurchase(purchase)}
                       disabled={renewalLoading === purchase.id}
@@ -676,6 +742,8 @@ export function UserPurchases() {
             </div>
           ))}
         </div>
+        )}
+        </>
       )}
 
       {/* Pagination */}
@@ -686,7 +754,7 @@ export function UserPurchases() {
               {t.language === 'pt' ? 'Página' : t.language === 'en' ? 'Page' : 'Página'} {currentPage} {t.language === 'pt' ? 'de' : t.language === 'en' ? 'of' : 'de'} {totalPages}
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-500">
-              ({startIndex + 1}-{Math.min(endIndex, purchases.length)} {t.language === 'pt' ? 'de' : t.language === 'en' ? 'of' : 'de'} {purchases.length})
+              ({startIndex + 1}-{Math.min(endIndex, filteredPurchases.length)} {t.language === 'pt' ? 'de' : t.language === 'en' ? 'of' : 'de'} {filteredPurchases.length})
             </span>
           </div>
           
@@ -1240,11 +1308,7 @@ export function UserPurchases() {
 
             <div className="flex justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
               <div>
-                {!isCancelled(selectedPurchase) && (() => {
-                  const daysRemaining = getDaysRemaining(selectedPurchase.purchase_date);
-                  const canRenew = daysRemaining <= 7;
-                  return canRenew;
-                })() && (
+                {!isCancelled(selectedPurchase) && canRenewPurchase(selectedPurchase) && (
                   <button
                     onClick={() => handleRenewPurchase(selectedPurchase)}
                     disabled={renewalLoading === selectedPurchase.id}

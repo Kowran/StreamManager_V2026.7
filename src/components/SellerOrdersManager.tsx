@@ -3,7 +3,7 @@ import {
   Search, Calendar, Package, Download, Eye, Truck, CheckCircle,
   Clock, X, MessageCircle, User, DollarSign, ShoppingCart, ShieldAlert,
   CreditCard, Layers, ChevronRight, Filter, TrendingUp, Wallet,
-  ShoppingBag, AlertCircle
+  ShoppingBag, AlertCircle, Star
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -45,6 +45,11 @@ export function SellerOrdersManager() {
   const [selectedOrder, setSelectedOrder] = useState<SellerOrder | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [customerRating, setCustomerRating] = useState<number>(0);
+  const [customerRatingComment, setCustomerRatingComment] = useState('');
+  const [existingRating, setExistingRating] = useState<number | null>(null);
+  const [ratingLoading, setRatingLoading] = useState(false);
+  const [customerId, setCustomerId] = useState<string | null>(null);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es, [language]);
@@ -102,6 +107,17 @@ export function SellerOrdersManager() {
   useEffect(() => {
     applyFilters();
   }, [orders, searchTerm, statusFilter, dateFilter]);
+
+  useEffect(() => {
+    if (selectedOrder && selectedOrder.status === 'completed') {
+      loadCustomerRating(selectedOrder.id);
+    } else {
+      setExistingRating(null);
+      setCustomerRating(0);
+      setCustomerRatingComment('');
+      setCustomerId(null);
+    }
+  }, [selectedOrder?.id]);
 
   async function loadOrders() {
     if (!user) return;
@@ -273,6 +289,64 @@ export function SellerOrdersManager() {
       ));
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function loadCustomerRating(orderId: string) {
+    if (!user) return;
+    try {
+      const { data: order } = await supabase
+        .from('store_orders')
+        .select('user_id')
+        .eq('id', orderId)
+        .maybeSingle();
+      if (order?.user_id) {
+        setCustomerId(order.user_id);
+        const { data: rating } = await supabase
+          .from('user_ratings')
+          .select('rating, comment')
+          .eq('rater_id', user.id)
+          .eq('rated_user_id', order.user_id)
+          .eq('order_id', orderId)
+          .maybeSingle();
+        if (rating) {
+          setExistingRating(rating.rating);
+          setCustomerRating(rating.rating);
+          setCustomerRatingComment(rating.comment || '');
+        } else {
+          setExistingRating(null);
+          setCustomerRating(0);
+          setCustomerRatingComment('');
+        }
+      }
+    } catch (err) {
+      console.error('Error loading customer rating:', err);
+    }
+  }
+
+  async function submitCustomerRating() {
+    if (!user || !selectedOrder || customerRating === 0 || !customerId) return;
+    setRatingLoading(true);
+    try {
+      const { error } = await supabase
+        .from('user_ratings')
+        .upsert({
+          rater_id: user.id,
+          rated_user_id: customerId,
+          order_id: selectedOrder.id,
+          rating: customerRating,
+          comment: customerRatingComment.trim() || null,
+          rater_role: 'seller',
+        }, { onConflict: 'rater_id,rated_user_id,order_id' });
+
+      if (error) throw error;
+      setExistingRating(customerRating);
+      alert(lbl('Avaliação enviada com sucesso!', 'Rating submitted successfully!', '¡Calificación enviada con éxito!'));
+    } catch (err) {
+      console.error('Error submitting rating:', err);
+      alert(lbl('Erro ao enviar avaliação', 'Error submitting rating', 'Error al enviar calificación'));
+    } finally {
+      setRatingLoading(false);
     }
   }
 
@@ -721,6 +795,55 @@ export function SellerOrdersManager() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Rate Customer Section */}
+              {selectedOrder.status === 'completed' && (
+                <div className="py-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <Star className="h-4 w-4 text-yellow-500" />
+                    {existingRating
+                      ? lbl('Sua Avaliação do Cliente', 'Your Customer Rating', 'Tu Calificación del Cliente')
+                      : lbl('Avaliar Cliente', 'Rate Customer', 'Calificar Cliente')}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => !existingRating && setCustomerRating(star)}
+                        disabled={!!existingRating}
+                        className={`p-1 transition-transform ${!existingRating ? 'hover:scale-110 cursor-pointer' : 'cursor-default'}`}
+                      >
+                        <Star className={`h-6 w-6 ${star <= customerRating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                      </button>
+                    ))}
+                    {existingRating && (
+                      <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-medium">
+                        {lbl('Avaliado', 'Rated', 'Calificado')}
+                      </span>
+                    )}
+                  </div>
+                  {!existingRating && customerRating > 0 && (
+                    <>
+                      <textarea
+                        rows={2}
+                        value={customerRatingComment}
+                        onChange={e => setCustomerRatingComment(e.target.value)}
+                        placeholder={lbl('Comentário (opcional)...', 'Comment (optional)...', 'Comentario (opcional)...')}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white resize-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        onClick={submitCustomerRating}
+                        disabled={ratingLoading}
+                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {ratingLoading ? <CheckCircle className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+                        {lbl('Enviar Avaliação', 'Submit Rating', 'Enviar Calificación')}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

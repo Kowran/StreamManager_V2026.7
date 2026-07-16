@@ -9,6 +9,8 @@ interface Banner {
   title: string;
   subtitle: string | null;
   image_url: string | null;
+  image_url_mobile: string | null;
+  image_url_desktop: string | null;
   link_url: string | null;
   link_text: string | null;
   bg_color: string;
@@ -16,6 +18,7 @@ interface Banner {
   text_position: string;
   is_active: boolean;
   display_order: number;
+  image_clickable: boolean;
 }
 
 const PRESET_COLORS = [
@@ -42,15 +45,15 @@ export function AdminBannerManager() {
   const lang = language as 'pt' | 'en' | 'es';
 
   const t = {
-    pt: { title: 'Banners da Página Inicial', desc: 'Crie banners rotativos para a landing page', new: 'Novo Banner', bannerTitle: 'Título', subtitle: 'Subtítulo', imageUrl: 'URL da Imagem', linkUrl: 'Link (URL)', linkText: 'Texto do Botão', bgColor: 'Cor de Fundo', textColor: 'Cor do Texto', presets: 'Cores Pré-definidas', position: 'Posição do Texto', left: 'Esquerda', center: 'Centro', right: 'Direita', active: 'Ativo', order: 'Ordem', save: 'Salvar', cancel: 'Cancelar', edit: 'Editar', delete: 'Excluir', confirmDelete: 'Excluir este banner?', noBanners: 'Nenhum banner criado ainda', preview: 'Pré-visualização', lowerFirst: 'Menor ordem aparece primeiro', moveUp: 'Mover para cima', moveDown: 'Mover para baixo' },
-    en: { title: 'Landing Page Banners', desc: 'Create rotating banners for the landing page', new: 'New Banner', bannerTitle: 'Title', subtitle: 'Subtitle', imageUrl: 'Image URL', linkUrl: 'Link (URL)', linkText: 'Button Text', bgColor: 'Background Color', textColor: 'Text Color', presets: 'Preset Colors', position: 'Text Position', left: 'Left', center: 'Center', right: 'Right', active: 'Active', order: 'Order', save: 'Save', cancel: 'Cancel', edit: 'Edit', delete: 'Delete', confirmDelete: 'Delete this banner?', noBanners: 'No banners created yet', preview: 'Preview', lowerFirst: 'Lower order shows first', moveUp: 'Move up', moveDown: 'Move down' },
-    es: { title: 'Banners de la Página Principal', desc: 'Cree banners rotativos para la landing page', new: 'Nuevo Banner', bannerTitle: 'Título', subtitle: 'Subtítulo', imageUrl: 'URL de la Imagen', linkUrl: 'Enlace (URL)', linkText: 'Texto del Botón', bgColor: 'Color de Fondo', textColor: 'Color del Texto', presets: 'Colores Predefinidos', position: 'Posición del Texto', left: 'Izquierda', center: 'Centro', right: 'Derecha', active: 'Activo', order: 'Orden', save: 'Guardar', cancel: 'Cancelar', edit: 'Editar', delete: 'Eliminar', confirmDelete: '¿Eliminar este banner?', noBanners: 'Aún no se han creado banners', preview: 'Vista previa', lowerFirst: 'Menor orden aparece primero', moveUp: 'Mover arriba', moveDown: 'Mover abajo' },
+    pt: { title: 'Banners da Página Inicial', desc: 'Crie banners rotativos para a landing page', new: 'Novo Banner', bannerTitle: 'Título', subtitle: 'Subtítulo', imageUrl: 'URL da Imagem (legado)', imageUrlMobile: 'Imagem Mobile (800x400px)', imageUrlDesktop: 'Imagem Desktop (1920x500px)', linkUrl: 'Link (URL)', linkText: 'Texto do Botão', bgColor: 'Cor de Fundo', textColor: 'Cor do Texto', presets: 'Cores Pré-definidas', position: 'Posição do Texto', left: 'Esquerda', center: 'Centro', right: 'Direita', active: 'Ativo', order: 'Ordem', save: 'Salvar', cancel: 'Cancelar', edit: 'Editar', delete: 'Excluir', confirmDelete: 'Excluir este banner?', noBanners: 'Nenhum banner criado ainda', preview: 'Pré-visualização', lowerFirst: 'Menor ordem aparece primeiro', moveUp: 'Mover para cima', moveDown: 'Mover para baixo', imageClickable: 'Imagem Clicável', imageClickableDesc: 'Tornar a imagem inteira clicável como link (sem botão)', resolutionInfo: 'Resolução recomendada', mobileRes: '800x400px', desktopRes: '1920x500px' },
+    en: { title: 'Landing Page Banners', desc: 'Create rotating banners for the landing page', new: 'New Banner', bannerTitle: 'Title', subtitle: 'Subtitle', imageUrl: 'Image URL (legacy)', imageUrlMobile: 'Mobile Image (800x400px)', imageUrlDesktop: 'Desktop Image (1920x500px)', linkUrl: 'Link (URL)', linkText: 'Button Text', bgColor: 'Background Color', textColor: 'Text Color', presets: 'Preset Colors', position: 'Text Position', left: 'Left', center: 'Center', right: 'Right', active: 'Active', order: 'Order', save: 'Save', cancel: 'Cancel', edit: 'Edit', delete: 'Delete', confirmDelete: 'Delete this banner?', noBanners: 'No banners created yet', preview: 'Preview', lowerFirst: 'Lower order shows first', moveUp: 'Move up', moveDown: 'Move down', imageClickable: 'Clickable Image', imageClickableDesc: 'Make the entire banner image clickable as a link (no button needed)', resolutionInfo: 'Recommended resolution', mobileRes: '800x400px', desktopRes: '1920x500px' },
+    es: { title: 'Banners de la Página Principal', desc: 'Cree banners rotativos para la landing page', new: 'Nuevo Banner', bannerTitle: 'Título', subtitle: 'Subtítulo', imageUrl: 'URL de la Imagen (legado)', imageUrlMobile: 'Imagen Móvil (800x400px)', imageUrlDesktop: 'Imagen Escritorio (1920x500px)', linkUrl: 'Enlace (URL)', linkText: 'Texto del Botón', bgColor: 'Color de Fondo', textColor: 'Color del Texto', presets: 'Colores Predefinidos', position: 'Posición del Texto', left: 'Izquierda', center: 'Centro', right: 'Derecha', active: 'Activo', order: 'Orden', save: 'Guardar', cancel: 'Cancelar', edit: 'Editar', delete: 'Eliminar', confirmDelete: '¿Eliminar este banner?', noBanners: 'Aún no se han creado banners', preview: 'Vista previa', lowerFirst: 'Menor orden aparece primero', moveUp: 'Mover arriba', moveDown: 'Mover abajo', imageClickable: 'Imagen Clickeable', imageClickableDesc: 'Hacer toda la imagen del banner clickeable como enlace (sin botón)', resolutionInfo: 'Resolución recomendada', mobileRes: '800x400px', desktopRes: '1920x500px' },
   }[lang];
 
   const emptyForm = {
-    title: '', subtitle: '', image_url: '', link_url: '', link_text: '',
+    title: '', subtitle: '', image_url: '', image_url_mobile: '', image_url_desktop: '', link_url: '', link_text: '',
     bg_color: 'transparent', text_color: '#ffffff', text_position: 'left',
-    is_active: true, display_order: 0,
+    is_active: true, display_order: 0, image_clickable: false,
   };
   const [form, setForm] = useState(emptyForm);
 
@@ -82,9 +85,10 @@ export function AdminBannerManager() {
     setEditing(b);
     setForm({
       title: b.title, subtitle: b.subtitle || '', image_url: b.image_url || '',
+      image_url_mobile: (b as any).image_url_mobile || '', image_url_desktop: (b as any).image_url_desktop || '',
       link_url: b.link_url || '', link_text: b.link_text || '',
       bg_color: b.bg_color || 'transparent', text_color: b.text_color, text_position: b.text_position,
-      is_active: b.is_active, display_order: b.display_order,
+      is_active: b.is_active, display_order: b.display_order, image_clickable: (b as any).image_clickable || false,
     });
     setShowModal(true);
   }
@@ -97,6 +101,8 @@ export function AdminBannerManager() {
         title: form.title || '',
         subtitle: form.subtitle || null,
         image_url: form.image_url || null,
+        image_url_mobile: form.image_url_mobile || null,
+        image_url_desktop: form.image_url_desktop || null,
         link_url: form.link_url || null,
         link_text: form.link_text || null,
         bg_color: form.bg_color,
@@ -104,6 +110,7 @@ export function AdminBannerManager() {
         text_position: form.text_position,
         is_active: form.is_active,
         display_order: form.display_order,
+        image_clickable: form.image_clickable,
       };
 
       if (editing) {
@@ -291,7 +298,7 @@ export function AdminBannerManager() {
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Image URL (legacy) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t.imageUrl}</label>
                 <input
@@ -301,6 +308,32 @@ export function AdminBannerManager() {
                   placeholder="https://..."
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+              </div>
+
+              {/* Mobile Image URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t.imageUrlMobile}</label>
+                <input
+                  type="url"
+                  value={form.image_url_mobile}
+                  onChange={e => update('image_url_mobile', e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-400 mt-1">{t.resolutionInfo}: {t.mobileRes}</p>
+              </div>
+
+              {/* Desktop Image URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t.imageUrlDesktop}</label>
+                <input
+                  type="url"
+                  value={form.image_url_desktop}
+                  onChange={e => update('image_url_desktop', e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-400 mt-1">{t.resolutionInfo}: {t.desktopRes}</p>
               </div>
 
               {/* Link */}
@@ -423,11 +456,20 @@ export function AdminBannerManager() {
                   </button>
                   <span className="text-sm text-gray-700 dark:text-gray-300">{t.active}</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <button type="button" onClick={() => update('image_clickable', !form.image_clickable)} className={`relative w-10 h-5 rounded-full transition-colors ${form.image_clickable ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                    <span className={`absolute top-1 w-3 h-3 bg-white rounded-full shadow transition-transform ${form.image_clickable ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{t.imageClickable}</span>
+                </label>
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-gray-700 dark:text-gray-300">{t.order}</label>
                   <input type="number" value={form.display_order} onChange={e => update('display_order', parseInt(e.target.value) || 0)} className="w-20 px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
                 </div>
               </div>
+              {form.image_clickable && (
+                <p className="text-xs text-blue-500 dark:text-blue-400 -mt-2">{t.imageClickableDesc}</p>
+              )}
               <p className="text-xs text-gray-400">{t.lowerFirst}</p>
             </div>
 

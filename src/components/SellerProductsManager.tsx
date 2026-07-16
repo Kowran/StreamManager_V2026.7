@@ -519,8 +519,8 @@ function ProductFormPage({
       setUploadError(lbl('Apenas imagens são permitidas', 'Only images are allowed', 'Solo se permiten imágenes'));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setUploadError(lbl('A imagem deve ter no máximo 5MB', 'Image must be at most 5MB', 'La imagen debe tener máximo 5MB'));
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError(lbl('A imagem deve ter no máximo 2MB', 'Image must be at most 2MB', 'La imagen debe tener máximo 2MB'));
       return;
     }
 

@@ -222,6 +222,43 @@ export function AdminDisputeManager() {
       if (error) throw error;
       if (data && data.success === false) throw new Error(data.error);
 
+      // Send dispute resolution email notification
+      try {
+        const { data: disputeCfg } = await supabase
+          .from('system_config')
+          .select('value')
+          .eq('key', 'dispute_notification_email')
+          .maybeSingle();
+
+        const cfg = disputeCfg?.value as { email?: string; enabled?: boolean } | null;
+        if (cfg?.enabled && cfg.email) {
+          const decisionMap: Record<string, string> = {
+            cancel_sale: lbl('Cancelamento da Venda e Reembolso', 'Sale Cancellation and Refund', 'Cancelación de Venta y Reembolso'),
+            refund_customer: lbl('Reembolso ao Cliente', 'Customer Refund', 'Reembolso al Cliente'),
+            force_seller: lbl('Decisão a Favor do Vendedor', 'Decision in Favor of Seller', 'Decisión a Favor del Vendedor'),
+            resolve: lbl('Disputa Resolvida', 'Dispute Resolved', 'Disputa Resuelta'),
+          };
+          await supabase.functions.invoke('send-email', {
+            body: {
+              template_type: 'dispute_resolved',
+              recipient_email: cfg.email,
+              language,
+              variables: {
+                order_id: selectedTicket.ticket_number,
+                product_name: selectedTicket.order?.product_name || '—',
+                customer_name: selectedTicket.customer_name || '—',
+                seller_name: selectedTicket.seller?.username || '—',
+                resolution_decision: decisionMap[actionModal.type] || actionModal.type,
+                resolution_notes: actionModal.notes.trim() || lbl('Sem notas', 'No notes', 'Sin notas'),
+                resolved_at: new Date().toLocaleString(language === 'pt' ? 'pt-BR' : 'en-US'),
+              },
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error('Failed to send dispute email notification:', emailErr);
+      }
+
       setActionModal(null);
       await loadTickets();
       setSelectedTicket(null);
