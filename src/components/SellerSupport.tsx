@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  MessageCircle, Search, Send, Eye, X, Clock, CheckCircle,
+  MessageCircle, Search, Send, X, Clock, CheckCircle,
   AlertTriangle, User, Package, ArrowLeft, RefreshCw, DollarSign,
-  Shield, Loader2, ImagePlus, ShoppingBag, ExternalLink
+  Shield, Loader2, ImagePlus, ShoppingBag, ExternalLink, Inbox,
+  TrendingUp, CheckCheck
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -52,16 +53,17 @@ interface OrderDetail {
   quantity?: number;
 }
 
+type TabStage = 'open' | 'escalated' | 'resolved';
+
 export function SellerSupport() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const { formatPrice } = useCurrency();
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [filteredTickets, setFilteredTickets] = useState<SupportTicket[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabStage>('open');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [messages, setMessages] = useState<TicketMessage[]>([]);
   const [replyText, setReplyText] = useState('');
@@ -85,11 +87,6 @@ export function SellerSupport() {
     if (user) loadTickets();
   }, [user]);
 
-  useEffect(() => {
-    applyFilters();
-  }, [tickets, searchTerm, statusFilter]);
-
-  // Realtime subscription
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -120,22 +117,26 @@ export function SellerSupport() {
     }
   }
 
-  function applyFilters() {
-    let filtered = [...tickets];
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(t =>
-        t.ticket_number?.toLowerCase().includes(term) ||
-        t.customer_name?.toLowerCase().includes(term) ||
-        t.customer_name?.toLowerCase().includes(term) ||
-        t.subject?.toLowerCase().includes(term)
-      );
+  // Tab counts
+  const openTickets = tickets.filter(t => !t.escalated && t.status !== 'resolved' && t.status !== 'closed');
+  const escalatedTickets = tickets.filter(t => t.escalated && t.status !== 'resolved' && t.status !== 'closed');
+  const resolvedTickets = tickets.filter(t => t.status === 'resolved' || t.status === 'closed');
+
+  const filteredTickets = (() => {
+    let pool: SupportTicket[];
+    switch (activeTab) {
+      case 'open': pool = openTickets; break;
+      case 'escalated': pool = escalatedTickets; break;
+      case 'resolved': pool = resolvedTickets; break;
     }
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(t => t.status === statusFilter);
-    }
-    setFilteredTickets(filtered);
-  }
+    if (!searchTerm.trim()) return pool;
+    const term = searchTerm.toLowerCase();
+    return pool.filter(t =>
+      t.ticket_number?.toLowerCase().includes(term) ||
+      t.customer_name?.toLowerCase().includes(term) ||
+      t.subject?.toLowerCase().includes(term)
+    );
+  })();
 
   async function loadMessages(ticketId: string) {
     setMessagesLoading(true);
@@ -203,7 +204,6 @@ export function SellerSupport() {
       loadMessages(ticket.id),
       loadOrderInfo(ticket.order_id),
     ]);
-    // Auto-transition open → waiting_seller
     if (ticket.status === 'open') {
       await supabase
         .from('seller_support_tickets')
@@ -229,7 +229,6 @@ export function SellerSupport() {
         });
       if (msgError) throw msgError;
 
-      // Fix: after seller replies, set to waiting_customer
       await supabase
         .from('seller_support_tickets')
         .update({ status: 'waiting_customer', updated_at: new Date().toISOString() })
@@ -279,7 +278,6 @@ export function SellerSupport() {
       if (resolveError) throw resolveError;
 
       if (resolveType === 'refund' && orderInfo?.customer_id) {
-        // Credit the customer's account
         const { data: existingCredit } = await supabase
           .from('user_credits')
           .select('balance')
@@ -297,7 +295,6 @@ export function SellerSupport() {
         }
       }
 
-      // Notify customer
       if (orderInfo?.customer_id) {
         await supabase.from('notifications').insert({
           user_id: orderInfo.customer_id,
@@ -312,7 +309,6 @@ export function SellerSupport() {
         });
       }
 
-      // Update order status back to completed on resolution
       if (selectedTicket.order_id) {
         await supabase
           .from('seller_orders_view')
@@ -378,6 +374,12 @@ export function SellerSupport() {
 
   const deadlineInfo = selectedTicket ? getDeadlineStatus(selectedTicket.deadline) : null;
 
+  const tabConfig: { key: TabStage; label: string; icon: React.ElementType; count: number; color: string; activeColor: string }[] = [
+    { key: 'open', label: lbl('Aberto', 'Open', 'Abierto'), icon: Inbox, count: openTickets.length, color: 'text-blue-600', activeColor: 'border-blue-500 text-blue-600 dark:text-blue-400' },
+    { key: 'escalated', label: lbl('Escalado', 'Escalated', 'Escalado'), icon: Shield, count: escalatedTickets.length, color: 'text-red-600', activeColor: 'border-red-500 text-red-600 dark:text-red-400' },
+    { key: 'resolved', label: lbl('Resolvido', 'Resolved', 'Resuelto'), icon: CheckCheck, count: resolvedTickets.length, color: 'text-green-600', activeColor: 'border-green-500 text-green-600 dark:text-green-400' },
+  ];
+
   if (loading && tickets.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -391,7 +393,6 @@ export function SellerSupport() {
       {selectedTicket ? (
         /* ─── TICKET DETAIL VIEW ─── */
         <div className="flex flex-col h-full">
-          {/* Header */}
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <button onClick={() => { setSelectedTicket(null); setMessages([]); setOrderInfo(null); }}
               className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-3">
@@ -400,7 +401,7 @@ export function SellerSupport() {
             </button>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-xs font-mono text-gray-500">{selectedTicket.ticket_number}</span>
                   {getStatusBadge(selectedTicket.status, selectedTicket.escalated)}
                   {getPriorityBadge(selectedTicket.priority)}
@@ -412,14 +413,13 @@ export function SellerSupport() {
               </div>
               {selectedTicket.status !== 'resolved' && selectedTicket.status !== 'closed' && (
                 <button onClick={() => setShowResolveModal(true)}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors flex items-center gap-1.5 flex-shrink-0">
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors flex items-center gap-1.5 flex-shrink-0">
                   <CheckCircle className="h-4 w-4" />
                   {lbl('Resolver', 'Resolve', 'Resolver')}
                 </button>
               )}
             </div>
 
-            {/* Purchase Info Card */}
             {orderInfo && (
               <div className="mt-3 rounded-lg border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/10 p-3">
                 <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-2 flex items-center gap-1.5">
@@ -459,7 +459,6 @@ export function SellerSupport() {
               </div>
             )}
 
-            {/* Deadline warning */}
             {deadlineInfo && selectedTicket.status !== 'resolved' && !selectedTicket.escalated && (
               <div className={`mt-3 rounded-lg p-3 flex items-center gap-2 ${
                 deadlineInfo.passed
@@ -475,7 +474,6 @@ export function SellerSupport() {
               </div>
             )}
 
-            {/* Escalation warning */}
             {selectedTicket.escalated && (
               <div className="mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-3 flex items-center gap-2">
                 <Shield className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -486,7 +484,6 @@ export function SellerSupport() {
               </div>
             )}
 
-            {/* Resolution info */}
             {selectedTicket.status === 'resolved' && selectedTicket.resolution_type && (
               <div className="mt-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -509,7 +506,6 @@ export function SellerSupport() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-gray-50 dark:bg-gray-900/50">
-            {/* No outside contact warning */}
             <div className="flex items-start gap-2 px-3 py-2 mb-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
               <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
@@ -520,7 +516,6 @@ export function SellerSupport() {
                 )}
               </p>
             </div>
-            {/* Initial message */}
             <div className="flex justify-start">
               <div className="max-w-[85%] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-2 mb-1">
@@ -563,7 +558,6 @@ export function SellerSupport() {
             )}
           </div>
 
-          {/* Reply input */}
           {selectedTicket.status !== 'resolved' && selectedTicket.status !== 'closed' && (
             <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 space-y-2">
               {replyImageUrl && (
@@ -579,7 +573,7 @@ export function SellerSupport() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="px-2.5 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-500 dark:text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors disabled:opacity-50"
+                  className="px-2.5 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:text-blue-500 hover:border-blue-400 transition-colors disabled:opacity-50"
                   title={lbl('Adicionar imagem', 'Add image', 'Agregar imagen')}
                 >
                   {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
@@ -590,22 +584,52 @@ export function SellerSupport() {
                   onChange={(e) => setReplyText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !sendingReply) sendReply(); }}
                   placeholder={lbl('Digite sua resposta...', 'Type your reply...', 'Escribe tu respuesta...')}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
                 />
                 <button onClick={sendReply} disabled={sendingReply || (!replyText.trim() && !replyImageUrl)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5">
                   {sendingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  {lbl('Enviar', 'Send', 'Enviar')}
+                  <span className="hidden sm:inline">{lbl('Enviar', 'Send', 'Enviar')}</span>
                 </button>
               </div>
             </div>
           )}
         </div>
       ) : (
-        /* ─── TICKET LIST VIEW ─── */
+        /* ─── TICKET LIST VIEW WITH TABS ─── */
         <div className="flex flex-col h-full">
-          {/* Search & filter bar */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col sm:flex-row gap-2">
+          {/* Tabs */}
+          <div className="px-4 pt-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+            <div className="flex gap-1">
+              {tabConfig.map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-medium border-b-2 transition-colors rounded-t-lg ${
+                      isActive
+                        ? tab.activeColor
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                    <span className={`px-1.5 py-0.5 text-xs rounded-full ${
+                      isActive ? tab.color + ' bg-current/10' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Search bar */}
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -613,46 +637,26 @@ export function SellerSupport() {
                 placeholder={lbl('Buscar tickets...', 'Search tickets...', 'Buscar tickets...')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="all">{lbl('Todos', 'All', 'Todos')}</option>
-              <option value="open">{lbl('Aberto', 'Open', 'Abierto')}</option>
-              <option value="waiting_seller">{lbl('Aguardando Vendedor', 'Waiting Seller', 'Esperando Vendedor')}</option>
-              <option value="waiting_customer">{lbl('Aguardando Cliente', 'Waiting Customer', 'Esperando Cliente')}</option>
-              <option value="resolved">{lbl('Resolvido', 'Resolved', 'Resuelto')}</option>
-            </select>
-            <button onClick={loadTickets} className="p-2 border border-gray-300 dark:border-gray-600 rounded-md text-gray-500 hover:text-blue-500 hover:border-blue-400 transition-colors">
+            <button onClick={loadTickets} className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 hover:text-blue-500 hover:border-blue-400 transition-colors">
               <RefreshCw className="h-4 w-4" />
             </button>
-          </div>
-
-          {/* Stats summary */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 flex gap-4 text-xs">
-            {[
-              { label: lbl('Abertos', 'Open', 'Abiertos'), count: tickets.filter(t => t.status === 'open' || t.status === 'waiting_seller').length, color: 'text-blue-600' },
-              { label: lbl('Aguardando cliente', 'Awaiting customer', 'Esperando cliente'), count: tickets.filter(t => t.status === 'waiting_customer').length, color: 'text-amber-600' },
-              { label: lbl('Resolvidos', 'Resolved', 'Resueltos'), count: tickets.filter(t => t.status === 'resolved').length, color: 'text-green-600' },
-              { label: lbl('Escalados', 'Escalated', 'Escalados'), count: tickets.filter(t => t.escalated).length, color: 'text-red-600' },
-            ].map(s => (
-              <div key={s.label} className="flex items-center gap-1">
-                <span className={`font-bold text-base ${s.color}`}>{s.count}</span>
-                <span className="text-gray-500 dark:text-gray-400">{s.label}</span>
-              </div>
-            ))}
           </div>
 
           {/* Ticket list */}
           <div className="flex-1 overflow-y-auto">
             {filteredTickets.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-gray-500 dark:text-gray-400">
-                <MessageCircle className="h-10 w-10 mb-2 opacity-30" />
-                <p className="text-sm">{lbl('Nenhum ticket encontrado', 'No tickets found', 'No se encontraron tickets')}</p>
+                {activeTab === 'open' && <Inbox className="h-10 w-10 mb-2 opacity-30" />}
+                {activeTab === 'escalated' && <Shield className="h-10 w-10 mb-2 opacity-30" />}
+                {activeTab === 'resolved' && <CheckCheck className="h-10 w-10 mb-2 opacity-30" />}
+                <p className="text-sm">
+                  {activeTab === 'open' && lbl('Nenhum ticket aberto', 'No open tickets', 'Sin tickets abiertos')}
+                  {activeTab === 'escalated' && lbl('Nenhum ticket escalado', 'No escalated tickets', 'Sin tickets escalados')}
+                  {activeTab === 'resolved' && lbl('Nenhum ticket resolvido', 'No resolved tickets', 'Sin tickets resueltos')}
+                </p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -666,7 +670,7 @@ export function SellerSupport() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="text-xs font-mono text-gray-400">{ticket.ticket_number}</span>
                             {getStatusBadge(ticket.status, ticket.escalated)}
                             {getPriorityBadge(ticket.priority)}
@@ -714,7 +718,6 @@ export function SellerSupport() {
               </button>
             </div>
             <div className="p-5 space-y-4">
-              {/* Purchase info in modal */}
               {orderInfo && (
                 <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-700/30">
                   <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1.5">
@@ -728,7 +731,6 @@ export function SellerSupport() {
                 </div>
               )}
 
-              {/* Resolution type selector */}
               <div>
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {lbl('Como deseja resolver?', 'How would you like to resolve?', '¿Cómo desea resolver?')}
