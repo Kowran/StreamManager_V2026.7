@@ -11,18 +11,16 @@ interface LevelBadgeProps {
 }
 
 export function getLevelTier(level: number): { name: string; icon: typeof Star; color: string; bgColor: string; textColor: string } {
-  if (level >= 900) return { name: 'Lendário', icon: Crown, color: '#f59e0b', bgColor: 'bg-amber-100 dark:bg-amber-900/30', textColor: 'text-amber-700 dark:text-amber-400' };
-  if (level >= 700) return { name: 'Mestre', icon: Flame, color: '#ef4444', bgColor: 'bg-red-100 dark:bg-red-900/30', textColor: 'text-red-700 dark:text-red-400' };
-  if (level >= 500) return { name: 'Elite', icon: Shield, color: '#8b5cf6', bgColor: 'bg-violet-100 dark:bg-violet-900/30', textColor: 'text-violet-700 dark:text-violet-400' };
-  if (level >= 300) return { name: 'Veterano', icon: Award, color: '#3b82f6', bgColor: 'bg-blue-100 dark:bg-blue-900/30', textColor: 'text-blue-700 dark:text-blue-400' };
-  if (level >= 100) return { name: 'Avançado', icon: Zap, color: '#10b981', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-400' };
-  if (level >= 50) return { name: 'Intermediário', icon: Star, color: '#06b6d4', bgColor: 'bg-cyan-100 dark:bg-cyan-900/30', textColor: 'text-cyan-700 dark:text-cyan-400' };
-  return { name: 'Iniciante', icon: Star, color: '#6b7280', bgColor: 'bg-gray-100 dark:bg-gray-700', textColor: 'text-gray-600 dark:text-gray-400' };
+  if (level >= 100) return { name: 'Diamante', icon: Crown, color: '#3b82f6', bgColor: 'bg-blue-100 dark:bg-blue-900/30', textColor: 'text-blue-700 dark:text-blue-400' };
+  if (level >= 50) return { name: 'Ouro', icon: Award, color: '#f59e0b', bgColor: 'bg-amber-100 dark:bg-amber-900/30', textColor: 'text-amber-700 dark:text-amber-400' };
+  if (level >= 25) return { name: 'Prata', icon: Shield, color: '#94a3b8', bgColor: 'bg-slate-100 dark:bg-slate-900/30', textColor: 'text-slate-700 dark:text-slate-400' };
+  if (level >= 10) return { name: 'Bronze', icon: Zap, color: '#cd7f32', bgColor: 'bg-orange-100 dark:bg-orange-900/30', textColor: 'text-orange-700 dark:text-orange-400' };
+  return { name: 'Iniciante', icon: Star, color: '#10b981', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-400' };
 }
 
 export function getLevelProgress(level: number, xp: number): { current: number; needed: number; percent: number } {
-  const currentLevelXp = Math.floor(100 * Math.pow(Math.max(level - 1, 0), 1.8));
-  const nextLevelXp = level >= 1000 ? currentLevelXp : Math.floor(100 * Math.pow(level, 1.8));
+  const currentLevelXp = Math.floor(50 * Math.pow(Math.max(level - 1, 0), 1.5));
+  const nextLevelXp = level >= 100 ? currentLevelXp : Math.floor(50 * Math.pow(level, 1.5));
   const needed = nextLevelXp - currentLevelXp;
   const current = xp - currentLevelXp;
   const percent = needed > 0 ? Math.min(100, (current / needed) * 100) : 100;
@@ -66,7 +64,7 @@ export function LevelProgressBar({ level, xp, type = 'user', language = 'pt' }: 
   const tier = getLevelTier(level);
   const Icon = tier.icon;
   const progress = getLevelProgress(level, xp);
-  const isMax = level >= 1000;
+  const isMax = level >= 100;
   const typeLabel = language === 'pt' ? typeLabels[type].pt : typeLabels[type].en;
 
   return (

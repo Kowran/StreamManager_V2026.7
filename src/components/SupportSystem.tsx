@@ -1421,24 +1421,19 @@ function LevelSystemHelp({ language }: { language: string }) {
   const en = language === 'en';
 
   const tiers = [
-    { range: '1-49', name: pt ? 'Iniciante' : en ? 'Beginner' : 'Principiante', color: '#6b7280' },
-    { range: '50-99', name: pt ? 'Intermediário' : en ? 'Intermediate' : 'Intermedio', color: '#06b6d4' },
-    { range: '100-299', name: pt ? 'Avançado' : en ? 'Advanced' : 'Avanzado', color: '#10b981' },
-    { range: '300-499', name: pt ? 'Veterano' : en ? 'Veteran' : 'Veterano', color: '#3b82f6' },
-    { range: '500-699', name: 'Elite', color: '#8b5cf6' },
-    { range: '700-899', name: pt ? 'Mestre' : en ? 'Master' : 'Maestro', color: '#ef4444' },
-    { range: '900-1000', name: pt ? 'Lendário' : en ? 'Legendary' : 'Legendario', color: '#f59e0b' },
+    { range: '1-9', name: pt ? 'Iniciante' : en ? 'Beginner' : 'Principiante', color: '#10b981' },
+    { range: '10-24', name: pt ? 'Bronze' : en ? 'Bronze' : 'Bronce', color: '#cd7f32' },
+    { range: '25-49', name: pt ? 'Prata' : en ? 'Silver' : 'Plata', color: '#94a3b8' },
+    { range: '50-99', name: pt ? 'Ouro' : en ? 'Gold' : 'Oro', color: '#f59e0b' },
+    { range: '100', name: pt ? 'Diamante' : en ? 'Diamond' : 'Diamante', color: '#3b82f6' },
   ];
 
   const milestones = [
     { level: 1, xp: 0, label: pt ? 'Início da jornada' : en ? 'Journey begins' : 'Inicio del viaje' },
-    { level: 10, xp: 100, label: pt ? 'Primeiros passos' : en ? 'First steps' : 'Primeros pasos' },
-    { level: 50, xp: 1626, label: pt ? 'Intermediário' : en ? 'Intermediate' : 'Intermedio' },
-    { level: 100, xp: 6310, label: pt ? 'Avançado' : en ? 'Advanced' : 'Avanzado' },
-    { level: 250, xp: 27855, label: pt ? 'Veterano' : en ? 'Veteran' : 'Veterano' },
-    { level: 500, xp: 110200, label: 'Elite' },
-    { level: 750, xp: 244866, label: pt ? 'Mestre' : en ? 'Master' : 'Maestro' },
-    { level: 1000, xp: 447100, label: pt ? 'Lendário' : en ? 'Legendary' : 'Legendario' },
+    { level: 10, xp: 1350, label: pt ? 'Bronze - taxa 4%' : en ? 'Bronze - 4% fee' : 'Bronce - 4% comisión' },
+    { level: 25, xp: 5871, label: pt ? 'Prata - taxa 3.5%' : en ? 'Silver - 3.5% fee' : 'Plata - 3.5% comisión' },
+    { level: 50, xp: 17146, label: pt ? 'Ouro - taxa 3%' : en ? 'Gold - 3% fee' : 'Oro - 3% comisión' },
+    { level: 100, xp: 49250, label: pt ? 'Diamante - taxa 2.5%' : en ? 'Diamond - 2.5% fee' : 'Diamante - 2.5% comisión' },
   ];
 
   return (
@@ -1450,10 +1445,10 @@ function LevelSystemHelp({ language }: { language: string }) {
         </h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
           {pt
-            ? 'Quanto mais você compra e vende, mais sobe de nível. Alcance o nível máximo de 1000!'
+            ? 'Quanto mais você compra e vende, mais sobe de nível. Alcance o nível máximo de 100!'
             : en
-            ? 'The more you buy and sell, the higher your level. Reach the maximum level of 1000!'
-            : 'Cuanto más compras y vendes, más subes de nivel. ¡Alcanza el nivel máximo de 1000!'}
+            ? 'The more you buy and sell, the higher your level. Reach the maximum level of 100!'
+            : 'Cuanto más compras y vendes, más subes de nivel. ¡Alcanza el nivel máximo de 100!'}
         </p>
       </div>
 
@@ -1488,10 +1483,10 @@ function LevelSystemHelp({ language }: { language: string }) {
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-400">
                 {pt
-                  ? 'Ganhe 15 XP por cada dólar em vendas concluídas. Vendedores ganham mais XP por venda.'
+                  ? 'Ganhe 20 XP por cada dólar em vendas concluídas. Vendedores ganham mais XP por venda. Ao subir de nível, a taxa da plataforma diminui: 5% → 4% → 3.5% → 3% → 2.5%.'
                   : en
-                  ? 'Earn 15 XP for each dollar in completed sales. Sellers earn more XP per sale.'
-                  : 'Gana 15 XP por cada dólar en ventas completadas. Los vendedores ganan más XP por venta.'}
+                  ? 'Earn 20 XP for each dollar in completed sales. Sellers earn more XP per sale. As you level up, the platform fee decreases: 5% → 4% → 3.5% → 3% → 2.5%.'
+                  : 'Gana 20 XP por cada dólar en ventas completadas. Los vendedores ganan más XP por venta. Al subir de nivel, la comisión de la plataforma disminuye: 5% → 4% → 3.5% → 3% → 2.5%.'}
               </p>
             </div>
           </div>
@@ -1522,10 +1517,10 @@ function LevelSystemHelp({ language }: { language: string }) {
           </h4>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
             {pt
-              ? 'A curva é exponencial: cada nível requer mais XP que o anterior. A fórmula é 100 × (nível - 1)^1.8.'
+              ? 'A curva é suave e progressiva: cada nível requer mais XP que o anterior. A fórmula é 50 × (nível - 1)^1.5. Nível máximo: 100.'
               : en
-              ? 'The curve is exponential: each level requires more XP than the last. The formula is 100 × (level - 1)^1.8.'
-              : 'La curva es exponencial: cada nivel requiere más XP que el anterior. La fórmula es 100 × (nivel - 1)^1.8.'}
+              ? 'The curve is smooth and progressive: each level requires more XP than the last. The formula is 50 × (level - 1)^1.5. Max level: 100.'
+              : 'La curva es suave y progresiva: cada nivel requiere más XP que el anterior. La fórmula es 50 × (nivel - 1)^1.5. Nivel máximo: 100.'}
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1573,20 +1568,20 @@ function LevelSystemHelp({ language }: { language: string }) {
               {pt ? 'Um usuário que comprou $50 em produtos:' : en ? 'A user who spent $50 on products:' : 'Un usuario que gastó $50 en productos:'}
             </p>
             <p className="font-mono text-gray-900 dark:text-white pl-4">
-              50 × 10 XP = 500 XP → {pt ? 'Nível' : en ? 'Level' : 'Nivel'} 6
+              50 × 10 XP = 500 XP → {pt ? 'Nível' : en ? 'Level' : 'Nivel'} 11
             </p>
             <p className="pt-1">
               {pt ? 'Um vendedor que vendeu $200:' : en ? 'A seller who sold $200:' : 'Un vendedor que vendió $200:'}
             </p>
             <p className="font-mono text-gray-900 dark:text-white pl-4">
-              200 × 15 XP = 3000 XP → {pt ? 'Nível' : en ? 'Level' : 'Nivel'} 75
+              200 × 20 XP = 4000 XP → {pt ? 'Nível' : en ? 'Level' : 'Nivel'} 21
             </p>
             <p className="pt-1">
               {pt
-                ? 'Para alcançar o nível 1000, um usuário precisaria acumular ~447.100 XP (aproximadamente $44.710 em compras).'
+                ? 'Para alcançar o nível 100 (Diamante), um vendedor precisaria acumular ~49.250 XP (aproximadamente $2.463 em vendas). Taxa final: apenas 2.5%.'
                 : en
-                ? 'To reach level 1000, a user would need ~447,100 XP (approximately $44,710 in purchases).'
-                : 'Para alcanzar el nivel 1000, un usuario necesitaría acumular ~447.100 XP (aproximadamente $44.710 en compras).'}
+                ? 'To reach level 100 (Diamond), a seller would need ~49,250 XP (approximately $2,463 in sales). Final fee: only 2.5%.'
+                : 'Para alcanzar el nivel 100 (Diamante), un vendedor necesitaría acumular ~49.250 XP (aproximadamente $2.463 en ventas). Comisión final: solo 2.5%.'}
             </p>
           </div>
         </div>

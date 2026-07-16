@@ -58,9 +58,9 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
       icon: DollarSign,
       title: lbl('Taxas Mais Baixas do Mercado', 'Lowest Fees in the Market', 'Comisiones Más Bajas del Mercado'),
       desc: lbl(
-        'Comece pagando apenas 5% de taxa e reduza até 1% conforme você sobe de nível. Quanto mais você vende, menos você paga.',
-        'Start paying just 5% fee and reduce down to 1% as you level up. The more you sell, the less you pay.',
-        'Comienza pagando solo 5% de comisión y reduce hasta 1% a medida que subes de nivel. Cuanto más vendes, menos pagas.'
+        'Comece pagando apenas 5% de taxa e reduza até 2.5% conforme você sobe de nível. Quanto mais você vende, menos você paga.',
+        'Start paying just 5% fee and reduce down to 2.5% as you level up. The more you sell, the less you pay.',
+        'Comienza pagando solo 5% de comisión y reduce hasta 2.5% a medida que subes de nivel. Cuanto más vendes, menos pagas.'
       ),
       color: 'from-green-500 to-emerald-600',
     },

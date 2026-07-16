@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign, ShoppingCart, Package, TrendingUp, TrendingDown,
   Clock, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight,
-  Star, Users, AlertTriangle, Eye, Wallet, Lock, Snowflake, Download, X
+  Star, Users, AlertTriangle, Eye, Wallet, Lock, Snowflake, Download, X, Award, ShieldAlert
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -59,6 +59,7 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [sellerLevelInfo, setSellerLevelInfo] = useState<any>(null);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es, [language]);
@@ -189,6 +190,12 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
         setTotalWithdrawn(wData.filter(w => w.status === 'paid').reduce((sum, w) => sum + Number(w.amount), 0));
       }
 
+      // Load seller level/commission info
+      try {
+        const { data: levelData } = await supabase.rpc('get_seller_level_info', { p_seller_id: user?.id });
+        if (levelData) setSellerLevelInfo(levelData);
+      } catch (e) { /* non-critical */ }
+
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
@@ -257,6 +264,45 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
 
   return (
     <div className="space-y-6">
+      {/* Commission/Level Info Banner */}
+      {sellerLevelInfo && (
+        <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl" style={{ backgroundColor: (sellerLevelInfo.current_tier_color || '#3b82f6') + '20', color: sellerLevelInfo.current_tier_color || '#3b82f6' }}>
+                <Award className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{sellerLevelInfo.current_tier_name} · {lbl('Nível', 'Level', 'Nivel')} {sellerLevelInfo.seller_level}/100</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {lbl('Taxa da plataforma', 'Platform fee', 'Comisión plataforma')}: <span className="font-semibold text-red-500">{sellerLevelInfo.admin_rate}%</span> · {lbl('Você recebe', 'You keep', 'Recibes')}: <span className="font-semibold text-green-500">{sellerLevelInfo.seller_rate}%</span>
+                </p>
+              </div>
+            </div>
+            {sellerLevelInfo.next_tier_name && (
+              <div className="text-right">
+                <p className="text-xs text-gray-500 dark:text-gray-400">{lbl('Próximo nível', 'Next tier', 'Siguiente nivel')}: {sellerLevelInfo.next_tier_name} ({lbl('Nível', 'Level', 'Nivel')} {sellerLevelInfo.next_tier_min_level})</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full" style={{ width: `${sellerLevelInfo.progress_pct}%` }} />
+                  </div>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{sellerLevelInfo.progress_pct}%</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{sellerLevelInfo.xp_to_next_tier} XP {lbl('restantes', 'remaining', 'restantes')}</p>
+              </div>
+            )}
+          </div>
+          <div className="mt-3 pt-3 border-t border-blue-500/10">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {lbl(
+                'A cada venda, a plataforma retém a taxa de intermedição automaticamente. Suba de nível para reduzir a taxa: 5% → 4% → 3.5% → 3% → 2.5%.',
+                'On each sale, the platform automatically retains the intermediary fee. Level up to reduce the fee: 5% → 4% → 3.5% → 3% → 2.5%.',
+                'En cada venta, la plataforma retiene automáticamente la comisión de intermediación. Sube de nivel para reducir la comisión: 5% → 4% → 3.5% → 3% → 2.5%.'
+              )}
+            </p>
+          </div>
+        </div>
+      )}
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard
