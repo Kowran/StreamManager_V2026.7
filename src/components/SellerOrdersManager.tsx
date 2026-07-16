@@ -330,14 +330,14 @@ export function SellerOrdersManager() {
     try {
       const { error } = await supabase
         .from('user_ratings')
-        .upsert({
+        .insert({
           rater_id: user.id,
           rated_user_id: customerId,
           order_id: selectedOrder.id,
           rating: customerRating,
           comment: customerRatingComment.trim() || null,
           rater_role: 'seller',
-        }, { onConflict: 'rater_id,rated_user_id,order_id' });
+        });
 
       if (error) throw error;
       setExistingRating(customerRating);

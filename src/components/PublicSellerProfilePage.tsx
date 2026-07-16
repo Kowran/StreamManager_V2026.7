@@ -230,8 +230,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         .from('product_ratings')
         .select(`
           *,
-          store_products!inner(name, seller_id),
-          profiles!product_ratings_user_id_fkey(full_name)
+          store_products!inner(name, seller_id)
         `)
         .eq('store_products.seller_id', sellerId)
         .order('created_at', { ascending: false })
@@ -239,15 +238,24 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
       if (error) throw error;
 
-      if (ratingsWithDetails) {
+      if (ratingsWithDetails && ratingsWithDetails.length > 0) {
+        const userIds = [...new Set(ratingsWithDetails.map((r: any) => r.user_id))] as string[];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || 'Anonymous']));
+
         setRatings(ratingsWithDetails.map((r: any) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment || '',
           created_at: r.created_at,
-          buyer_name: r.profiles?.full_name || 'Anonymous',
+          buyer_name: profileMap.get(r.user_id) || 'Anonymous',
           product_name: r.store_products?.name || ''
         })));
+      } else {
+        setRatings([]);
       }
     } catch (error) {
       console.error('Error in loadSellerRatings:', error);
@@ -258,40 +266,52 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
     try {
       const { data: sellerRatings, error: sellerErr } = await supabase
         .from('user_ratings')
-        .select('id, rating, comment, created_at, rater_role, rater_id, profiles!user_ratings_rater_id_fkey(full_name)')
+        .select('id, rating, comment, created_at, rater_role, rater_id')
         .eq('rated_user_id', userId)
         .eq('rater_role', 'customer')
         .order('created_at', { ascending: false })
         .limit(20);
 
       if (sellerErr) console.error('Error loading seller ratings:', sellerErr);
-      if (sellerRatings) {
-        setUserRatingsAsSeller(sellerRatings.map((r: any) => ({
-          id: r.id,
-          rating: r.rating,
-          comment: r.comment || '',
-          created_at: r.created_at,
-          rater_name: r.profiles?.full_name || 'Anonymous',
-          rater_role: r.rater_role,
-        })));
-      }
 
       const { data: customerRatings, error: customerErr } = await supabase
         .from('user_ratings')
-        .select('id, rating, comment, created_at, rater_role, rater_id, profiles!user_ratings_rater_id_fkey(full_name)')
+        .select('id, rating, comment, created_at, rater_role, rater_id')
         .eq('rated_user_id', userId)
         .eq('rater_role', 'seller')
         .order('created_at', { ascending: false })
         .limit(20);
 
       if (customerErr) console.error('Error loading customer ratings:', customerErr);
+
+      const allRaterIds = [...new Set([...(sellerRatings || []), ...(customerRatings || [])].map(r => r.rater_id))] as string[];
+      let profileMap = new Map<string, string>();
+      if (allRaterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', allRaterIds);
+        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name || 'Anonymous']));
+      }
+
+      if (sellerRatings) {
+        setUserRatingsAsSeller(sellerRatings.map((r: any) => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment || '',
+          created_at: r.created_at,
+          rater_name: profileMap.get(r.rater_id) || 'Anonymous',
+          rater_role: r.rater_role,
+        })));
+      }
+
       if (customerRatings) {
         setUserRatingsAsCustomer(customerRatings.map((r: any) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment || '',
           created_at: r.created_at,
-          rater_name: r.profiles?.full_name || 'Anonymous',
+          rater_name: profileMap.get(r.rater_id) || 'Anonymous',
           rater_role: r.rater_role,
         })));
       }

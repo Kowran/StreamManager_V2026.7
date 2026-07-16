@@ -1349,6 +1349,7 @@ export function UserPurchases() {
           }}
           productId={selectedPurchaseForRating.product_id}
           productName={selectedPurchaseForRating.product_name}
+          orderId={selectedPurchaseForRating.order_id}
           onRatingSubmitted={handleRatingSubmitted}
         />
       )}

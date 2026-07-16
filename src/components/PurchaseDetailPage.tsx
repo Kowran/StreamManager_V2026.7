@@ -133,12 +133,14 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
         if (sellerData) setSeller(sellerData);
       }
 
-      // Check if user rated this product
+      // Check if user rated this product for this specific order
+      const ratedOrderId = (data.store_orders as any)?.id;
       const { data: rating } = await supabase
         .from('product_ratings')
         .select('id')
         .eq('user_id', user.id)
         .eq('product_id', data.product_id)
+        .eq('order_id', ratedOrderId)
         .maybeSingle();
       setUserRated(!!rating);
 

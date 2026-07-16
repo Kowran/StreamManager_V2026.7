@@ -240,21 +240,37 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
     try {
       const { data: asSeller } = await supabase
         .from('user_ratings')
-        .select('id, rating, comment, created_at, rater_role, profiles!user_ratings_rater_id_fkey(full_name)')
+        .select('id, rating, comment, created_at, rater_role, rater_id')
         .eq('rated_user_id', profileId)
         .eq('rater_role', 'customer')
         .order('created_at', { ascending: false })
         .limit(20);
-      setSellerReviews(asSeller || []);
 
       const { data: asCustomer } = await supabase
         .from('user_ratings')
-        .select('id, rating, comment, created_at, rater_role, profiles!user_ratings_rater_id_fkey(full_name)')
+        .select('id, rating, comment, created_at, rater_role, rater_id')
         .eq('rated_user_id', profileId)
         .eq('rater_role', 'seller')
         .order('created_at', { ascending: false })
         .limit(20);
-      setCustomerReviews(asCustomer || []);
+
+      const allRaterIds = [...new Set([...(asSeller || []), ...(asCustomer || [])].map(r => r.rater_id))] as string[];
+      let profileMap: Record<string, string> = {};
+      if (allRaterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', allRaterIds);
+        (profiles || []).forEach(p => { profileMap[p.id] = p.full_name || 'Anonymous'; });
+      }
+
+      const enrich = (ratings: any[]) => (ratings || []).map(r => ({
+        ...r,
+        profiles: { full_name: profileMap[r.rater_id] || 'Anonymous' }
+      }));
+
+      setSellerReviews(enrich(asSeller));
+      setCustomerReviews(enrich(asCustomer));
     } catch (err) {
       console.error('Error loading user ratings:', err);
     } finally {

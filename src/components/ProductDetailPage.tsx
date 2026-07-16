@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, ArrowRight, Package, Check, Truck, ShoppingCart, Star,
   AlertCircle, Loader, UserCheck, CreditCard,
-  Share2, CheckCircle2, Zap, Clock, ChevronDown, Minus, Plus
+  Share2, CheckCircle2, Zap, Clock, ChevronDown, Minus, Plus, ShieldCheck, Award
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -19,6 +19,7 @@ interface ProductWithSeller extends StoreProduct {
     sales_count: number;
     seller_slug?: string;
     avatar_url?: string | null;
+    seller_level?: number;
   };
   is_seller_product?: boolean;
   seller_application_id?: string;
@@ -47,7 +48,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const { user } = useAuth();
   const [storeConfig, setStoreConfig] = useState<{ store_name?: string; store_logo_url?: string; store_description?: string } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<ProductWithSeller[]>([]);
   const [product, setProduct] = useState<ProductWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +56,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
-  const [pendingRating, setPendingRating] = useState<{ productId: string; productName: string } | null>(null);
+  const [pendingRating, setPendingRating] = useState<{ productId: string; productName: string; orderId: string } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [purchaseSuccessData, setPurchaseSuccessData] = useState<{ productName: string; price: number; orderId: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -105,14 +105,13 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
       let productData: ProductWithSeller = { ...data } as ProductWithSeller;
 
-      // Fetch per-product sales count
       const { data: productSalesCount } = await supabase.rpc('get_product_sales_count', { product_uuid: data.id });
       const salesCount = Number(productSalesCount) || 0;
 
       if (data.seller_id) {
         const { data: sellerData } = await supabase
           .from('profiles')
-          .select('full_name, seller_slug, avatar_url, username')
+          .select('full_name, seller_slug, avatar_url, username, seller_level')
           .eq('id', data.seller_id)
           .maybeSingle();
         productData.seller_info = {
@@ -120,6 +119,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           sales_count: salesCount,
           seller_slug: sellerData?.seller_slug,
           avatar_url: sellerData?.avatar_url || null,
+          seller_level: sellerData?.seller_level || 1,
         };
       } else {
         const { data: adminProfile } = await supabase
@@ -137,7 +137,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
       setProduct(productData);
 
-      // Load variations for this product
       const { data: variationData } = await supabase
         .from('store_product_variations')
         .select('*')
@@ -147,7 +146,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       if (variationData && variationData.length > 0) {
         setVariations(variationData);
         setSelectedVariation(variationData[0]);
-        // Fetch stock counts per variation
         const stocks: Record<string, number> = {};
         for (const v of variationData) {
           const { data: count } = await supabase.rpc('get_variation_stock_count', { p_variation_id: v.id });
@@ -155,7 +153,6 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         }
         setVariationStocks(stocks);
       } else {
-        // Fetch total stock for product without variations
         const { data: totalStock } = await supabase.rpc('get_product_total_stock', { p_product_id: data.id });
         if (totalStock !== null && totalStock !== undefined) {
           setProduct(prev => prev ? { ...prev, stock_quantity: totalStock } : prev);
@@ -212,14 +209,14 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
     try {
       const { data } = await supabase
         .from('store_orders')
-        .select('id, product_id, products(name)')
+        .select('id, product_id, store_products!inner(name)')
         .eq('user_id', user.id)
         .eq('status', 'completed')
         .eq('has_rated', false)
         .limit(1);
       if (data && data.length > 0) {
         const item = data[0] as any;
-        setPendingRating({ productId: item.product_id, productName: item.products?.name || '' });
+        setPendingRating({ productId: item.product_id, productName: item.store_products?.name || '', orderId: item.id });
         return true;
       }
       return false;
@@ -304,7 +301,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <Loader className="h-10 w-10 animate-spin text-blue-600 dark:text-blue-400" />
       </div>
     );
@@ -312,7 +309,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
   if (error || !product) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400 mb-4">
@@ -327,15 +324,15 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Back + Share bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
-          <span className="text-sm font-medium">
+          <span className="text-sm font-medium hidden sm:inline">
             {t.language === 'pt' ? 'Voltar a loja' : t.language === 'en' ? 'Back to store' : 'Volver a la tienda'}
           </span>
         </button>
@@ -349,70 +346,52 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       </div>
 
       {/* Product Detail Content */}
-      <main className="pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            {/* Product Image */}
-            <div className="relative">
-              <div className="aspect-[16/10] bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
-                    <Package className="h-16 w-16 text-white opacity-50" />
-                  </div>
+      <main className="pb-8 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Desktop: 2-col layout | Mobile: stacked */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+            {/* LEFT: Image + Ratings */}
+            <div className="space-y-4">
+              {/* Product Image */}
+              <div className="relative">
+                <div className="aspect-[4/3] sm:aspect-[16/10] bg-gray-100 dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg">
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+                      <Package className="h-16 w-16 text-white opacity-50" />
+                    </div>
+                  )}
+                </div>
+                {/* Category badge */}
+                <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">
+                  {product.category}
+                </span>
+                {/* Availability badge */}
+                {!isAvailable && (
+                  <span className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/90 backdrop-blur-sm text-white">
+                    {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
+                  </span>
+                )}
+                {isAvailable && !product.manual_delivery && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
+                  <span className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/90 backdrop-blur-sm text-white">
+                    {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
+                  </span>
                 )}
               </div>
-              {/* Category badge */}
-              <span className="absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">
-                {product.category}
-              </span>
-              {/* Availability badge */}
-              {!isAvailable && (
-                <span className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/90 backdrop-blur-sm text-white">
-                  {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
-                </span>
-              )}
-              {isAvailable && !product.manual_delivery && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-                <span className="absolute top-3 right-3 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-500/90 backdrop-blur-sm text-white">
-                  {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-                </span>
-              )}
+
+              {/* Ratings - below image on desktop, after info on mobile */}
+              <div className="hidden lg:block">
+                <ProductRatingsDisplay productId={product.id} showTitle={true} compact={false} />
+              </div>
             </div>
 
-            {/* Description - below photo */}
-            {product.description && (
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1.5 uppercase tracking-wide">
-                  {t.language === 'pt' ? 'Descrição' : t.language === 'en' ? 'Description' : 'Descripción'}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
-                  {product.description}
-                </p>
-              </div>
-            )}
-
-            {/* Estimated Delivery Time - prominent */}
-            {product.delivery_time && (
-              <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
-                      {t.language === 'pt' ? 'Tempo estimado de entrega' : t.language === 'en' ? 'Estimated delivery time' : 'Tiempo estimado de entrega'}
-                    </p>
-                    <p className="text-sm text-blue-600 dark:text-blue-400">{product.delivery_time}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Product Info */}
+            {/* RIGHT: Product Info */}
             <div className="flex flex-col">
               {/* Delivery badges */}
               <div className="flex flex-wrap gap-2 mb-3">
@@ -444,9 +423,14 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               </div>
 
               {/* Title */}
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 leading-tight">
                 {product.name}
               </h1>
+
+              {/* Compact rating line */}
+              <div className="lg:hidden mb-3">
+                <ProductRatingsDisplay productId={product.id} showTitle={false} compact={true} />
+              </div>
 
               {/* Seller info with avatar */}
               {product.seller_info && (
@@ -477,7 +461,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               )}
 
               {/* Price */}
-              <div className="flex items-baseline gap-2 mb-3">
+              <div className="flex items-baseline gap-2 mb-4">
                 {hasPromo && !selectedVariation && (
                   <span className="text-lg text-gray-400 line-through">
                     {formatPrice(Number(product.price_usdt))}
@@ -487,6 +471,33 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   {formatPrice(effectivePrice)}
                 </span>
               </div>
+
+              {/* Description */}
+              {product.description && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1.5 uppercase tracking-wide">
+                    {t.language === 'pt' ? 'Descrição' : t.language === 'en' ? 'Description' : 'Descripción'}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line text-sm">
+                    {product.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Estimated Delivery Time */}
+              {product.delivery_time && (
+                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                        {t.language === 'pt' ? 'Tempo estimado de entrega' : t.language === 'en' ? 'Estimated delivery time' : 'Tiempo estimado de entrega'}
+                      </p>
+                      <p className="text-sm text-blue-600 dark:text-blue-400">{product.delivery_time}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Variation Selector - Dropdown */}
               {variations.length > 0 && (
@@ -557,7 +568,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   </h3>
                   <ul className="space-y-1.5">
                     {product.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-gray-600 dark:text-gray-400">
+                      <li key={idx} className="flex items-start gap-2 text-gray-600 dark:text-gray-400 text-sm">
                         <Check className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
                         <span>{feat}</span>
                       </li>
@@ -586,12 +597,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                 </div>
               )}
 
-              {/* Ratings */}
-              <div className="mb-4">
-                <ProductRatingsDisplay productId={product.id} showTitle={true} compact={true} />
+              {/* Mobile: Full ratings here */}
+              <div className="lg:hidden mb-4">
+                <ProductRatingsDisplay productId={product.id} showTitle={true} compact={false} />
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons - sticky on mobile */}
               <div className="mt-auto space-y-2">
                 {!isAccountRecharge && (
                   <div className="flex items-center justify-between mb-2">
@@ -622,7 +633,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                 <button
                   onClick={handleBuyNow}
                   disabled={!isAvailable || purchasing}
-                  className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-base transition-all ${
+                  className={`w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-base transition-all ${
                     !isAvailable
                       ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                       : purchasing
@@ -663,7 +674,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
           {/* Related Products */}
           {relatedProducts.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
                 {t.language === 'pt' ? 'Produtos Relacionados' : t.language === 'en' ? 'Related Products' : 'Productos Relacionados'}
               </h2>
@@ -753,7 +764,9 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           onClose={() => { setShowRatingModal(false); setPendingRating(null); }}
           productId={pendingRating.productId}
           productName={pendingRating.productName}
-          onRated={() => { setShowRatingModal(false); setPendingRating(null); }}
+          orderId={pendingRating.orderId}
+          onRatingSubmitted={() => { setShowRatingModal(false); setPendingRating(null); }}
+          force={true}
         />
       )}
 

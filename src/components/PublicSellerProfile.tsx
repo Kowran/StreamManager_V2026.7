@@ -189,18 +189,24 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
       // Reviews
       const revsQuery = supabase
         .from('product_ratings')
-        .select('*, store_products!inner(name, seller_id), profiles!product_ratings_user_id_fkey(full_name)')
+        .select('*, store_products!inner(name, seller_id)')
         .order('created_at', { ascending: false })
         .limit(20);
       if (!isAdmin) revsQuery.eq('store_products.seller_id', targetId);
       const { data: revs } = await revsQuery;
-      if (revs) {
+      if (revs && revs.length > 0) {
+        const userIds = [...new Set(revs.map((r: any) => r.user_id))] as string[];
+        const { data: revProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+        const revProfileMap = new Map((revProfiles || []).map(p => [p.id, p.full_name || 'Anônimo']));
         setRatings(revs.map((r: any) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment || '',
           created_at: r.created_at,
-          buyer_name: r.profiles?.full_name || 'Anônimo',
+          buyer_name: revProfileMap.get(r.user_id) || 'Anônimo',
           product_name: r.store_products?.name || '',
         })));
       }

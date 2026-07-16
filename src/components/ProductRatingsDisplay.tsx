@@ -50,32 +50,28 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
     try {
       const { data, error } = await supabase
         .from('product_ratings')
-        .select('*')
+        .select('id, user_id, product_id, rating, comment, created_at, order_id')
         .eq('product_id', productId)
         .order('created_at', { ascending: false })
         .limit(showAllRatings ? 100 : 5);
 
       if (error) throw error;
-      
-      // Get user profiles separately
+
       if (data && data.length > 0) {
         const userIds = data.map(rating => rating.user_id);
-        const { data: profiles, error: profilesError } = await supabase
+        const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, email')
           .in('id', userIds);
 
-        if (profilesError) {
-          console.error('Error loading profiles:', profilesError);
-          // Still show ratings even if profiles fail to load
-          setRatings(data.map(rating => ({ ...rating, profiles: null })));
-        } else {
-          // Merge ratings with profiles
+        if (profiles) {
           const ratingsWithProfiles = data.map(rating => {
             const profile = profiles?.find(p => p.id === rating.user_id);
             return { ...rating, profiles: profile || null };
           });
           setRatings(ratingsWithProfiles);
+        } else {
+          setRatings(data.map(rating => ({ ...rating, profiles: null })));
         }
       } else {
         setRatings([]);

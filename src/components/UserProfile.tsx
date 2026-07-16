@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Save, X, Mail, Globe, Shield, Check, AlertCircle, Camera, Store, Bell, BellOff, CreditCard as Edit3, Palette, Sparkles, ImagePlus, Trash2, Star, ShoppingBag } from 'lucide-react';
+import { User, Save, X, Mail, Globe, Shield, Check, AlertCircle, Camera, Store, Bell, BellOff, CreditCard as Edit3, Palette, Sparkles, ImagePlus, Trash2, Star, ShoppingBag, ZoomIn, ZoomOut, Move, RotateCcw } from 'lucide-react';
 import { supabase, hasAccountsAccess } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -72,6 +72,12 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
   const [savingBalloonPref, setSavingBalloonPref] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverZoom, setCoverZoom] = useState(1.0);
+  const [coverPosX, setCoverPosX] = useState(50.0);
+  const [coverPosY, setCoverPosY] = useState(50.0);
+  const [adjustingCover, setAdjustingCover] = useState(false);
+  const [draggingCover, setDraggingCover] = useState(false);
+  const coverDragStart = useRef({ x: 0, y: 0, posX: 50, posY: 50 });
   const [activeTab, setActiveTab] = useState<'info' | 'appearance' | 'security' | 'reviews'>('info');
   const [sellerReviews, setSellerReviews] = useState<any[]>([]);
   const [customerReviews, setCustomerReviews] = useState<any[]>([]);
@@ -112,6 +118,9 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
         profile_badge: profile.profile_badge || '',
       });
       setHideExpiringBalloon(profile.hide_expiring_balloon || false);
+      setCoverZoom(profile.cover_zoom ? Number(profile.cover_zoom) : 1.0);
+      setCoverPosX(profile.cover_position_x ? Number(profile.cover_position_x) : 50.0);
+      setCoverPosY(profile.cover_position_y ? Number(profile.cover_position_y) : 50.0);
     }
   }, [profile]);
 
@@ -149,21 +158,44 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     try {
       const { data: asSeller } = await supabase
         .from('user_ratings')
-        .select('id, rating, comment, created_at, rater_role, profiles!user_ratings_rater_id_fkey(full_name)')
+        .select('id, rating, comment, created_at, rater_role, rater_id')
         .eq('rated_user_id', user.id)
         .eq('rater_role', 'customer')
         .order('created_at', { ascending: false })
         .limit(20);
-      setSellerReviews(asSeller || []);
 
       const { data: asCustomer } = await supabase
         .from('user_ratings')
-        .select('id, rating, comment, created_at, rater_role, profiles!user_ratings_rater_id_fkey(full_name)')
+        .select('id, rating, comment, created_at, rater_role, rater_id')
         .eq('rated_user_id', user.id)
         .eq('rater_role', 'seller')
         .order('created_at', { ascending: false })
         .limit(20);
-      setCustomerReviews(asCustomer || []);
+
+      const allRaterIds = [...(asSeller || []), ...(asCustomer || [])].map(r => r.rater_id).filter(Boolean);
+      const uniqueIds = [...new Set(allRaterIds)] as string[];
+
+      let profileMap: Record<string, string> = {};
+      if (uniqueIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', uniqueIds);
+        if (profiles) {
+          profileMap = profiles.reduce((acc, p) => {
+            acc[p.id] = p.full_name || 'Anonymous';
+            return acc;
+          }, {} as Record<string, string>);
+        }
+      }
+
+      const enrich = (ratings: any[]) => (ratings || []).map(r => ({
+        ...r,
+        profiles: { full_name: profileMap[r.rater_id] || 'Anonymous' }
+      }));
+
+      setSellerReviews(enrich(asSeller));
+      setCustomerReviews(enrich(asCustomer));
     } catch (err) {
       console.error('Error loading user ratings:', err);
     } finally {
@@ -235,14 +267,41 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     if (!file || !user) return;
     const url = await uploadImage(file, 'covers', setUploadingCover);
     if (url) {
-      await supabase.from('profiles').update({ cover_url: url }).eq('id', user.id);
+      await supabase.from('profiles').update({ cover_url: url, cover_zoom: 1.0, cover_position_x: 50.0, cover_position_y: 50.0 }).eq('id', user.id);
+      setCoverZoom(1.0); setCoverPosX(50.0); setCoverPosY(50.0);
       await loadUserProfile();
     }
   }
 
+  async function saveCoverPosition() {
+    if (!user) return;
+    await supabase.from('profiles').update({ cover_zoom: coverZoom, cover_position_x: coverPosX, cover_position_y: coverPosY }).eq('id', user.id);
+    setAdjustingCover(false);
+    await loadUserProfile();
+  }
+
+  function handleCoverMouseDown(e: React.MouseEvent) {
+    if (!adjustingCover) return;
+    setDraggingCover(true);
+    coverDragStart.current = { x: e.clientX, y: e.clientY, posX: coverPosX, posY: coverPosY };
+  }
+
+  function handleCoverMouseMove(e: React.MouseEvent) {
+    if (!draggingCover) return;
+    const dx = e.clientX - coverDragStart.current.x;
+    const dy = e.clientY - coverDragStart.current.y;
+    setCoverPosX(Math.max(0, Math.min(100, coverDragStart.current.posX + (dx / 3))));
+    setCoverPosY(Math.max(0, Math.min(100, coverDragStart.current.posY + (dy / 3))));
+  }
+
+  function handleCoverMouseUp() {
+    setDraggingCover(false);
+  }
+
   async function removeCover() {
     if (!user) return;
-    await supabase.from('profiles').update({ cover_url: null }).eq('id', user.id);
+    await supabase.from('profiles').update({ cover_url: null, cover_zoom: 1.0, cover_position_x: 50.0, cover_position_y: 50.0 }).eq('id', user.id);
+    setCoverZoom(1.0); setCoverPosX(50.0); setCoverPosY(50.0);
     await loadUserProfile();
   }
 
@@ -383,13 +442,29 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 
         {/* Cover image area */}
-        <div className="relative h-36 sm:h-48 group">
+        <div
+          className="relative h-36 sm:h-48 group overflow-hidden"
+          onMouseMove={handleCoverMouseMove}
+          onMouseUp={handleCoverMouseUp}
+          onMouseLeave={handleCoverMouseUp}
+        >
           {profile.cover_url ? (
-            <img
-              src={profile.cover_url}
-              alt="Capa"
-              className="w-full h-full object-cover"
-            />
+            <div
+              className="w-full h-full overflow-hidden"
+              style={{ cursor: adjustingCover ? (draggingCover ? 'grabbing' : 'grab') : 'default' }}
+              onMouseDown={handleCoverMouseDown}
+            >
+              <img
+                src={profile.cover_url}
+                alt="Capa"
+                className="w-full h-full object-cover transition-transform duration-150"
+                style={{
+                  transform: `scale(${coverZoom})`,
+                  transformOrigin: `${coverPosX}% ${coverPosY}%`,
+                }}
+                draggable={false}
+              />
+            </div>
           ) : (
             <div
               className="w-full h-full"
@@ -407,30 +482,61 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               }}
             />
           )}
-          {/* Cover actions */}
-          <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
-            <button
-              onClick={() => coverInputRef.current?.click()}
-              disabled={uploadingCover}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 hover:bg-black/80 text-white text-xs font-medium rounded-lg transition-colors backdrop-blur-sm"
-            >
-              {uploadingCover ? (
-                <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
-              ) : (
-                <ImagePlus className="h-3.5 w-3.5" />
-              )}
-              {language === 'pt' ? 'Trocar capa' : 'Change cover'}
-            </button>
-            {profile.cover_url && (
-              <button
-                onClick={removeCover}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/80 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors backdrop-blur-sm"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                {language === 'pt' ? 'Remover' : 'Remove'}
+          {/* Adjust cover toolbar */}
+          {adjustingCover && profile.cover_url && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/70 backdrop-blur-md rounded-xl px-2 py-1.5 z-10">
+              <button onClick={() => setCoverZoom(z => Math.max(1.0, +(z - 0.1).toFixed(1)))} className="p-1.5 text-white hover:bg-white/20 rounded-lg transition-colors">
+                <ZoomOut className="h-4 w-4" />
               </button>
-            )}
-          </div>
+              <span className="text-white text-xs font-medium w-10 text-center">{coverZoom.toFixed(1)}x</span>
+              <button onClick={() => setCoverZoom(z => Math.min(3.0, +(z + 0.1).toFixed(1)))} className="p-1.5 text-white hover:bg-white/20 rounded-lg transition-colors">
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <div className="w-px h-5 bg-white/20" />
+              <button onClick={() => { setCoverZoom(1.0); setCoverPosX(50.0); setCoverPosY(50.0); }} className="p-1.5 text-white hover:bg-white/20 rounded-lg transition-colors">
+                <RotateCcw className="h-4 w-4" />
+              </button>
+              <div className="w-px h-5 bg-white/20" />
+              <button onClick={saveCoverPosition} className="px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-medium rounded-lg transition-colors">
+                {language === 'pt' ? 'Salvar' : 'Save'}
+              </button>
+            </div>
+          )}
+          {/* Cover actions */}
+          {!adjustingCover && (
+            <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploadingCover}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 hover:bg-black/80 text-white text-xs font-medium rounded-lg transition-colors backdrop-blur-sm"
+              >
+                {uploadingCover ? (
+                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                ) : (
+                  <ImagePlus className="h-3.5 w-3.5" />
+                )}
+                {language === 'pt' ? 'Trocar capa' : 'Change cover'}
+              </button>
+              {profile.cover_url && (
+                <>
+                  <button
+                    onClick={() => setAdjustingCover(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-black/60 hover:bg-black/80 text-white text-xs font-medium rounded-lg transition-colors backdrop-blur-sm"
+                  >
+                    <Move className="h-3.5 w-3.5" />
+                    {language === 'pt' ? 'Ajustar' : 'Adjust'}
+                  </button>
+                  <button
+                    onClick={removeCover}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/80 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors backdrop-blur-sm"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    {language === 'pt' ? 'Remover' : 'Remove'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Avatar + name row */}
