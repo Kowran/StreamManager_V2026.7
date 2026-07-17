@@ -233,6 +233,18 @@ export interface ProductRatingSummary {
   one_star_count: number;
 }
 
+export interface ProductCategory {
+  id: string;
+  name: string;
+  slug: string;
+  image_url?: string | null;
+  search_keywords: string[];
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // Function to check if user has accounts access
 export async function hasAccountsAccess(userId: string): Promise<boolean> {
   try {

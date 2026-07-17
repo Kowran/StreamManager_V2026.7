@@ -462,7 +462,6 @@ export function SellerProductsManager() {
         manual_delivery: formData.delivery_type === 'manual' || isRecharge,
         account_recharge: isRecharge,
         delivery_time: formData.delivery_time || null,
-        stock_quantity: 0,
         seller_id: user?.id,
         updated_at: new Date().toISOString(),
       };

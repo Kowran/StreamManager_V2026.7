@@ -23,7 +23,8 @@ import {
   Eye,
   Wallet,
   Globe,
-  Scale
+  Scale,
+  Gamepad2
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -108,6 +109,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
       title: language === 'pt' ? 'Gestão de Produtos' : language === 'en' ? 'Product Management' : 'Gestión de Productos',
       items: [
         { id: 'admin-products', name: language === 'pt' ? 'Gerenciar Produtos' : language === 'en' ? 'Manage Products' : 'Gestionar Productos', icon: Package, color: 'from-indigo-500 to-indigo-600', description: language === 'pt' ? 'Gerencie produtos da loja' : language === 'en' ? 'Manage store products' : 'Gestionar productos de la tienda' },
+        { id: 'admin-product-categories', name: language === 'pt' ? 'Categorias de Jogos' : language === 'en' ? 'Game Categories' : 'Categorías de Juegos', icon: Gamepad2, color: 'from-fuchsia-500 to-fuchsia-600', description: language === 'pt' ? 'Crie categorias (Clash, Fortnite, Minecraft)' : language === 'en' ? 'Create categories (Clash, Fortnite, Minecraft)' : 'Crea categorías (Clash, Fortnite, Minecraft)' },
         { id: 'admin-smm-providers', name: language === 'pt' ? 'Provedores SMM' : language === 'en' ? 'SMM Providers' : 'Proveedores SMM', icon: Server, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Configure APIs e importe serviços' : language === 'en' ? 'Configure APIs and import services' : 'Configure APIs e importe servicios' },
         { id: 'admin-smm', name: language === 'pt' ? 'Configurar Serviços SMM' : language === 'en' ? 'Configure SMM Services' : 'Configurar Servicios SMM', icon: TrendingUp, color: 'from-teal-500 to-teal-600', description: language === 'pt' ? 'Gerencie serviços e preços SMM' : language === 'en' ? 'Manage SMM services and prices' : 'Gestionar servicios y precios SMM' },
         { id: 'admin-smm-orders', name: language === 'pt' ? 'Pedidos SMM' : language === 'en' ? 'SMM Orders' : 'Pedidos SMM', icon: ShoppingCart, color: 'from-violet-500 to-violet-600', description: language === 'pt' ? 'Visualize pedidos SMM dos usuários' : language === 'en' ? 'View user SMM orders' : 'Ver pedidos SMM de usuarios' },

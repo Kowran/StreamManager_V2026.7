@@ -212,11 +212,20 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         .select('id, product_id, store_products!inner(name)')
         .eq('user_id', user.id)
         .eq('status', 'completed')
-        .eq('has_rated', false)
+        .order('created_at', { ascending: false })
         .limit(1);
-      if (data && data.length > 0) {
-        const item = data[0] as any;
-        setPendingRating({ productId: item.product_id, productName: item.store_products?.name || '', orderId: item.id });
+      if (!data || data.length === 0) return false;
+
+      const lastOrder = data[0] as any;
+      const { data: rating } = await supabase
+        .from('product_ratings')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('product_id', lastOrder.product_id)
+        .maybeSingle();
+
+      if (!rating) {
+        setPendingRating({ productId: lastOrder.product_id, productName: lastOrder.store_products?.name || '', orderId: lastOrder.id });
         return true;
       }
       return false;
@@ -414,7 +423,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                     {t.language === 'pt' ? 'Renovavel' : t.language === 'en' ? 'Renewable' : 'Renovable'}
                   </span>
                 )}
-                {product.delivery_time && (
+                {product.delivery_time && !product.auto_delivery && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
                     <Clock className="h-3.5 w-3.5 mr-1" />
                     {product.delivery_time}
@@ -485,7 +494,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               )}
 
               {/* Estimated Delivery Time */}
-              {product.delivery_time && (
+              {product.delivery_time && !product.auto_delivery && (
                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />

@@ -263,7 +263,6 @@ export function AdminProductsManager() {
         manual_delivery: formData.manual_delivery,
         account_recharge: formData.account_recharge || formData.primary_category === 'top_up' || formData.primary_category === 'mobile_recharge',
         delivery_time: formData.delivery_time || null,
-        stock_quantity: 0, // Will be updated by trigger
         seller_id: user?.id || null,
         updated_at: new Date().toISOString()
       };
