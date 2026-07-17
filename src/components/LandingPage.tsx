@@ -918,7 +918,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                 {productsByCategory.map(({ category, products: catProducts }) => (
                   <ProductRow
                     key={category}
-                    title={t.language === 'pt' ? `Categoria: ${category}` : t.language === 'en' ? `Category: ${category}` : `Categoría: ${category}`}
+                    title={category.charAt(0).toUpperCase() + category.slice(1)}
                     products={catProducts}
                     onProductClick={handleProductClick}
                     icon={<FolderTree className="w-5 h-5 text-amber-500" />}
