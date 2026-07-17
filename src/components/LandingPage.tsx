@@ -481,7 +481,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-8 pt-20 sm:pt-24">
           <div className="max-w-7xl mx-auto">
             <div
-        className="relative rounded-2xl overflow-hidden shadow-2xl w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1000px] sm:aspect-[1000/400] group select-none"
+        className="relative rounded-2xl overflow-hidden shadow-2xl w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1920px] sm:aspect-[1920/500] group select-none"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -605,13 +605,13 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                     className="group relative flex-shrink-0 w-[90px] sm:w-[110px] aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
                   >
                     {cat.image_url ? (
-                      <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-80 transition-opacity" />
+                      <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-opacity" />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <Gamepad2 className="h-8 w-8 text-gray-500" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-2">
                       <p className="text-white text-[10px] sm:text-xs font-semibold leading-tight line-clamp-2 text-center">{cat.name}</p>
                     </div>
@@ -623,34 +623,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         </section>
       )}
 
-      {/* Payment Methods Ribbon */}
-      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-3 bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap flex-shrink-0">
-              {t.language === 'pt' ? 'Pagamentos aceitos:' : t.language === 'en' ? 'Accepted payments:' : 'Pagos aceptados:'}
-            </span>
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              {[
-                { label: 'VISA', cls: 'bg-blue-600 text-white font-bold italic' },
-                { label: 'Mastercard', cls: 'bg-orange-500 text-white font-semibold' },
-                { label: 'Elo', cls: 'bg-yellow-500 text-black font-bold' },
-                { label: 'Pix', cls: 'bg-teal-500 text-white font-bold' },
-                { label: 'USDT', cls: 'bg-green-600 text-white font-bold' },
-                { label: 'USDC', cls: 'bg-blue-500 text-white font-bold' },
-                { label: 'Bitcoin', cls: 'bg-orange-600 text-white font-bold' },
-                { label: 'ETH', cls: 'bg-indigo-600 text-white font-bold' },
-                { label: 'Binance', cls: 'bg-yellow-400 text-black font-bold' },
-                { label: 'PayPal', cls: 'bg-blue-700 text-white font-bold italic' },
-              ].map(pm => (
-                <div key={pm.label} className={pm.cls + ' px-2.5 sm:px-3 py-1 rounded-md text-[10px] sm:text-xs whitespace-nowrap shadow-sm'}>
-                  {pm.label}
-                </div>
-              ))}
-          </div>
-            </div>
-        </div>
-      </section>
+
 
       {/* Primary Category - Square Cards */}
       <section className="relative z-30 bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 shadow-sm">
@@ -692,14 +665,6 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       {/* Store Products Section */}
       <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-16 lg:py-20 bg-gray-50 dark:bg-gray-800/50">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-3">
-              {t.language === 'pt' ? 'Nossos Produtos' : t.language === 'en' ? 'Our Products' : 'Nuestros Productos'}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              {t.language === 'pt' ? 'Confira nossos produtos disponiveis com os melhores precos' : t.language === 'en' ? 'Check out our available products at the best prices' : 'Descubre nuestros productos disponibles con los mejores precios'}
-            </p>
-          </div>
 
           {/* Search Bar + Secondary Filter Dropdown */}
           <div className="max-w-3xl mx-auto mb-8">
@@ -977,6 +942,40 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Compre e Venda Section */}
+      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-12 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-3xl lg:text-5xl font-bold text-white mb-3">
+            {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
+          </h2>
+          <p className="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto mb-8">
+            {t.language === 'pt'
+              ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.'
+              : t.language === 'en'
+              ? 'The Gamer Marketplace where you find accounts, items, recharges and much more. Buy safely or sell your products to thousands of gamers.'
+              : 'El Marketplace Gamer donde encuentras cuentas, artículos, recargas y mucho más. Compra con seguridad o vende tus productos a miles de gamers.'}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            {[
+              { label: 'VISA', cls: 'bg-blue-600 text-white font-bold italic' },
+              { label: 'Mastercard', cls: 'bg-orange-500 text-white font-semibold' },
+              { label: 'Elo', cls: 'bg-yellow-500 text-black font-bold' },
+              { label: 'Pix', cls: 'bg-teal-500 text-white font-bold' },
+              { label: 'USDT', cls: 'bg-green-600 text-white font-bold' },
+              { label: 'USDC', cls: 'bg-blue-500 text-white font-bold' },
+              { label: 'Bitcoin', cls: 'bg-orange-600 text-white font-bold' },
+              { label: 'ETH', cls: 'bg-indigo-600 text-white font-bold' },
+              { label: 'Binance', cls: 'bg-yellow-400 text-black font-bold' },
+              { label: 'PayPal', cls: 'bg-blue-700 text-white font-bold italic' },
+            ].map(pm => (
+              <div key={pm.label} className={pm.cls + ' px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm whitespace-nowrap shadow-sm'}>
+                {pm.label}
+              </div>
+            ))}
           </div>
         </div>
       </section>

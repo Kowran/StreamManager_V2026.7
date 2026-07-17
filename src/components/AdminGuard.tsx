@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertCircle } from 'lucide-react';
+import { Shield, AlertCircle, Home } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -75,26 +75,32 @@ export function AdminGuard({ children, page }: AdminGuardProps) {
 
   if (status === 'denied') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-6">
-        <div className="bg-red-50 dark:bg-red-900/20 rounded-full p-4 mb-4">
-          <AlertCircle className="h-12 w-12 text-red-600 dark:text-red-400" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-full p-5 mb-5">
+          <AlertCircle className="h-14 w-14 text-gray-400 dark:text-gray-500" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          {language === 'pt' ? 'Acesso Negado' : language === 'en' ? 'Access Denied' : 'Acceso Denegado'}
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+          {language === 'pt' ? 'Página não encontrada' : language === 'en' ? 'Page not found' : 'Página no encontrada'}
         </h2>
-        <p className="text-gray-600 dark:text-gray-400 text-center max-w-md mb-6">
+        <p className="text-gray-600 dark:text-gray-400 max-w-md mb-8">
           {language === 'pt'
-            ? 'Você não tem permissão para acessar esta área.'
+            ? 'A página que você tentou acessar não existe ou não está disponível.'
             : language === 'en'
-            ? 'You do not have permission to access this area.'
-            : 'No tiene permiso para acceder a esta área.'}
+            ? 'The page you tried to access does not exist or is not available.'
+            : 'La página que intentaste acceder no existe o no está disponible.'}
         </p>
-        <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-          <Shield className="h-4 w-4" />
+        <button
+          onClick={() => {
+            window.location.hash = '';
+            window.location.href = window.location.origin;
+          }}
+          className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-blue-500/20"
+        >
+          <Home className="h-5 w-5" />
           <span>
-            {language === 'pt' ? 'Área Restrita' : language === 'en' ? 'Restricted Area' : 'Área Restringida'}
+            {language === 'pt' ? 'Voltar para a página inicial' : language === 'en' ? 'Back to home page' : 'Volver a la página de inicio'}
           </span>
-        </div>
+        </button>
       </div>
     );
   }

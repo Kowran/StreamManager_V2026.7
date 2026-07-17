@@ -906,13 +906,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 className="group relative aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
               >
                 {cat.image_url ? (
-                  <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-80 transition-opacity" />
+                  <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-opacity" />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Gamepad2 className="h-10 w-10 text-gray-500" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-2.5">
                   <p className="text-white text-xs sm:text-sm font-semibold leading-tight line-clamp-2 text-center">{cat.name}</p>
                 </div>
