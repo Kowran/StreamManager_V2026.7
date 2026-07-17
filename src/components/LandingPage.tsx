@@ -476,25 +476,41 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         )}
       </header>
 
-      {/* Compre e Venda Hero Text */}
-      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-10 sm:py-14 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-3xl lg:text-5xl font-bold text-white mb-3">
-            {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
-          </h2>
-          <p className="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto">
-            {t.language === 'pt'
-              ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.'
-              : t.language === 'en'
-              ? 'The Gamer Marketplace where you find accounts, items, recharges and much more. Buy safely or sell your products to thousands of gamers.'
-              : 'El Marketplace Gamer donde encuentras cuentas, artículos, recargas y mucho más. Compra con seguridad o vende tus productos a miles de gamers.'}
-          </p>
+      {/* Compre e Venda Hero Text - with coding animation */}
+      <section className="relative z-10 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {/* Subtle code grid overlay */}
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-3 sm:pt-8 sm:pb-4">
+          <div className="flex flex-col items-center text-center">
+            {/* Coding terminal-style title */}
+            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-gray-800/80 border border-gray-700/50 backdrop-blur-sm">
+              <span className="flex gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
+              </span>
+              <span className="text-[10px] sm:text-xs font-mono text-gray-400 ml-1">marketplace.ts</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2 font-mono">
+              <span className="text-emerald-400">{'>'}</span>{' '}
+              <span className="animate-code-type text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-blue-400">
+                {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
+              </span>
+            </h2>
+            <p className="text-sm sm:text-base lg:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
+              {t.language === 'pt'
+                ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.'
+                : t.language === 'en'
+                ? 'The Gamer Marketplace where you find accounts, items, recharges and much more. Buy safely or sell your products to thousands of gamers.'
+                : 'El Marketplace Gamer donde encuentras cuentas, artículos, recargas y mucho más. Compra con seguridad o vende tus productos a miles de gamers.'}
+            </p>
+          </div>
         </div>
       </section>
 
       {/* Rotating Banner Carousel */}
       {banners.length > 0 && (
-        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-8 pt-20 sm:pt-24">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-8 pt-4 sm:pt-6">
           <div className="max-w-7xl mx-auto">
             <div
         className="relative rounded-2xl overflow-hidden shadow-2xl w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1920px] sm:aspect-[1920/500] group select-none"
