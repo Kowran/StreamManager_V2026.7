@@ -709,7 +709,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       {/* Rotating Banner Carousel */}
       {banners.length > 0 && (
-        <div className="relative rounded-2xl overflow-hidden shadow-2xl group h-[220px] sm:h-[400px] lg:h-[500px] select-none">
+        <div className="relative rounded-2xl overflow-hidden shadow-2xl group w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1000px] sm:aspect-[1000/400] select-none">
           {banners.map((banner, idx) => (
             <div
               key={banner.id}
@@ -720,30 +720,24 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 <img
                   src={banner.image_url}
                   alt={banner.title}
-                  className={`absolute inset-0 w-full h-full object-cover ${
-                    banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'
-                  }`}
+                  className={`absolute inset-0 w-full h-full object-cover ${banner.bg_color && banner.bg_color !== 'transparent' ? 'opacity-40' : 'opacity-100'}`}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               )}
               <div
-                className={`relative h-full flex flex-col justify-center px-6 sm:px-12 lg:px-16 ${
-                  banner.text_position === 'center' ? 'items-center text-center' :
-                  banner.text_position === 'right' ? 'items-end text-right' :
-                  'items-start text-left'
-                }`}
+                className={`relative h-full flex flex-col justify-center px-6 sm:px-10 ${banner.text_position === 'center' ? 'items-center text-center' : banner.text_position === 'right' ? 'items-end text-right' : 'items-start text-left'}`}
                 style={{ color: banner.text_color }}
               >
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 drop-shadow-lg line-clamp-2">{banner.title}</h2>
+                <h2 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2 drop-shadow-lg line-clamp-2">{banner.title}</h2>
                 {banner.subtitle && (
-                  <p className="text-sm sm:text-base lg:text-lg opacity-90 mb-4 max-w-lg drop-shadow-md line-clamp-2">{banner.subtitle}</p>
+                  <p className="text-xs sm:text-base opacity-90 mb-2 sm:mb-4 max-w-lg drop-shadow-md line-clamp-2">{banner.subtitle}</p>
                 )}
                 {banner.link_url && (
                   <a
                     href={banner.link_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 transition-all hover:scale-105"
+                    className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 transition-all hover:scale-105"
                   >
                     {banner.link_text || (t.language === 'pt' ? 'Ver mais' : t.language === 'en' ? 'See more' : 'Ver más')}
                     <ArrowRight className="w-4 h-4" />

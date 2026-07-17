@@ -92,8 +92,19 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [productCategories, setProductCategories] = useState<any[]>([]);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+  const categoriesScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategories = useCallback((dir: 'left' | 'right') => {
+    const el = categoriesScrollRef.current;
+    if (!el) return;
+    const cardWidth = el.querySelector('[data-cat-card]')?.getBoundingClientRect().width ?? 120;
+    const gap = 12;
+    const scrollAmount = Math.max(cardWidth + gap, 120);
+    el.scrollBy({ left: dir === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+  }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -188,7 +199,19 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     checkAffiliateCode();
     loadBanners();
     loadProducts();
+    loadProductCategories();
   }, []);
+
+  async function loadProductCategories() {
+    try {
+      const { data, error } = await supabase
+        .from('product_categories')
+        .select('id, name, slug, image_url, search_keywords, sort_order')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+      if (!error && data) setProductCategories(data);
+    } catch { /* ignore */ }
+  }
 
   // Shuffle products for "recommended" row — stable shuffle to avoid recompute on every render
   const recommendedProducts = useMemo(() => {
@@ -458,7 +481,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-8 pt-20 sm:pt-24">
           <div className="max-w-7xl mx-auto">
             <div
-        className="relative rounded-2xl overflow-hidden shadow-2xl h-[220px] sm:h-[400px] lg:h-[500px] group select-none"
+        className="relative rounded-2xl overflow-hidden shadow-2xl w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1000px] sm:aspect-[1000/400] group select-none"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -547,6 +570,87 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
           </div>
         </section>
       )}
+
+      {/* Product Categories - Game cards */}
+      {productCategories.length > 0 && (
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-6">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">
+              {t.language === 'pt' ? 'Categorias de Jogos' : t.language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
+            </h2>
+            <div className="relative group/cat">
+              <button
+                onClick={() => scrollCategories('left')}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:scale-110 transition-all opacity-80 group-hover/cat:opacity-100"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => scrollCategories('right')}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:scale-110 transition-all opacity-80 group-hover/cat:opacity-100"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <div
+                ref={categoriesScrollRef}
+                className="flex gap-3 overflow-x-auto scroll-smooth pb-2 -mb-2 scrollbar-hide"
+              >
+                {productCategories.map(cat => (
+                  <button
+                    key={cat.id}
+                    data-cat-card
+                    onClick={() => { onGetStarted(); setTimeout(() => { window.location.hash = `category/${cat.slug}`; }, 500); }}
+                    className="group relative flex-shrink-0 w-[90px] sm:w-[110px] aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
+                  >
+                    {cat.image_url ? (
+                      <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:opacity-80 transition-opacity" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Gamepad2 className="h-8 w-8 text-gray-500" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-2">
+                      <p className="text-white text-[10px] sm:text-xs font-semibold leading-tight line-clamp-2 text-center">{cat.name}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Payment Methods Ribbon */}
+      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-3 bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-3 sm:gap-4 overflow-x-auto scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <span className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap flex-shrink-0">
+              {t.language === 'pt' ? 'Pagamentos aceitos:' : t.language === 'en' ? 'Accepted payments:' : 'Pagos aceptados:'}
+            </span>
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+              {[
+                { label: 'VISA', cls: 'bg-blue-600 text-white font-bold italic' },
+                { label: 'Mastercard', cls: 'bg-orange-500 text-white font-semibold' },
+                { label: 'Elo', cls: 'bg-yellow-500 text-black font-bold' },
+                { label: 'Pix', cls: 'bg-teal-500 text-white font-bold' },
+                { label: 'USDT', cls: 'bg-green-600 text-white font-bold' },
+                { label: 'USDC', cls: 'bg-blue-500 text-white font-bold' },
+                { label: 'Bitcoin', cls: 'bg-orange-600 text-white font-bold' },
+                { label: 'ETH', cls: 'bg-indigo-600 text-white font-bold' },
+                { label: 'Binance', cls: 'bg-yellow-400 text-black font-bold' },
+                { label: 'PayPal', cls: 'bg-blue-700 text-white font-bold italic' },
+              ].map(pm => (
+                <div key={pm.label} className={pm.cls + ' px-2.5 sm:px-3 py-1 rounded-md text-[10px] sm:text-xs whitespace-nowrap shadow-sm'}>
+                  {pm.label}
+                </div>
+              ))}
+          </div>
+            </div>
+        </div>
+      </section>
 
       {/* Primary Category - Square Cards */}
       <section className="relative z-30 bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 shadow-sm">
