@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -88,6 +88,14 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasRequestedSeller, setHasRequestedSeller] = useState(false);
   const [productCategories, setProductCategories] = useState<any[]>([]);
+  const categoriesScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollCategories = useCallback((direction: 'left' | 'right') => {
+    if (categoriesScrollRef.current) {
+      const scrollAmount = 300;
+      categoriesScrollRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -709,7 +717,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       {/* Rotating Banner Carousel */}
       {banners.length > 0 && (
-        <div className="relative rounded-2xl overflow-hidden shadow-2xl group w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1000px] sm:aspect-[1000/400] select-none">
+        <div className="relative rounded-2xl overflow-hidden shadow-2xl group w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1920px] sm:aspect-[1920/500] select-none">
           {banners.map((banner, idx) => (
             <div
               key={banner.id}
@@ -890,7 +898,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       </div>
 
       {/* Horizontal product rows - shown when not filtering */}
-      {/* Product Categories - Game cards */}
+      {/* Product Categories - Game cards carousel */}
       {!isFiltering && activeCategory !== 'smm' && !loading && productCategories.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -898,26 +906,44 @@ export function Store({ onNavigate }: StoreProps = {}) {
               {language === 'pt' ? 'Categorias de Jogos' : language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
             </h2>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {productCategories.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => { window.location.hash = `category/${cat.slug}`; }}
-                className="group relative aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
-              >
-                {cat.image_url ? (
-                  <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-opacity" />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Gamepad2 className="h-10 w-10 text-gray-500" />
+          <div className="relative">
+            {productCategories.length > 6 && (
+              <>
+                <button
+                  onClick={() => scrollCategories('left')}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 shadow-lg rounded-full p-1.5 hover:scale-110 transition-transform"
+                >
+                  <ChevronLeft className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                </button>
+                <button
+                  onClick={() => scrollCategories('right')}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-gray-800 shadow-lg rounded-full p-1.5 hover:scale-110 transition-transform"
+                >
+                  <ChevronRight className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+                </button>
+              </>
+            )}
+            <div ref={categoriesScrollRef} className="flex gap-3 overflow-x-auto scroll-smooth scrollbar-hide pb-2">
+              {productCategories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => { window.location.hash = `category/${cat.slug}`; }}
+                  className="group relative flex-shrink-0 w-[90px] sm:w-[110px] aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
+                >
+                  {cat.image_url ? (
+                    <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-opacity" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Gamepad2 className="h-10 w-10 text-gray-500" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                    <p className="text-white text-xs sm:text-sm font-semibold leading-tight line-clamp-2 text-center">{cat.name}</p>
                   </div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                  <p className="text-white text-xs sm:text-sm font-semibold leading-tight line-clamp-2 text-center">{cat.name}</p>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

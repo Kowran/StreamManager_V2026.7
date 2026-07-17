@@ -476,6 +476,22 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         )}
       </header>
 
+      {/* Compre e Venda Hero Text */}
+      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-10 sm:py-14 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-3xl lg:text-5xl font-bold text-white mb-3">
+            {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
+          </h2>
+          <p className="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto">
+            {t.language === 'pt'
+              ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.'
+              : t.language === 'en'
+              ? 'The Gamer Marketplace where you find accounts, items, recharges and much more. Buy safely or sell your products to thousands of gamers.'
+              : 'El Marketplace Gamer donde encuentras cuentas, artículos, recargas y mucho más. Compra con seguridad o vende tus productos a miles de gamers.'}
+          </p>
+        </div>
+      </section>
+
       {/* Rotating Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-8 pt-20 sm:pt-24">
@@ -946,19 +962,9 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         </div>
       </section>
 
-      {/* Compre e Venda Section */}
-      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-12 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        <div className="max-w-7xl mx-auto text-center">
-          <h2 className="text-3xl lg:text-5xl font-bold text-white mb-3">
-            {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
-          </h2>
-          <p className="text-base sm:text-lg text-gray-300 max-w-2xl mx-auto mb-8">
-            {t.language === 'pt'
-              ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.'
-              : t.language === 'en'
-              ? 'The Gamer Marketplace where you find accounts, items, recharges and much more. Buy safely or sell your products to thousands of gamers.'
-              : 'El Marketplace Gamer donde encuentras cuentas, artículos, recargas y mucho más. Compra con seguridad o vende tus productos a miles de gamers.'}
-          </p>
+      {/* Payment Methods Ribbon */}
+      <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-10 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        <div className="max-w-7xl mx-auto">
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
             {[
               { label: 'VISA', cls: 'bg-blue-600 text-white font-bold italic' },
