@@ -59,6 +59,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [activePrimaryCategory, setActivePrimaryCategory] = useState<'all' | PrimaryCategory>('all');
   const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
@@ -650,8 +651,10 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
 
         {/* Desktop Search - inline in header */}
-        <div className="hidden lg:block relative w-72 xl:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+        <form onSubmit={e => { e.preventDefault(); setSearchTerm(searchInput); }} className="hidden lg:block relative w-72 xl:w-80">
+          <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+            <Search className="h-4 w-4" />
+          </button>
           <input
             type="text"
             placeholder={
@@ -659,19 +662,20 @@ export function Store({ onNavigate }: StoreProps = {}) {
               t.language === 'en' ? 'Search products...' :
               'Buscar productos...'
             }
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all text-sm"
           />
-          {searchTerm && (
+          {searchInput && (
             <button
-              onClick={() => setSearchTerm('')}
+              type="button"
+              onClick={() => { setSearchInput(''); setSearchTerm(''); }}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
           )}
-        </div>
+        </form>
 
         <div className="flex flex-row sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {userRole === 'seller' && onNavigate ? (
@@ -786,8 +790,10 @@ export function Store({ onNavigate }: StoreProps = {}) {
       <div className="mb-3 sm:mb-4 lg:hidden">
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400 pointer-events-none" />
+          <form onSubmit={e => { e.preventDefault(); setSearchTerm(searchInput); }} className="relative flex-1">
+            <button type="submit" className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+            </button>
             <input
               type="text"
               placeholder={
@@ -795,19 +801,20 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 t.language === 'en' ? 'Search products...' :
                 'Buscar productos...'
               }
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-10 sm:pl-12 pr-4 py-2.5 sm:py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all text-sm"
             />
-            {searchTerm && (
+            {searchInput && (
               <button
-                onClick={() => setSearchTerm('')}
+                type="button"
+                onClick={() => { setSearchInput(''); setSearchTerm(''); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
-          </div>
+          </form>
 
           {/* Secondary Filter Dropdown */}
           <div className="relative flex-shrink-0">
