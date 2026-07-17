@@ -74,9 +74,10 @@ import { ChatInbox } from './components/ChatInbox';
 import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { AdminProductCategoriesManager } from './components/AdminProductCategoriesManager';
 import { CategorySearchPage } from './components/CategorySearchPage';
+import { SearchResultsPage } from './components/SearchResultsPage';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
 
 interface StoreConfig {
   store_name?: string;
@@ -104,6 +105,7 @@ function AppContent() {
   const [sellerSlug, setSellerSlug] = useState<string | null>(null);
   const [profileIdentifier, setProfileIdentifier] = useState<string | null>(null);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
 
   useOnlineHeartbeat(user?.id);
@@ -264,6 +266,10 @@ function AppContent() {
         const catSlug = hash.replace('category/', '');
         setCategorySlug(catSlug);
         setActiveTab('category-search');
+      } else if (hash.startsWith('search/')) {
+        const sq = decodeURIComponent(hash.replace('search/', ''));
+        setSearchQuery(sq);
+        setActiveTab('search-results');
       } else if (hash && hash !== activeTab) {
         setSellerSlug(null);
         setProductDetailId(null);
@@ -282,7 +288,7 @@ function AppContent() {
 
   // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
-    if (user && !loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'category-search') {
+    if (user && !loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'category-search' && activeTab !== 'search-results') {
       const currentHash = window.location.hash.slice(1);
       if (currentHash !== activeTab) {
         window.history.pushState(null, '', `#${activeTab}`);
@@ -428,6 +434,22 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setCategorySlug(null);
+              window.history.pushState(null, '', '#store');
+            }}
+            onProductClick={(product: any) => {
+              setProductDetailId(product.id);
+              setActiveTab('product-detail');
+            }}
+            onNavigate={navigateWithRecharge}
+          />
+        );
+      case 'search-results':
+        return (
+          <SearchResultsPage
+            query={searchQuery}
+            onBack={() => {
+              setActiveTab('store');
+              setSearchQuery('');
               window.history.pushState(null, '', '#store');
             }}
             onProductClick={(product: any) => {

@@ -60,6 +60,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
+
+  const navigateToSearch = (q: string) => {
+    const query = q.trim();
+    if (!query) return;
+    window.history.pushState(null, '', `#search/${encodeURIComponent(query)}`);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  };
   const [activeCategory, setActiveCategory] = useState('all');
   const [activePrimaryCategory, setActivePrimaryCategory] = useState<'all' | PrimaryCategory>('all');
   const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
@@ -651,7 +658,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
 
         {/* Desktop Search - inline in header */}
-        <form onSubmit={e => { e.preventDefault(); setSearchTerm(searchInput); }} className="hidden lg:block relative w-72 xl:w-80">
+        <form onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }} className="hidden lg:block relative w-72 xl:w-80">
           <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
             <Search className="h-4 w-4" />
           </button>
@@ -676,8 +683,9 @@ export function Store({ onNavigate }: StoreProps = {}) {
             </button>
           )}
         </form>
+      </div>
 
-        <div className="flex flex-row sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+      <div className="flex flex-row sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {userRole === 'seller' && onNavigate ? (
             <button
               onClick={() => onNavigate('seller-store')}
@@ -716,7 +724,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
             </div>
           </div>
         </button>
-        </div>
       </div>
 
       {/* Rotating Banner Carousel */}
@@ -790,7 +797,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       <div className="mb-3 sm:mb-4 lg:hidden">
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Search */}
-          <form onSubmit={e => { e.preventDefault(); setSearchTerm(searchInput); }} className="relative flex-1">
+          <form onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }} className="relative flex-1">
             <button type="submit" className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
               <Search className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
