@@ -413,6 +413,28 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             </h1>
           </div>
 
+          {/* Desktop Search */}
+          <div className="hidden md:flex flex-1 max-w-md mx-6">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-3">
             <button onClick={toggleTheme} className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -448,6 +470,16 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             />
             <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg animate-slide-down z-50">
               <div className="px-4 py-4 space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                  />
+                </div>
                 <button onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }}
                   className="w-full flex items-center justify-between p-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
                   <span className="font-medium">
@@ -476,28 +508,14 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         )}
       </header>
 
-      {/* Compre e Venda Hero Text - with coding animation */}
-      <section className="relative z-10 overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {/* Subtle code grid overlay */}
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      {/* Compre e Venda Hero Text */}
+      <section className="relative z-10 bg-white dark:bg-gray-900">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-3 sm:pt-8 sm:pb-4">
           <div className="flex flex-col items-center text-center">
-            {/* Coding terminal-style title */}
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-gray-800/80 border border-gray-700/50 backdrop-blur-sm">
-              <span className="flex gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500/80" />
-              </span>
-              <span className="text-[10px] sm:text-xs font-mono text-gray-400 ml-1">marketplace.ts</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2 font-mono">
-              <span className="text-emerald-400">{'>'}</span>{' '}
-              <span className="animate-code-type text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-blue-400">
-                {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
-              </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-2">
+              {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
             </h2>
-            <p className="text-sm sm:text-base lg:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
               {t.language === 'pt'
                 ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.'
                 : t.language === 'en'
@@ -698,29 +716,9 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-16 lg:py-20 bg-gray-50 dark:bg-gray-800/50">
         <div className="max-w-7xl mx-auto">
 
-          {/* Search Bar + Secondary Filter Dropdown */}
+          {/* Secondary Filter Dropdown */}
           <div className="max-w-3xl mx-auto mb-8">
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Search */}
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
+            <div className="flex items-center gap-2 sm:gap-3 justify-end">
               {/* Secondary Filter Dropdown */}
               <div className="relative flex-shrink-0">
                 <button
