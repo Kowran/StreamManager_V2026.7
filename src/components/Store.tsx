@@ -646,46 +646,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   return (
     <div className="space-y-4 sm:space-y-6 min-w-0 overflow-x-hidden">
-      {/* Header - Store Name, Search (desktop), and Balance */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div className="flex-1 min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{t.store}</h2>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {t.language === 'pt' ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.' :
-             t.language === 'en' ? 'The Gamer Marketplace where you find accounts, items, recharges and much more. Buy safely or sell your products to thousands of gamers.' :
-             'El Marketplace Gamer donde encuentras cuentas, artículos, recargas y mucho más. Compra con seguridad o vende tus productos a miles de gamers.'}
-          </p>
-        </div>
-
-        {/* Desktop Search - inline in header */}
-        <form onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }} className="hidden lg:block relative w-72 xl:w-80">
-          <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-            <Search className="h-4 w-4" />
-          </button>
-          <input
-            type="text"
-            placeholder={
-              t.language === 'pt' ? 'Buscar produtos...' :
-              t.language === 'en' ? 'Search products...' :
-              'Buscar productos...'
-            }
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all text-sm"
-          />
-          {searchInput && (
-            <button
-              type="button"
-              onClick={() => { setSearchInput(''); setSearchTerm(''); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </form>
-      </div>
-
-      <div className="flex flex-row sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+      {/* Header - Seller actions only */}
+      <div className="flex flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {userRole === 'seller' && onNavigate ? (
             <button
               onClick={() => onNavigate('seller-store')}
@@ -703,27 +665,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
               <span>{t.language === 'pt' ? 'Ser Vendedor' : t.language === 'en' ? 'Be a Seller' : 'Ser Vendedor'}</span>
             </button>
           ) : null}
-          <button
-            onClick={() => onNavigate?.('credits')}
-            className="flex-1 sm:flex-initial bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 px-3 sm:px-6 py-2.5 sm:py-3 group"
-          >
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="bg-white/20 rounded-lg p-1.5 sm:p-2">
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-            <div className="text-left">
-              <div className="text-[10px] sm:text-xs font-medium opacity-90">
-                {t.language === 'pt' ? 'Saldo Disponível' : t.language === 'en' ? 'Available Balance' : 'Saldo Disponible'}
-              </div>
-              <div className="text-lg sm:text-2xl font-bold">
-                {formatPrice(userCredit?.balance || 0)}
-              </div>
-            </div>
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block">
-              <ArrowRight className="h-5 w-5" />
-            </div>
-          </div>
-        </button>
       </div>
 
       {/* Rotating Banner Carousel */}
