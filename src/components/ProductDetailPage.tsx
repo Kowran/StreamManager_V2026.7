@@ -12,6 +12,8 @@ import { LoginModal } from './LoginModal';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { PurchaseConfirmModal } from './PurchaseConfirmModal';
 import { ProductRatingModal } from './ProductRatingModal';
+import { SellerReputation } from './SellerReputation';
+import { ProductQABlock } from './ProductQABlock';
 
 interface ProductWithSeller extends StoreProduct {
   seller_info?: {
@@ -20,6 +22,7 @@ interface ProductWithSeller extends StoreProduct {
     seller_slug?: string;
     avatar_url?: string | null;
     seller_level?: number;
+    seller_id?: string | null;
   };
   is_seller_product?: boolean;
   seller_application_id?: string;
@@ -120,6 +123,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           seller_slug: sellerData?.seller_slug,
           avatar_url: sellerData?.avatar_url || null,
           seller_level: sellerData?.seller_level || 1,
+          seller_id: data.seller_id,
         };
       } else {
         const { data: adminProfile } = await supabase
@@ -132,6 +136,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           sales_count: salesCount,
           seller_slug: adminProfile?.seller_slug,
           avatar_url: adminProfile?.avatar_url || null,
+          seller_id: adminProfile?.id || null,
         };
       }
 
@@ -733,6 +738,19 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   );
                 })}
               </div>
+            </div>
+          )}
+          {/* Q&A Block */}
+          {product && (
+            <div className="mt-8">
+              <ProductQABlock productId={product.id} sellerId={product.seller_info?.seller_id || null} />
+            </div>
+          )}
+
+          {/* Seller Reputation */}
+          {product?.seller_info?.seller_id && (
+            <div className="mt-6">
+              <SellerReputation sellerId={product.seller_info.seller_id} sellerName={product.seller_info.business_name} />
             </div>
           )}
         </div>

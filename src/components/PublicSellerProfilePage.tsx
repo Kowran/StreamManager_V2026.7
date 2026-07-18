@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
+import { SellerReputation } from './SellerReputation';
 import { OnlineBadge } from './OnlineBadge';
 import { ChatModal } from './ChatModal';
 import { LevelBadge } from './LevelBadge';
@@ -764,6 +765,11 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
             </div>
           )}
         </div>
+      </div>
+
+      {/* Seller Reputation */}
+      <div className="mt-4">
+        <SellerReputation sellerId={profile.id} sellerName={profile.full_name || profile.username || profile.seller_slug} />
       </div>
 
       {chatOpen && (

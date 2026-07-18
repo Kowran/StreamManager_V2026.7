@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart, MessageCircle,
-  Store, AlertTriangle, Loader2, Wallet
+  Store, AlertTriangle, Loader2, Wallet, HelpCircle
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -11,8 +11,9 @@ import { SellerProductsManager } from './SellerProductsManager';
 import { SellerOrdersManager } from './SellerOrdersManager';
 import { SellerSupport } from './SellerSupport';
 import { SellerBalanceDetail } from './SellerBalanceDetail';
+import { SellerQAManager } from './SellerQAManager';
 
-type SellerTab = 'dashboard' | 'products' | 'orders' | 'support' | 'balance';
+type SellerTab = 'dashboard' | 'products' | 'orders' | 'qa' | 'support' | 'balance';
 
 export function SellerStore() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export function SellerStore() {
   const [loading, setLoading] = useState(true);
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
+  const [pendingQuestionsCount, setPendingQuestionsCount] = useState(0);
   const [vacationMode, setVacationMode] = useState(false);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -70,8 +72,15 @@ export function SellerStore() {
         .eq('seller_id', user.id)
         .in('status', ['open', 'waiting_seller']);
 
+      const { count: questionsCount } = await supabase
+        .from('product_questions')
+        .select('*', { count: 'exact', head: true })
+        .eq('seller_id', user.id)
+        .is('answer', null);
+
       setPendingOrdersCount(ordersCount || 0);
       setOpenTicketsCount(ticketsCount || 0);
+      setPendingQuestionsCount(questionsCount || 0);
     } catch (error) {
       console.error('Error loading counts:', error);
     }
@@ -93,6 +102,7 @@ export function SellerStore() {
     { id: 'dashboard' as SellerTab, name: lbl('Dashboard', 'Dashboard', 'Panel'), icon: LayoutDashboard },
     { id: 'products' as SellerTab, name: lbl('Produtos', 'Products', 'Productos'), icon: Package },
     { id: 'orders' as SellerTab, name: lbl('Pedidos', 'Orders', 'Pedidos'), icon: ShoppingCart, badge: pendingOrdersCount },
+    { id: 'qa' as SellerTab, name: lbl('Perguntas', 'Q&A', 'Preguntas'), icon: HelpCircle, badge: pendingQuestionsCount },
     { id: 'support' as SellerTab, name: lbl('Suporte', 'Support', 'Soporte'), icon: MessageCircle, badge: openTicketsCount },
     { id: 'balance' as SellerTab, name: lbl('Saldo', 'Balance', 'Saldo'), icon: Wallet },
   ];
@@ -126,6 +136,7 @@ export function SellerStore() {
       case 'dashboard': return <SellerDashboardOverview onNavigate={(tab) => setActiveTab(tab as SellerTab)} />;
       case 'products': return <SellerProductsManager />;
       case 'orders': return <SellerOrdersManager />;
+      case 'qa': return <SellerQAManager />;
       case 'support': return <SellerSupport />;
       case 'balance': return <SellerBalanceDetail />;
     }
