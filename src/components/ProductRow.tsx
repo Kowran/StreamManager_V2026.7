@@ -1,5 +1,5 @@
 import React, { useRef, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Package, Truck, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Package, Truck, Zap, Star, Store, ArrowRight, TrendingUp } from 'lucide-react';
 import { StoreProduct } from '../lib/supabase';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
@@ -11,9 +11,10 @@ interface ProductRowProps {
   onProductClick: (product: StoreProduct) => void;
   emptyMessage?: string;
   icon?: React.ReactNode;
+  onViewAll?: () => void;
 }
 
-export function ProductRow({ title, subtitle, products, onProductClick, emptyMessage, icon }: ProductRowProps) {
+export function ProductRow({ title, subtitle, products, onProductClick, emptyMessage, icon, onViewAll }: ProductRowProps) {
   const { formatPrice } = useCurrency();
   const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -42,7 +43,7 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
 
   return (
     <div className="mb-8">
-      <div className="flex items-center justify-between mb-3 px-1">
+      <div className="flex items-center justify-between mb-3 px-1 gap-2">
         <div className="flex items-center gap-2 min-w-0">
           {icon}
           <div className="min-w-0">
@@ -51,6 +52,15 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          {onViewAll && (
+            <button
+              onClick={onViewAll}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap"
+            >
+              {t.language === 'pt' ? 'Ver tudo' : t.language === 'en' ? 'See all' : 'Ver todo'}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
           <button
             onClick={() => scroll('left')}
             disabled={!canScrollLeft}
@@ -77,11 +87,16 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
         {products.map(product => {
           const available = (product as any).manual_delivery || product.stock_quantity > 0;
           const hasPromo = product.promotion_active && product.promotional_price_usdt;
+          const sellerName = (product as any).seller_name;
+          const sellerAvatar = (product as any).seller_avatar;
+          const sellerRating = (product as any).seller_rating || 0;
+          const sellerRatingCount = (product as any).seller_rating_count || 0;
+          const salesCount = (product as any).sales_count || 0;
           return (
             <div
               key={product.id}
               onClick={() => onProductClick(product)}
-              className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1 flex-shrink-0 w-[160px] sm:w-[220px] snap-start"
+              className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1 flex-shrink-0 w-[170px] sm:w-[230px] snap-start"
             >
               <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
                 {product.image_url ? (
@@ -107,14 +122,37 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
                     {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
                   </span>
                 )}
+                {salesCount > 0 && (
+                  <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/90 backdrop-blur-sm text-white">
+                    <TrendingUp className="h-2.5 w-2.5" />
+                    {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
+                  </span>
+                )}
               </div>
               <div className="p-3">
-                <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1 line-clamp-1">{product.name}</h3>
-                {(product as any).seller_name && (
-                  <div className="mb-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="truncate">{(product as any).seller_name}</span>
+                <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1.5 line-clamp-1">{product.name}</h3>
+
+                {/* Seller info with avatar, name, rating */}
+                {sellerName && (
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    {sellerAvatar ? (
+                      <img src={sellerAvatar} alt={sellerName} className="h-4 w-4 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="h-4 w-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                        <Store className="h-2.5 w-2.5 text-white" />
+                      </div>
+                    )}
+                    <span className="text-xs text-gray-600 dark:text-gray-400 truncate flex-1">{sellerName}</span>
+                    {sellerRatingCount > 0 && (
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                        <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">{sellerRating.toFixed(1)}</span>
+                        <span className="text-[9px] text-gray-400">({sellerRatingCount})</span>
+                      </div>
+                    )}
                   </div>
                 )}
+
                 <div className="mb-1.5 flex items-center gap-1">
                   {(product as any).manual_delivery ? (
                     (product as any).account_recharge ? (

@@ -76,6 +76,9 @@ interface StoreProduct {
   seller_name?: string | null;
   seller_slug?: string | null;
   seller_avatar?: string | null;
+  sales_count?: number;
+  seller_rating?: number;
+  seller_rating_count?: number;
 }
 
 export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPageProps) {
@@ -291,29 +294,60 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     try {
       const { data, error } = await supabase
         .from('store_products')
-        .select('id, name, description, price_brl, price_usdt, category, primary_category, image_url, stock_quantity, manual_delivery, slug, promotional_price_usdt, promotion_active, seller_id')
+        .select('id, name, description, price_brl, price_usdt, category, primary_category, image_url, stock_quantity, manual_delivery, slug, promotional_price_usdt, promotion_active, seller_id, account_recharge')
         .eq('active', true)
         .order('created_at', { ascending: false });
       if (error) return;
 
       // Load seller names for seller products
       const sellerIds = ([...new Set((data || []).map(p => p.seller_id).filter(Boolean))] as string[]);
-      const sellerMap: Record<string, { name: string; slug: string | null; avatar: string | null }> = {};
+      const sellerMap: Record<string, { name: string; slug: string | null; avatar: string | null; rating: number; ratingCount: number }> = {};
       if (sellerIds.length > 0) {
         const { data: sellers } = await supabase
           .from('profiles')
           .select('id, full_name, seller_slug, username, avatar_url')
           .in('id', sellerIds);
+        // Fetch seller ratings from user_ratings (customers rating seller)
+        const { data: ratingRows } = await supabase
+          .from('user_ratings')
+          .select('rated_user_id, rating')
+          .in('rated_user_id', sellerIds)
+          .eq('rater_role', 'customer');
+        const ratingAgg: Record<string, { sum: number; count: number }> = {};
+        for (const r of ratingRows || []) {
+          if (!ratingAgg[r.rated_user_id]) ratingAgg[r.rated_user_id] = { sum: 0, count: 0 };
+          ratingAgg[r.rated_user_id].sum += Number(r.rating) || 0;
+          ratingAgg[r.rated_user_id].count += 1;
+        }
         for (const s of sellers || []) {
-          sellerMap[s.id] = { name: s.full_name || s.username || s.seller_slug || 'Vendedor', slug: s.seller_slug, avatar: s.avatar_url || null };
+          const agg = ratingAgg[s.id];
+          sellerMap[s.id] = {
+            name: s.full_name || s.username || s.seller_slug || 'Vendedor',
+            slug: s.seller_slug,
+            avatar: s.avatar_url || null,
+            rating: agg ? agg.sum / agg.count : 0,
+            ratingCount: agg ? agg.count : 0,
+          };
         }
       }
+
+      // Per-product sales count via RPC
+      const salesCountMap: Record<string, number> = {};
+      await Promise.all((data || []).map(async (p: any) => {
+        try {
+          const { data: cnt } = await supabase.rpc('get_product_sales_count', { product_uuid: p.id });
+          salesCountMap[p.id] = Number(cnt) || 0;
+        } catch { /* ignore */ }
+      }));
 
       const enriched = (data || []).map(p => ({
         ...p,
         seller_name: p.seller_id ? sellerMap[p.seller_id]?.name || null : null,
         seller_slug: p.seller_id ? sellerMap[p.seller_id]?.slug || null : null,
         seller_avatar: p.seller_id ? sellerMap[p.seller_id]?.avatar || null : null,
+        seller_rating: p.seller_id ? sellerMap[p.seller_id]?.rating || 0 : 0,
+        seller_rating_count: p.seller_id ? sellerMap[p.seller_id]?.ratingCount || 0 : 0,
+        sales_count: salesCountMap[p.id] || 0,
       }));
 
       const sorted = enriched.sort((a, b) => {
@@ -325,27 +359,12 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       });
       setProducts(sorted);
 
-      // Load best sellers from store_orders (limited to recent 500 for performance)
-      try {
-        const { data: orders } = await supabase
-          .from('store_orders')
-          .select('product_id')
-          .in('status', ['delivered', 'paid', 'completed'])
-          .order('created_at', { ascending: false })
-          .limit(500);
-        if (orders && orders.length > 0) {
-          const salesCount: Record<string, number> = {};
-          orders.forEach(o => {
-            if (o.product_id) salesCount[o.product_id] = (salesCount[o.product_id] || 0) + 1;
-          });
-          const ranked = enriched
-            .map(p => ({ ...p, _sales: salesCount[p.id] || 0 }))
-            .filter(p => p._sales > 0)
-            .sort((a, b) => (b as any)._sales - (a as any)._sales)
-            .slice(0, 20);
-          setBestSellers(ranked);
-        }
-      } catch { /* ignore */ }
+      // Best sellers ranked by sales_count (already enriched)
+      const ranked = enriched
+        .filter(p => (p as any).sales_count > 0)
+        .sort((a, b) => ((b as any).sales_count || 0) - ((a as any).sales_count || 0))
+        .slice(0, 20);
+      setBestSellers(ranked);
     } catch { /* ignore */ }
     finally { setProductsLoading(false); }
   }
@@ -726,6 +745,10 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
               window.history.pushState(null, '', `/product/${product.id}`);
               window.dispatchEvent(new PopStateEvent('popstate'));
             };
+            const navigateToSearch = (query: string) => {
+              window.history.pushState(null, '', `/search/${encodeURIComponent(query)}`);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            };
 
             if (isFiltering) {
               return (
@@ -786,6 +809,19 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                                   </div>
                                 )}
                                 <span className="truncate">{product.seller_name}</span>
+                                {product.seller_rating_count > 0 && (
+                                  <span className="inline-flex items-center gap-0.5 ml-auto flex-shrink-0">
+                                    <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
+                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{product.seller_rating.toFixed(1)}</span>
+                                    <span className="text-gray-400">({product.seller_rating_count})</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {product.sales_count > 0 && (
+                              <div className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" />
+                                {product.sales_count} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
                               </div>
                             )}
                           </div>
@@ -813,6 +849,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                   subtitle={t.language === 'pt' ? 'Produtos selecionados aleatoriamente' : t.language === 'en' ? 'Randomly selected products' : 'Productos seleccionados al azar'}
                   products={recommendedProducts}
                   onProductClick={handleProductClick}
+                  onViewAll={() => navigateToSearch('')}
                   icon={<Shuffle className="w-5 h-5 text-blue-500" />}
                 />
 
@@ -823,6 +860,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                     subtitle={t.language === 'pt' ? 'Os produtos mais populares' : t.language === 'en' ? 'Most popular products' : 'Los productos más populares'}
                     products={bestSellers}
                     onProductClick={handleProductClick}
+                    onViewAll={() => navigateToSearch('')}
                     icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
                   />
                 )}
@@ -834,6 +872,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                     title={category.charAt(0).toUpperCase() + category.slice(1)}
                     products={catProducts}
                     onProductClick={handleProductClick}
+                    onViewAll={() => navigateToSearch(category)}
                     icon={<FolderTree className="w-5 h-5 text-amber-500" />}
                   />
                 ))}
