@@ -973,7 +973,7 @@ export function SupportSystem() {
 
   // Tickets List View
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
+    <div className="w-full mx-auto space-y-5">
       {/* Hero header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 dark:from-blue-700 dark:via-blue-800 dark:to-cyan-800 p-5 sm:p-7 text-white shadow-lg">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 80% 70%, white 1px, transparent 1px)', backgroundSize: '48px 48px' }} />

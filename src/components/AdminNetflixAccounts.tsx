@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Mail, Plus, Trash2, Edit2, Check, X, Eye, EyeOff, Search, RefreshCw } from 'lucide-react';
+import { Mail, Plus, Trash2, CreditCard as Edit2, Check, X, Eye, EyeOff, Search, RefreshCw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 
@@ -280,7 +280,7 @@ export function AdminNetflixAccounts() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="w-full mx-auto px-4 py-8">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <div>

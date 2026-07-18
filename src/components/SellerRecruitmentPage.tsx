@@ -120,7 +120,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
       {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-slate-950/80 border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <button onClick={onBack} className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
               <ArrowRight className="h-5 w-5 rotate-180" />
@@ -153,7 +153,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-[120px]" />
           <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[120px]" />
         </div>
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32 text-center">
+        <div className="relative w-full mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6">
             <Sparkles className="h-4 w-4 text-cyan-400" />
             <span className="text-sm font-medium text-cyan-300">{lbl('Oportunidade Única', 'Unique Opportunity', 'Oportunidad Única')}</span>
@@ -189,7 +189,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
       </section>
 
       {/* Advantages Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold mb-3">
             {lbl('Por Que Vender Conosco?', 'Why Sell With Us?', '¿Por Qué Vender con Nosotros?')}
@@ -219,7 +219,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
       </section>
 
       {/* Level Benefits System */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 mb-4">
             <TrendingUp className="h-4 w-4 text-blue-400" />
@@ -292,7 +292,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
       </section>
 
       {/* How It Works */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <section className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">
           {lbl('Como Funciona', 'How It Works', 'Cómo Funciona')}
         </h2>
@@ -318,7 +318,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
       </section>
 
       {/* CTA Section */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-blue-600 to-cyan-600 p-8 sm:p-12 text-center shadow-2xl">
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-[80px]" />

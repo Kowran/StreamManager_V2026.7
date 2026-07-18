@@ -367,7 +367,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200/20 dark:border-gray-700/20 px-4 sm:px-6 lg:px-8 py-4 transition-all duration-300">
-        <div className="max-w-7xl mx-auto flex items-center justify-between relative">
+        <div className="w-full mx-auto flex items-center justify-between relative">
           {affiliateCode && (
             <div className="absolute -top-10 left-0 right-0 bg-gradient-to-r from-green-500 to-blue-500 text-white text-center py-2 z-20">
               <p className="text-sm font-medium">
@@ -458,7 +458,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
       {/* Compre e Venda Hero Text */}
       <section className="relative z-10 bg-white dark:bg-gray-900">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 sm:pt-20 sm:pb-8">
+        <div className="relative w-full mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 sm:pt-20 sm:pb-8">
           <div className="flex flex-col items-center text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3">
               {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
@@ -477,7 +477,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       {/* Rotating Banner Carousel */}
       {banners.length > 0 && (
         <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-8 pt-4 sm:pt-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="w-full mx-auto">
             <div
         className="relative rounded-2xl overflow-hidden shadow-2xl w-full max-w-[800px] mx-auto aspect-[800/300] sm:max-w-[1920px] sm:aspect-[1920/500] group select-none"
         onTouchStart={handleTouchStart}
@@ -572,7 +572,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       {/* Product Categories - Game cards */}
       {productCategories.length > 0 && (
         <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-6">
-          <div className="max-w-7xl mx-auto">
+          <div className="w-full mx-auto">
             <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">
               {t.language === 'pt' ? 'Categorias de Jogos' : t.language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
             </h2>
@@ -625,7 +625,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
       {/* Primary Category - Square Cards */}
       <section className="relative z-30 bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
           {/* Search bar below primary categories */}
           <form
             onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }}

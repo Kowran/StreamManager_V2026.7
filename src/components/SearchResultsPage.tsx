@@ -207,7 +207,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
 
   if (error) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+      <div className="w-full mx-auto px-4 py-12 text-center">
         <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
         <button onClick={onBack} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
@@ -218,7 +218,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Breadcrumb / back */}
       <button
         onClick={onBack}

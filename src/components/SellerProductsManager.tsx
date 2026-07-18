@@ -591,7 +591,7 @@ function ProductFormPage({
         <div className="w-20" />
       </div>
 
-      <form onSubmit={onSubmit} className="max-w-4xl mx-auto space-y-6">
+      <form onSubmit={onSubmit} className="w-full mx-auto space-y-6">
         {/* Image Upload Section */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1">

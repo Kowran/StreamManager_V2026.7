@@ -262,7 +262,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
   ];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-8">
+    <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 space-y-4 pb-8">
       {/* Back */}
       <button
         onClick={onBack}

@@ -336,7 +336,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Back + Share bar */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between">
+      <div className="w-full mx-auto px-4 sm:px-6 pt-4 pb-2 flex items-center justify-between">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -357,7 +357,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
       {/* Product Detail Content */}
       <main className="pb-8 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="w-full mx-auto">
           {/* Desktop: 2-col layout | Mobile: stacked */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* LEFT: Image + Ratings */}

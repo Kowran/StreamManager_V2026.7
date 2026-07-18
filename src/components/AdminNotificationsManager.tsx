@@ -149,7 +149,7 @@ export function AdminNotificationsManager() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full mx-auto space-y-6">
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
         <div className="flex items-center space-x-3">
           <Bell className="h-8 w-8" />

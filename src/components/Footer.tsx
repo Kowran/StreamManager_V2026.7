@@ -380,7 +380,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
   return (
     <>
       <footer className="bg-gray-900 text-white border-t border-gray-800 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           {/* Main footer grid */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-8 py-10">
             {/* Brand column */}
@@ -649,7 +649,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
       {/* Cookie Consent Banner */}
       {showCookieBanner && (
         <div className="fixed bottom-0 left-0 right-0 z-[70] animate-in slide-in-from-bottom duration-300">
-          <div className="max-w-7xl mx-auto m-4 p-5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl">
+          <div className="w-full mx-auto m-4 p-5 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="flex items-start space-x-3 flex-1">
                 <div className="flex-shrink-0 bg-gradient-to-br from-cyan-500 to-blue-600 p-2.5 rounded-lg">

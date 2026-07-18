@@ -293,7 +293,7 @@ export default function Community() {
   if (currentView === 'create') {
     return (
       <div className={`min-h-screen py-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className="max-w-3xl mx-auto px-4">
+        <div className="w-full mx-auto px-4">
           <button
             onClick={() => setCurrentView('list')}
             className={`flex items-center gap-2 mb-6 text-sm font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
@@ -390,7 +390,7 @@ export default function Community() {
     const CatIcon = getIcon(cat?.icon);
     return (
       <div className={`min-h-screen py-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="w-full mx-auto px-4">
           <button
             onClick={() => { setCurrentView('list'); setSelectedTopic(null); }}
             className={`flex items-center gap-2 mb-6 text-sm font-medium transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
@@ -514,7 +514,7 @@ export default function Community() {
   // ---------- TOPIC LIST VIEW (default) ----------
   return (
     <div className={`min-h-screen py-6 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="w-full mx-auto px-4">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between flex-wrap gap-3">
