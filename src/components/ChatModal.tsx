@@ -372,7 +372,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
             <button
               onClick={() => {
                 const ident = otherUser?.username || otherUser?.id;
-                if (ident) window.location.hash = `#user/${ident}`;
+                if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
               }}
               className="font-semibold text-white truncate text-sm hover:underline text-left"
             >
@@ -399,7 +399,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                   <button
                     onClick={() => {
                       const ident = otherUser?.username || otherUser?.id;
-                      if (ident) window.location.hash = `#user/${ident}`;
+                      if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
                       setShowMenu(false);
                     }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"

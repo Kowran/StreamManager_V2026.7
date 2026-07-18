@@ -192,8 +192,8 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
   };
 
   const onNavigateToSearch = (newQuery: string) => {
-    window.history.pushState(null, '', `#search/${encodeURIComponent(newQuery)}`);
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    window.history.pushState(null, '', `/search/${encodeURIComponent(newQuery)}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   if (loading) {

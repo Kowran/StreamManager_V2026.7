@@ -91,7 +91,6 @@ export function AdminGuard({ children, page }: AdminGuardProps) {
         </p>
         <button
           onClick={() => {
-            window.location.hash = '';
             window.location.href = window.location.origin;
           }}
           className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-blue-500/20"

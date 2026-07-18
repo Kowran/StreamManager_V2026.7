@@ -577,7 +577,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
               <button
                 onClick={() => {
                   const ident = seller.username || seller.id;
-                  if (ident) window.location.hash = `#user/${ident}`;
+                  if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
                 }}
                 className="font-semibold text-gray-900 dark:text-white hover:underline text-left"
               >
@@ -605,7 +605,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
           <button
             onClick={() => {
               const ident = seller.username || seller.id;
-              if (ident) window.location.hash = `#user/${ident}`;
+              if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
             }}
             className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >

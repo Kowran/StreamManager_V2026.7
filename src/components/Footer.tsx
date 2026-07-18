@@ -455,7 +455,8 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                   <>
                     <li>
                       <a
-                        href="#community"
+                        href="/community"
+                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/community'); window.dispatchEvent(new PopStateEvent('popstate')); }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -464,7 +465,8 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     </li>
                     <li>
                       <a
-                        href="#affiliates"
+                        href="/affiliates"
+                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/affiliates'); window.dispatchEvent(new PopStateEvent('popstate')); }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -473,7 +475,8 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     </li>
                     <li>
                       <a
-                        href="#accounts"
+                        href="/accounts"
+                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/accounts'); window.dispatchEvent(new PopStateEvent('popstate')); }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />

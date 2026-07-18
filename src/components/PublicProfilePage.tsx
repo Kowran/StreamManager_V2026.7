@@ -799,7 +799,8 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
           <div className="px-6 pb-5">
             <button
               onClick={() => {
-                window.location.hash = `#seller/${profile.seller_slug}`;
+                window.history.pushState(null, '', `/seller/${profile.seller_slug}`);
+                window.dispatchEvent(new PopStateEvent('popstate'));
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-white text-sm transition-all hover:opacity-90"
               style={{ backgroundColor: themeColor }}

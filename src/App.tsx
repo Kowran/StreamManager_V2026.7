@@ -135,8 +135,9 @@ function AppContent() {
     const query = q.trim();
     setSearchQuery(query);
     setSearchInput(query);
-    window.history.pushState(null, '', `#search/${encodeURIComponent(query)}`);
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    const path = `/search/${encodeURIComponent(query)}`;
+    window.history.pushState(null, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   useOnlineHeartbeat(user?.id);
@@ -211,7 +212,7 @@ function AppContent() {
     if (parts.length > 2 || hostname.includes('localhost')) {
       const sub = parts[0];
       if (sub === 'login' || sub === 'painel' || sub === 'panel' || sub === 'dashboard') {
-        if (sub === 'dashboard') { window.location.hash = '#store'; return; }
+        if (sub === 'dashboard') { window.history.pushState(null, '', '/store'); window.dispatchEvent(new PopStateEvent('popstate')); return; }
         setSubdomain('login');
         setShowLanding(false);
       } else if (sub === 'home' || sub === 'www' || hostname.includes('localhost')) {
@@ -265,27 +266,27 @@ function AppContent() {
     };
   }, [isMobileMenuOpen]);
 
-  // Handle URL hash changes
+  // Handle URL path changes (path-based routing)
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1) || 'store';
+    const handlePathChange = () => {
+      const path = window.location.pathname.slice(1) || 'store';
 
       // Check if it's a user profile route
-      if (hash.startsWith('user/')) {
-        const identifier = hash.replace('user/', '');
+      if (path.startsWith('user/')) {
+        const identifier = path.replace('user/', '');
         setProfileIdentifier(identifier);
         setSellerSlug(null);
         setActiveTab('user-profile');
-      } else if (hash.startsWith('seller/')) {
-        const slug = hash.replace('seller/', '');
+      } else if (path.startsWith('seller/')) {
+        const slug = path.replace('seller/', '');
         setSellerSlug(slug);
         setActiveTab('seller-profile');
-      } else if (hash.startsWith('product/')) {
-        const productId = hash.replace('product/', '');
+      } else if (path.startsWith('product/')) {
+        const productId = path.replace('product/', '');
         setProductDetailId(productId);
         setActiveTab('product-detail');
-      } else if (hash.startsWith('checkout/')) {
-        const productId = hash.replace('checkout/', '');
+      } else if (path.startsWith('checkout/')) {
+        const productId = path.replace('checkout/', '');
         const stored = sessionStorage.getItem('checkout_data');
         let parsed: { productId: string; variationId: string; quantity: number } | null = null;
         if (stored) {
@@ -293,36 +294,36 @@ function AppContent() {
         }
         setCheckoutData(parsed || { productId, variationId: '', quantity: 1 });
         setActiveTab('checkout');
-      } else if (hash.startsWith('category/')) {
-        const catSlug = hash.replace('category/', '');
+      } else if (path.startsWith('category/')) {
+        const catSlug = path.replace('category/', '');
         setCategorySlug(catSlug);
         setActiveTab('category-search');
-      } else if (hash.startsWith('search/')) {
-        const sq = decodeURIComponent(hash.replace('search/', ''));
+      } else if (path.startsWith('search/')) {
+        const sq = decodeURIComponent(path.replace('search/', ''));
         setSearchQuery(sq);
         setActiveTab('search-results');
-      } else if (hash && hash !== activeTab) {
+      } else if (path && path !== activeTab) {
         setSellerSlug(null);
         setProductDetailId(null);
         setProfileIdentifier(null);
-        setActiveTab(hash as ActiveTab);
+        setActiveTab(path as ActiveTab);
       }
     };
 
     // Set initial tab from URL
-    handleHashChange();
+    handlePathChange();
 
-    // Listen for hash changes
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    // Listen for path changes (browser back/forward + manual dispatch)
+    window.addEventListener('popstate', handlePathChange);
+    return () => window.removeEventListener('popstate', handlePathChange);
   }, []);
 
   // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
     if (user && !loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'category-search' && activeTab !== 'search-results') {
-      const currentHash = window.location.hash.slice(1);
-      if (currentHash !== activeTab) {
-        window.history.pushState(null, '', `#${activeTab}`);
+      const currentPath = window.location.pathname.slice(1);
+      if (currentPath !== activeTab) {
+        window.history.pushState(null, '', `/${activeTab}`);
       }
     }
   }, [activeTab, user, loading]);
@@ -467,7 +468,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setCategorySlug(null);
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onProductClick={(product: any) => {
               setProductDetailId(product.id);
@@ -483,7 +484,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setSearchQuery('');
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onProductClick={(product: any) => {
               setProductDetailId(product.id);
@@ -544,7 +545,8 @@ function AppContent() {
       case 'profile': {
         const ident = user?.id;
         if (ident) {
-          window.location.hash = `#user/${ident}`;
+          window.history.pushState(null, '', `/user/${ident}`);
+          window.dispatchEvent(new PopStateEvent('popstate'));
           return null;
         }
         return <UserProfile onNavigate={navigateWithRecharge} />;
@@ -557,7 +559,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setProfileIdentifier(null);
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -658,7 +660,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setSellerSlug(null);
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onProductClick={(product: any) => {
               console.log('Product clicked:', product);
@@ -714,7 +716,7 @@ function AppContent() {
                     onClick={() => {
                       setActiveTab('store');
                       setProductDetailId(null);
-                      window.history.pushState(null, '', '#store');
+                      window.history.pushState(null, '', '/store');
                     }}
                     className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
                   >
@@ -734,7 +736,7 @@ function AppContent() {
                     onClick={() => {
                       setActiveTab('store');
                       setProductDetailId(null);
-                      window.history.pushState(null, '', '#store');
+                      window.history.pushState(null, '', '/store');
                     }}
                     className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
                   >
@@ -771,7 +773,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setProductDetailId(null);
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onGetStarted={() => {
               if (subdomain === 'home') {
@@ -781,7 +783,7 @@ function AppContent() {
                 if (parts.length > 2 || hostname.includes('localhost')) {
                   const mainDomain = parts.slice(-2).join('.');
                   const loginUrl = hostname.includes('localhost')
-                    ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
+                    ? `${currentUrl.protocol}//localhost:${currentUrl.port}/login`
                     : `${currentUrl.protocol}//login.${mainDomain}`;
                   window.location.href = loginUrl;
                 } else {
@@ -816,7 +818,7 @@ function AppContent() {
                     onClick={() => {
                       setActiveTab('store');
                       setProductDetailId(null);
-                      window.history.pushState(null, '', '#store');
+                      window.history.pushState(null, '', '/store');
                     }}
                     className="flex items-center hover:opacity-80 transition-opacity"
                   >
@@ -839,7 +841,7 @@ function AppContent() {
                   </button>
                   <div className="hidden lg:block"><CurrencySelector /></div>
                   <div className="hidden lg:block"><LanguageSelector /></div>
-                  <button onClick={() => { setShowLanding(false); setActiveTab('store'); window.history.pushState(null, '', '#store'); }}
+                  <button onClick={() => { setShowLanding(false); setActiveTab('store'); window.history.pushState(null, '', '/store'); }}
                     className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
                     <LogIn className="h-4 w-4 mr-1.5" />
                     <span className="hidden sm:inline">{t.language === 'pt' ? 'Ir para Loja' : t.language === 'en' ? 'Go to Store' : 'Ir a la Tienda'}</span>
@@ -853,7 +855,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setProductDetailId(null);
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onGetStarted={() => {
               setShowLanding(false);
@@ -894,7 +896,7 @@ function AppContent() {
           if (parts.length > 2 || hostname.includes('localhost')) {
             const mainDomain = parts.slice(-2).join('.');
             const loginUrl = hostname.includes('localhost')
-              ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
+              ? `${currentUrl.protocol}//localhost:${currentUrl.port}/login`
               : `${currentUrl.protocol}//login.${mainDomain}`;
             window.location.href = loginUrl;
           } else {
@@ -944,7 +946,7 @@ function AppContent() {
                 onClick={() => {
                   setActiveTab('store');
                   setSearchQuery('');
-                  window.history.pushState(null, '', '#store');
+                  window.history.pushState(null, '', '/store');
                   setShowLanding(true);
                 }}
                 className="flex items-center hover:opacity-80 transition-opacity"
@@ -961,7 +963,7 @@ function AppContent() {
                 </span>
               </button>
               <button
-                onClick={() => { setShowLanding(true); setSearchQuery(''); window.history.pushState(null, '', '#store'); }}
+                onClick={() => { setShowLanding(true); setSearchQuery(''); window.history.pushState(null, '', '/store'); }}
                 className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
               >
                 <LogIn className="h-4 w-4 mr-1.5" />
@@ -975,13 +977,13 @@ function AppContent() {
           onBack={() => {
             setActiveTab('store');
             setSearchQuery('');
-            window.history.pushState(null, '', '#store');
+            window.history.pushState(null, '', '/store');
             setShowLanding(true);
           }}
           onProductClick={(product: any) => {
             setProductDetailId(product.id);
             setActiveTab('product-detail');
-            window.history.pushState(null, '', `#product/${product.id}`);
+            window.history.pushState(null, '', `/product/${product.id}`);
           }}
           onNavigate={navigateWithRecharge}
         />
@@ -989,7 +991,7 @@ function AppContent() {
           navigationLinks={footerNavigation}
           onNavigate={(id) => {
             setActiveTab(id as ActiveTab);
-            window.history.pushState(null, '', `#${id}`);
+            window.history.pushState(null, '', `/${id}`);
           }}
         />
       </div>
@@ -1006,7 +1008,7 @@ function AppContent() {
           onBack={() => {
             setActiveTab('store');
             setProductDetailId(null);
-            window.history.pushState(null, '', '#store');
+            window.history.pushState(null, '', '/store');
           }}
           onGetStarted={() => {
             if (subdomain === 'home') {
@@ -1016,7 +1018,7 @@ function AppContent() {
               if (parts.length > 2 || hostname.includes('localhost')) {
                 const mainDomain = parts.slice(-2).join('.');
                 const loginUrl = hostname.includes('localhost')
-                  ? `${currentUrl.protocol}//localhost:${currentUrl.port}/#login`
+                  ? `${currentUrl.protocol}//localhost:${currentUrl.port}/login`
                   : `${currentUrl.protocol}//login.${mainDomain}`;
                 window.location.href = loginUrl;
               } else {
@@ -1071,7 +1073,7 @@ function AppContent() {
               <button
                 onClick={() => {
                   setActiveTab('store');
-                  window.history.pushState(null, '', '#store');
+                  window.history.pushState(null, '', '/store');
                 }}
                 className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
               >
@@ -1099,7 +1101,7 @@ function AppContent() {
               <button
                 onClick={() => {
                   setActiveTab('store');
-                  window.history.pushState(null, '', '#store');
+                  window.history.pushState(null, '', '/store');
                 }}
                 className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
               >
@@ -1133,7 +1135,7 @@ function AppContent() {
                       key={item.id}
                       onClick={() => {
                         setActiveTab(item.id as ActiveTab);
-                        window.history.pushState(null, '', `#${item.id}`);
+                        window.history.pushState(null, '', `/${item.id}`);
                       }}
                       className={`relative flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                         isActive
@@ -1193,7 +1195,7 @@ function AppContent() {
               )}
               {/* Chat Button */}
               <button
-                onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '#messages'); }}
+                onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '/messages'); }}
                 className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                 title={t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes'}
               >
@@ -1232,7 +1234,7 @@ function AppContent() {
               <button
                 onClick={() => {
                   setActiveTab('store');
-                  window.history.pushState(null, '', '#store');
+                  window.history.pushState(null, '', '/store');
                   setIsMobileMenuOpen(false);
                 }}
                 className="flex items-center hover:opacity-80 transition-opacity"
@@ -1306,7 +1308,7 @@ function AppContent() {
                 <button
                   onClick={() => {
                     setActiveTab('messages');
-                    window.history.pushState(null, '', '#messages');
+                    window.history.pushState(null, '', '/messages');
                     setIsMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
@@ -1339,7 +1341,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setProductDetailId(null);
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onGetStarted={() => {
               setShowLanding(false);
@@ -1354,12 +1356,12 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setCheckoutData(null);
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             onSuccess={() => {
               setActiveTab('purchases');
               setCheckoutData(null);
-              window.history.pushState(null, '', '#purchases');
+              window.history.pushState(null, '', '/purchases');
             }}
           />
         ) : (
@@ -1379,7 +1381,7 @@ function AppContent() {
         navigationLinks={footerNavigation}
         onNavigate={(id) => {
           setActiveTab(id as ActiveTab);
-          window.history.pushState(null, '', `#${id}`);
+          window.history.pushState(null, '', `/${id}`);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />

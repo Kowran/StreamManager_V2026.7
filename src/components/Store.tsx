@@ -64,8 +64,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const navigateToSearch = (q: string) => {
     const query = q.trim();
     if (!query) return;
-    window.history.pushState(null, '', `#search/${encodeURIComponent(query)}`);
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    window.history.pushState(null, '', `/search/${encodeURIComponent(query)}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const [activeCategory, setActiveCategory] = useState('all');
   const [activePrimaryCategory, setActivePrimaryCategory] = useState<'all' | PrimaryCategory>('all');
@@ -551,7 +551,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     trackView(product);
-    window.location.hash = `product/${product.id}`;
+    window.history.pushState(null, '', `/product/${product.id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }, [trackView]);
 
   // Pagination logic
@@ -882,7 +883,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               {productCategories.map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => { window.location.hash = `category/${cat.slug}`; }}
+                  onClick={() => { window.history.pushState(null, '', `/category/${cat.slug}`); window.dispatchEvent(new PopStateEvent('popstate')); }}
                   className="group relative flex-shrink-0 w-[100px] sm:w-[120px] aspect-[3/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
                 >
                   {cat.image_url ? (
@@ -961,12 +962,14 @@ export function Store({ onNavigate }: StoreProps = {}) {
             userCredit={userCredit}
             onPurchase={handlePurchase}
             onCardClick={() => {
-              window.location.hash = `product/${product.id}`;
+              window.history.pushState(null, '', `/product/${product.id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
             }}
             purchasing={purchasing}
             onViewSellerProfile={(sellerId, sellerSlug) => {
               if (sellerSlug) {
-                window.location.hash = `seller/${sellerSlug}`;
+                window.history.pushState(null, '', `/seller/${sellerSlug}`);
+                window.dispatchEvent(new PopStateEvent('popstate'));
               } else {
                 setSelectedSellerId(sellerId);
                 setShowSellerProfile(true);
@@ -1146,7 +1149,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
           price={purchaseSuccessData.price}
           orderId={purchaseSuccessData.orderId}
           onViewPurchase={() => {
-            window.location.hash = '#purchases';
+            window.history.pushState(null, '', '/purchases');
+            window.dispatchEvent(new PopStateEvent('popstate'));
           }}
         />
       )}
@@ -1160,7 +1164,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
             setSelectedSellerId(null);
           }}
           onProductClick={(product) => {
-            window.location.hash = `product/${product.id}`;
+            window.history.pushState(null, '', `/product/${product.id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
             setShowSellerProfile(false);
           }}
         />

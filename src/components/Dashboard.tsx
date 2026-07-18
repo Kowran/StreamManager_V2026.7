@@ -326,7 +326,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
               <button
                 onClick={() => {
                   onTabChange?.('affiliates');
-                  window.history.pushState(null, '', '#affiliates');
+                  window.history.pushState(null, '', '/affiliates');
                 }}
                 className="inline-flex items-center px-6 py-3 bg-white text-yellow-600 font-bold rounded-lg hover:bg-yellow-50 transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
@@ -496,7 +496,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
           <button
             onClick={() => {
               onTabChange?.('community');
-              window.history.pushState(null, '', '#community');
+              window.history.pushState(null, '', '/community');
             }}
             className="text-center p-3 sm:p-4 bg-cyan-50 dark:bg-cyan-900/20 rounded-lg hover:bg-cyan-100 dark:hover:bg-cyan-900/30 transition-colors cursor-pointer group touch-manipulation"
           >
@@ -511,7 +511,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
           <button
             onClick={() => {
               onTabChange?.('store');
-              window.history.pushState(null, '', '#store');
+              window.history.pushState(null, '', '/store');
             }}
             className="text-center p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors cursor-pointer group touch-manipulation"
           >
@@ -524,7 +524,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
           <button
             onClick={() => {
               onTabChange?.('credits');
-              window.history.pushState(null, '', '#credits');
+              window.history.pushState(null, '', '/credits');
             }}
             className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors cursor-pointer group touch-manipulation"
           >
@@ -541,7 +541,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
           <button
             onClick={() => {
               onTabChange?.('accounts');
-              window.history.pushState(null, '', '#accounts');
+              window.history.pushState(null, '', '/accounts');
             }}
             className="text-center p-3 sm:p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors cursor-pointer group touch-manipulation"
           >
@@ -556,7 +556,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
           <button
             onClick={() => {
               onTabChange?.('support');
-              window.history.pushState(null, '', '#support');
+              window.history.pushState(null, '', '/support');
             }}
             className="text-center p-3 sm:p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer group touch-manipulation"
           >
@@ -574,7 +574,7 @@ export function Dashboard({ onTabChange, isAdmin = false }: DashboardProps = {})
             <button
               onClick={() => {
                 onTabChange?.('seller-store');
-                window.history.pushState(null, '', '#seller-store');
+                window.history.pushState(null, '', '/seller-store');
               }}
               className="text-center p-3 sm:p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer group touch-manipulation"
             >

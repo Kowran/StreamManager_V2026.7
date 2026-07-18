@@ -174,7 +174,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                     key={item.id}
                     onClick={() => {
                       onNavigate(item.id);
-                      window.history.pushState(null, '', `#${item.id}`);
+                      window.history.pushState(null, '', `/${item.id}`);
                     }}
                     className="group bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 relative"
                   >

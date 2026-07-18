@@ -305,7 +305,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   }
 
   function navigateToProduct(pid: string) {
-    window.location.hash = `product/${pid}`;
+    window.history.pushState(null, '', `/product/${pid}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
   if (loading) {
@@ -446,7 +447,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                 <button
                   onClick={() => {
                     if (product.seller_info?.seller_slug) {
-                      window.location.hash = `seller/${product.seller_info.seller_slug}`;
+                      window.history.pushState(null, '', `/seller/${product.seller_info.seller_slug}`);
+                      window.dispatchEvent(new PopStateEvent('popstate'));
                     }
                   }}
                   className="self-start mb-3 inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -761,7 +763,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
             setShowConfirmModal(false);
             const vid = varId || selectedVariation?.id || '';
             sessionStorage.setItem('checkout_data', JSON.stringify({ productId: product.id, variationId: vid, quantity: qty }));
-            window.location.hash = `checkout/${product.id}`;
+            window.history.pushState(null, '', `/checkout/${product.id}`);
+            window.dispatchEvent(new PopStateEvent('popstate'));
           }}
         />
       )}
