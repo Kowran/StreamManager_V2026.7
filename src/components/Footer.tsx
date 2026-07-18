@@ -35,7 +35,12 @@ type LegalDoc = 'faq' | 'terms' | 'purchase' | 'privacy' | 'about';
 
 const COOKIE_CONSENT_KEY = 'cookie_consent_v1';
 
-export function Footer() {
+interface FooterProps {
+  navigationLinks?: { id: string; name: string; icon: typeof HelpCircle }[];
+  onNavigate?: (id: string) => void;
+}
+
+export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
   const { t, language } = useLanguage();
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
@@ -377,7 +382,7 @@ export function Footer() {
       <footer className="bg-gray-900 text-white border-t border-gray-800 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Main footer grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 py-10">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-8 py-10">
             {/* Brand column */}
             <div className="md:col-span-1">
               <div className="flex items-center space-x-2 mb-3">
@@ -425,6 +430,59 @@ export function Footer() {
                   })}
                 </div>
               )}
+            </div>
+
+            {/* Navigation links column */}
+            <div className="md:col-span-1">
+              <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-4">
+                {tr('Navegação', 'Navigation', 'Navegación')}
+              </h4>
+              <ul className="space-y-2.5">
+                {navigationLinks.length > 0 ? navigationLinks.map((link) => {
+                  const Icon = link.icon;
+                  return (
+                    <li key={link.id}>
+                      <button
+                        onClick={() => onNavigate?.(link.id)}
+                        className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
+                      >
+                        <Icon className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                        <span>{link.name}</span>
+                      </button>
+                    </li>
+                  );
+                }) : (
+                  <>
+                    <li>
+                      <a
+                        href="#community"
+                        className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                        <span>{tr('Comunidade', 'Community', 'Comunidad')}</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="#affiliates"
+                        className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                        <span>{tr('Afiliados', 'Affiliates', 'Afiliados')}</span>
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="#accounts"
+                        className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                        <span>{tr('Streaming', 'Streaming', 'Streaming')}</span>
+                      </a>
+                    </li>
+                  </>
+                )}
+              </ul>
             </div>
 
             {/* Legal links column */}

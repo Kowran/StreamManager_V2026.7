@@ -651,9 +651,9 @@ export function Store({ onNavigate }: StoreProps = {}) {
         <div className="flex-1 min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{t.store}</h2>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {t.language === 'pt' ? 'Compre produtos premium com seus créditos' :
-             t.language === 'en' ? 'Buy premium products with your credits' :
-             'Compra productos premium con tus créditos'}
+            {t.language === 'pt' ? 'O Marketplace Gamer onde você encontra contas, itens, recargas e muito mais. Compre com segurança ou venda seus produtos para milhares de jogadores.' :
+             t.language === 'en' ? 'The Gamer Marketplace where you find accounts, items, recharges and much more. Buy safely or sell your products to thousands of gamers.' :
+             'El Marketplace Gamer donde encuentras cuentas, artículos, recargas y mucho más. Compra con seguridad o vende tus productos a miles de gamers.'}
           </p>
         </div>
 

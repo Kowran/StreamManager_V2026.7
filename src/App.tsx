@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle, LogIn } from 'lucide-react';
+import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle, LogIn, Search, Wallet } from 'lucide-react';
 import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
 import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './components/AuthProvider';
@@ -106,7 +106,38 @@ function AppContent() {
   const [profileIdentifier, setProfileIdentifier] = useState<string | null>(null);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [creditBalance, setCreditBalance] = useState(0);
   const communityUnreadCount = useCommunityUnreadCount(user?.id);
+
+  useEffect(() => {
+    if (!user) { setCreditBalance(0); return; }
+    let active = true;
+    async function loadCredit() {
+      try {
+        const { data } = await supabase
+          .from('user_credits')
+          .select('balance')
+          .eq('user_id', user!.id)
+          .maybeSingle();
+        if (active) setCreditBalance(data?.balance || 0);
+      } catch { /* ignore */ }
+    }
+    loadCredit();
+    const ch = supabase
+      .channel(`credit-balance-watch:${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_credits', filter: `user_id=eq.${user.id}` }, loadCredit)
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(ch); };
+  }, [user]);
+
+  const navigateToSearch = (q: string) => {
+    const query = q.trim();
+    setSearchQuery(query);
+    setSearchInput(query);
+    window.history.pushState(null, '', `#search/${encodeURIComponent(query)}`);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  };
 
   useOnlineHeartbeat(user?.id);
 
@@ -355,7 +386,9 @@ function AppContent() {
     }
   }
 
-  const headerNavigation = [
+  const headerNavigation: { id: string; name: string; icon: typeof Newspaper }[] = [];
+
+  const footerNavigation = [
     { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Streaming' : t.language === 'en' ? 'Streaming' : 'Streaming', icon: Play },
@@ -899,6 +932,70 @@ function AppContent() {
     );
   }
 
+  // Search results page for logged-out users
+  if (!user && activeTab === 'search-results') {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
+        <AnnouncementBar />
+        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-3 sm:py-4">
+              <button
+                onClick={() => {
+                  setActiveTab('store');
+                  setSearchQuery('');
+                  window.history.pushState(null, '', '#store');
+                  setShowLanding(true);
+                }}
+                className="flex items-center hover:opacity-80 transition-opacity"
+              >
+                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
+                  <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg" />
+                ) : (
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg">
+                    <CreditCard className="h-5 w-5 text-white" />
+                  </div>
+                )}
+                <span className="ml-3 text-lg font-bold text-gray-900 dark:text-white">
+                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
+                </span>
+              </button>
+              <button
+                onClick={() => { setShowLanding(true); setSearchQuery(''); window.history.pushState(null, '', '#store'); }}
+                className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              >
+                <LogIn className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline">{t.language === 'pt' ? 'Voltar' : t.language === 'en' ? 'Back' : 'Volver'}</span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <SearchResultsPage
+          query={searchQuery}
+          onBack={() => {
+            setActiveTab('store');
+            setSearchQuery('');
+            window.history.pushState(null, '', '#store');
+            setShowLanding(true);
+          }}
+          onProductClick={(product: any) => {
+            setProductDetailId(product.id);
+            setActiveTab('product-detail');
+            window.history.pushState(null, '', `#product/${product.id}`);
+          }}
+          onNavigate={navigateWithRecharge}
+        />
+        <Footer
+          navigationLinks={footerNavigation}
+          onNavigate={(id) => {
+            setActiveTab(id as ActiveTab);
+            window.history.pushState(null, '', `#${id}`);
+          }}
+        />
+      </div>
+    );
+  }
+
   // Product detail page for logged-out users: render with app-style header
   if (!user && activeTab === 'product-detail' && productDetailId) {
     return (
@@ -1055,8 +1152,45 @@ function AppContent() {
                   );
                 })}
               </nav>
+
+              {/* Desktop Search */}
+              <form
+                onSubmit={(e) => { e.preventDefault(); navigateToSearch(searchInput); }}
+                className="hidden md:flex relative w-40 lg:w-64 xl:w-72 ml-2"
+              >
+                <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                  <Search className="h-4 w-4" />
+                </button>
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                />
+                {searchInput && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchInput(''); navigateToSearch(''); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </form>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* Credit Balance */}
+              {user && (
+                <button
+                  onClick={() => navigateWithRecharge('credits')}
+                  className="hidden sm:flex items-center gap-2 px-2.5 lg:px-3 py-1.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-sm transition-all"
+                  title={t.language === 'pt' ? 'Seus créditos' : t.language === 'en' ? 'Your credits' : 'Tus créditos'}
+                >
+                  <Wallet className="h-4 w-4" />
+                  <span className="text-sm font-bold">${creditBalance.toFixed(2)}</span>
+                </button>
+              )}
               {/* Chat Button */}
               <button
                 onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '#messages'); }}
@@ -1134,40 +1268,40 @@ function AppContent() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
+            {/* Mobile Search */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <form
+                onSubmit={(e) => { e.preventDefault(); navigateToSearch(searchInput); setIsMobileMenuOpen(false); }}
+                className="relative"
+              >
+                <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                  <Search className="h-4 w-4" />
+                </button>
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                />
+              </form>
+              {user && (
+                <button
+                  onClick={() => { navigateWithRecharge('credits'); setIsMobileMenuOpen(false); }}
+                  className="mt-3 w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-sm transition-all"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <Wallet className="h-4 w-4" />
+                    {t.language === 'pt' ? 'Saldo' : t.language === 'en' ? 'Balance' : 'Saldo'}
+                  </span>
+                  <span className="text-sm font-bold">${creditBalance.toFixed(2)}</span>
+                </button>
+              )}
+            </div>
+
             <nav className="mt-4 px-4">
               <div className="space-y-1 max-h-[calc(100vh-280px)] overflow-y-auto scrollbar-hide">
-                {headerNavigation.map((item) => {
-                  const IconComponent = item.icon;
-                  const isActive = activeTab === item.id;
-
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveTab(item.id as ActiveTab);
-                        window.history.pushState(null, '', `#${item.id}`);
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-                        isActive
-                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
-                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <IconComponent className={`mr-3 h-4 w-4 ${isActive ? 'text-blue-500 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500'}`} />
-                        {item.name}
-                      </div>
-                      {item.id === 'community' && communityUnreadCount > 0 && (
-                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                          {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-
                 {/* Messages */}
                 <button
                   onClick={() => {
@@ -1241,7 +1375,14 @@ function AppContent() {
       </div>
 
       {/* Footer */}
-      <Footer />
+      <Footer
+        navigationLinks={footerNavigation}
+        onNavigate={(id) => {
+          setActiveTab(id as ActiveTab);
+          window.history.pushState(null, '', `#${id}`);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
 
       {/* Expiring Items Chat */}
       <ExpiringItemsChat />

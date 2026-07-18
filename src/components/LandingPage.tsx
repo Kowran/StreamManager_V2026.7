@@ -133,6 +133,13 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
   const [productsLoading, setProductsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+
+  const navigateToSearch = (q: string) => {
+    const query = q.trim();
+    window.history.pushState(null, '', `#search/${encodeURIComponent(query)}`);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const { getRecentlyViewedProducts, trackView } = useRecentlyViewed();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPrimaryCategory, setSelectedPrimaryCategory] = useState<'all' | PrimaryCategory>('all');
@@ -417,7 +424,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
           {/* Desktop Search */}
           <div className="hidden md:flex flex-1 max-w-md mx-6">
             <form
-              onSubmit={e => { e.preventDefault(); setSearchQuery(searchInput); }}
+              onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }}
               className="relative w-full"
             >
               <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
@@ -433,7 +440,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
               {searchInput && (
                 <button
                   type="button"
-                  onClick={() => { setSearchInput(''); setSearchQuery(''); }}
+                  onClick={() => { setSearchInput(''); navigateToSearch(''); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -478,7 +485,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg animate-slide-down z-50">
               <div className="px-4 py-4 space-y-3">
                 <form
-                  onSubmit={e => { e.preventDefault(); setSearchQuery(searchInput); }}
+                  onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); setIsMobileMenuOpen(false); }}
                   className="relative"
                 >
                   <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
@@ -522,9 +529,9 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
       {/* Compre e Venda Hero Text */}
       <section className="relative z-10 bg-white dark:bg-gray-900">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-3 sm:pt-8 sm:pb-4">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-6 sm:pt-20 sm:pb-8">
           <div className="flex flex-col items-center text-center">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-2">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-3">
               {t.language === 'pt' ? 'Compre e Venda' : t.language === 'en' ? 'Buy and Sell' : 'Compra y Vende'}
             </h2>
             <p className="text-sm sm:text-base lg:text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
