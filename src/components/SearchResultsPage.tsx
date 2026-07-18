@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, Search, Package, Loader, Truck, Zap, X } from 'lucide-react';
-import { supabase, StoreProduct } from '../lib/supabase';
+import { ChevronLeft, Search, Package, Loader, Truck, Zap, X, Star, UserCheck, Coins, Smartphone, Gamepad2, Gift, LayoutGrid, type LucideIcon } from 'lucide-react';
+import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
 
@@ -9,6 +9,7 @@ interface SearchResultsPageProps {
   onBack: () => void;
   onProductClick: (product: StoreProduct) => void;
   onNavigate?: (tab: string) => void;
+  onViewSellerProfile?: (sellerId: string | null, sellerSlug?: string) => void;
 }
 
 interface ProductWithSeller extends StoreProduct {
@@ -16,10 +17,21 @@ interface ProductWithSeller extends StoreProduct {
     business_name: string;
     sales_count: number;
     seller_slug?: string;
+    seller_rating?: number;
+    seller_rating_count?: number;
   };
 }
 
-export function SearchResultsPage({ query, onBack, onProductClick }: SearchResultsPageProps) {
+const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
+  account: { icon: UserCheck, label: 'Conta', color: { activeBg: 'bg-blue-500', activeText: 'text-white', badgeActive: 'bg-blue-600 text-white' } },
+  item: { icon: Package, label: 'Item', color: { activeBg: 'bg-emerald-500', activeText: 'text-white', badgeActive: 'bg-emerald-600 text-white' } },
+  mobile_recharge: { icon: Smartphone, label: 'Recarga de Celular', color: { activeBg: 'bg-purple-500', activeText: 'text-white', badgeActive: 'bg-purple-600 text-white' } },
+  game: { icon: Gamepad2, label: 'Jogo', color: { activeBg: 'bg-orange-500', activeText: 'text-white', badgeActive: 'bg-orange-600 text-white' } },
+  gift_card: { icon: Gift, label: 'Gift Card', color: { activeBg: 'bg-pink-500', activeText: 'text-white', badgeActive: 'bg-pink-600 text-white' } },
+  top_up: { icon: Coins, label: 'Top-Up', color: { activeBg: 'bg-amber-500', activeText: 'text-white', badgeActive: 'bg-amber-600 text-white' } },
+};
+
+export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerProfile }: SearchResultsPageProps) {
   const { language } = useLanguage();
   const { formatPrice } = useCurrency();
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
@@ -27,6 +39,7 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
   const [error, setError] = useState('');
   const [searchInput, setSearchInput] = useState(query);
   const [sortBy, setSortBy] = useState<'relevance' | 'price_low' | 'price_high' | 'newest' | 'best_selling'>('relevance');
+  const [activePrimaryCategory, setActivePrimaryCategory] = useState<'all' | PrimaryCategory>('all');
 
   useEffect(() => {
     setSearchInput(query);
@@ -47,35 +60,64 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
         .order('created_at', { ascending: false });
       if (prodErr) throw prodErr;
 
-      const sellerCache: Record<string, { business_name: string; seller_slug?: string }> = {};
+      // Cache seller profiles and seller ratings to avoid duplicate queries
+      const sellerProfileCache: Record<string, { business_name: string; seller_slug?: string; rating: number; rating_count: number }> = {};
+
+      async function getSellerInfo(sellerId: string) {
+        if (sellerProfileCache[sellerId]) return sellerProfileCache[sellerId];
+        const { data: sd } = await supabase
+          .from('profiles')
+          .select('full_name, username, seller_slug')
+          .eq('id', sellerId)
+          .maybeSingle();
+        // Fetch seller rating aggregate from user_ratings (customers rating seller)
+        const { data: ratingData } = await supabase
+          .from('user_ratings')
+          .select('rating')
+          .eq('rated_user_id', sellerId)
+          .eq('rater_role', 'customer');
+        const ratings = (ratingData || []).map(r => r.rating).filter(r => typeof r === 'number');
+        const avg = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+        const info = {
+          business_name: sd?.full_name || sd?.username || sd?.seller_slug || 'Vendedor',
+          seller_slug: sd?.seller_slug,
+          rating: avg,
+          rating_count: ratings.length,
+        };
+        sellerProfileCache[sellerId] = info;
+        return info;
+      }
+
       const withSellers: ProductWithSeller[] = await Promise.all(
         (rawProducts || []).map(async (p: any) => {
+          // Per-product sales count
+          let salesCount = 0;
+          try {
+            const { data: productSalesCount } = await supabase.rpc('get_product_sales_count', { product_uuid: p.id });
+            salesCount = Number(productSalesCount) || 0;
+          } catch { /* ignore */ }
+
           let sellerInfo: ProductWithSeller['seller_info'];
           if (p.seller_id) {
-            let sd = sellerCache[p.seller_id];
-            if (!sd) {
-              const { data } = await supabase
-                .from('profiles')
-                .select('full_name, username, seller_slug')
-                .eq('id', p.seller_id)
-                .maybeSingle();
-              if (data) {
-                sd = {
-                  business_name: (data as any).full_name || (data as any).username || (data as any).seller_slug || 'Vendedor',
-                  seller_slug: (data as any).seller_slug,
-                };
-                sellerCache[p.seller_id] = sd;
-              }
-            }
-            sellerInfo = { business_name: sd?.business_name || 'Vendedor', sales_count: 0, seller_slug: sd?.seller_slug };
+            const info = await getSellerInfo(p.seller_id);
+            sellerInfo = {
+              business_name: info.business_name,
+              sales_count: salesCount,
+              seller_slug: info.seller_slug,
+              seller_rating: info.rating,
+              seller_rating_count: info.rating_count,
+            };
           } else {
-            sellerInfo = { business_name: 'Admin', sales_count: 0 };
+            // Admin products: aggregate admin ratings (rated_user_id null is not supported; use 0)
+            sellerInfo = { business_name: 'Admin', sales_count: salesCount, seller_rating: 0, seller_rating_count: 0 };
           }
 
           let totalStock = p.stock_quantity;
           if (!p.manual_delivery && !(p as any).account_recharge) {
-            const { data: stockCount } = await supabase.rpc('get_product_total_stock', { p_product_id: p.id });
-            if (stockCount !== null && stockCount !== undefined) totalStock = stockCount;
+            try {
+              const { data: stockCount } = await supabase.rpc('get_product_total_stock', { p_product_id: p.id });
+              if (stockCount !== null && stockCount !== undefined) totalStock = stockCount;
+            } catch { /* ignore */ }
           }
 
           return { ...p, stock_quantity: totalStock, seller_info: sellerInfo };
@@ -90,6 +132,24 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
     }
   }
 
+  const primaryCategories = useMemo(() => {
+    const counts: Record<string, number> = {};
+    products.forEach(p => {
+      const pc = (p as any).primary_category || 'item';
+      counts[pc] = (counts[pc] || 0) + 1;
+    });
+    return [
+      { key: 'all' as const, label: language === 'pt' ? 'Todos' : language === 'en' ? 'All' : 'Todos', icon: LayoutGrid, color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' }, count: products.length },
+      ...PRIMARY_CATEGORIES.map(cat => ({
+        key: cat.key,
+        label: primaryCategoryConfig[cat.key].label,
+        icon: primaryCategoryConfig[cat.key].icon,
+        color: primaryCategoryConfig[cat.key].color,
+        count: counts[cat.key] || 0,
+      })).filter(c => c.count > 0),
+    ];
+  }, [products, language]);
+
   const filtered = useMemo(() => {
     const q = (query || '').toLowerCase().trim();
     let list = products;
@@ -98,6 +158,9 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
         p.name.toLowerCase().includes(q) ||
         (p.description || '').toLowerCase().includes(q)
       );
+    }
+    if (activePrimaryCategory !== 'all') {
+      list = list.filter(p => ((p as any).primary_category || 'item') === activePrimaryCategory);
     }
     const sorted = [...list];
     switch (sortBy) {
@@ -117,7 +180,7 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
         break;
     }
     return sorted;
-  }, [products, query, sortBy]);
+  }, [products, query, sortBy, activePrimaryCategory]);
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     onProductClick(product);
@@ -188,6 +251,43 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
         </div>
       </div>
 
+      {/* Primary Category Filter */}
+      {primaryCategories.length > 1 && (
+        <div className="mb-4 sm:mb-6">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1.5 sm:gap-3">
+            {primaryCategories.map(({ key, label, icon: Icon, color, count }) => (
+              <button
+                key={key}
+                onClick={() => setActivePrimaryCategory(key)}
+                className={`relative flex flex-col items-center justify-center gap-1 p-1.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 group ${
+                  activePrimaryCategory === key
+                    ? `${color.activeBg} ${color.activeText} shadow-md sm:shadow-lg scale-[1.03] border-transparent`
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm sm:hover:shadow-md hover:scale-[1.02]'
+                }`}
+              >
+                <div className={`p-1 sm:p-2.5 rounded-lg sm:rounded-xl transition-colors ${
+                  activePrimaryCategory === key
+                    ? 'bg-white/20'
+                    : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                }`}>
+                  <Icon className="h-4 w-4 sm:h-7 sm:w-7 flex-shrink-0" />
+                </div>
+                <span className="text-[10px] sm:text-sm font-bold text-center leading-tight">{label}</span>
+                {count > 0 && (
+                  <span className={`absolute top-1 right-1 sm:top-1.5 sm:right-1.5 text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full ${
+                    activePrimaryCategory === key
+                      ? 'bg-white/25 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Search + sort bar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <form onSubmit={handleSearchSubmit} className="relative flex-1">
@@ -239,6 +339,8 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
           {filtered.map(product => {
             const available = (product as any).manual_delivery || product.stock_quantity > 0;
             const hasPromo = product.promotion_active && product.promotional_price_usdt;
+            const sellerRating = product.seller_info?.seller_rating || 0;
+            const sellerRatingCount = product.seller_info?.seller_rating_count || 0;
             return (
               <div
                 key={product.id}
@@ -260,10 +362,42 @@ export function SearchResultsPage({ query, onBack, onProductClick }: SearchResul
                   )}
                 </div>
                 <div className="p-3">
-                  <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1 line-clamp-1">{product.name}</h3>
-                  {product.seller_info?.business_name && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5 truncate">{product.seller_info.business_name}</p>
+                  <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1.5 line-clamp-1">{product.name}</h3>
+
+                  {/* Seller info: name, sales count, rating */}
+                  {product.seller_info && (
+                    <div className="mb-2 space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewSellerProfile?.(product.seller_id || null, product.seller_info?.seller_slug);
+                          }}
+                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[60%]"
+                        >
+                          {product.seller_info.business_name}
+                        </button>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          ({product.seller_info.sales_count} {language === 'pt' ? 'vendas' : language === 'en' ? 'sales' : 'ventas'})
+                        </span>
+                      </div>
+                      {sellerRatingCount > 0 && (
+                        <div className="flex items-center gap-1">
+                          <div className="flex items-center">
+                            {[1, 2, 3, 4, 5].map(n => (
+                              <Star
+                                key={n}
+                                className={`h-3 w-3 ${n <= Math.round(sellerRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{sellerRating.toFixed(1)}</span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">({sellerRatingCount})</span>
+                        </div>
+                      )}
+                    </div>
                   )}
+
                   <div className="mb-1.5 flex items-center gap-1">
                     {(product as any).manual_delivery ? (
                       <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">

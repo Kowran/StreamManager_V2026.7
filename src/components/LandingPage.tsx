@@ -671,7 +671,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                     key={cat.id}
                     data-cat-card
                     onClick={() => { onGetStarted(); setTimeout(() => { window.location.hash = `category/${cat.slug}`; }, 500); }}
-                    className="group relative flex-shrink-0 w-[90px] sm:w-[110px] aspect-[4/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
+                    className="group relative flex-shrink-0 w-[100px] sm:w-[120px] aspect-[3/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
                   >
                     {cat.image_url ? (
                       <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-opacity" />
