@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Package, UserCheck, Search, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, Headphones, Smartphone, Server, Zap, Star, Tag, Store, Coins, SlidersHorizontal, type LucideIcon } from 'lucide-react';
+import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Package, UserCheck, Search, LayoutGrid, Gamepad2, Gift, Headphones, Smartphone, Server, Zap, Star, Tag, Store, Coins, type LucideIcon } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { LanguageSelector } from './LanguageSelector';
@@ -141,9 +141,8 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const { getRecentlyViewedProducts, trackView } = useRecentlyViewed();
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedPrimaryCategory, setSelectedPrimaryCategory] = useState<'all' | PrimaryCategory>('all');
-  const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
+  const [selectedGameCategory, setSelectedGameCategory] = useState<string | null>(null);
 
   const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
     account: { icon: UserCheck, label: language === 'pt' ? 'Contas' : language === 'en' ? 'Accounts' : 'Cuentas', color: { activeBg: 'bg-indigo-500', activeText: 'text-white', badgeActive: 'bg-indigo-600 text-white' } },
@@ -172,35 +171,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
     ];
   }, [products, language]);
 
-  const categoryConfig: Record<string, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
-    streaming: { icon: Clapperboard, label: 'Streaming', color: { activeBg: 'bg-red-500', activeText: 'text-white', badgeActive: 'bg-red-600 text-white' } },
-    software: { icon: Code, label: 'Software', color: { activeBg: 'bg-blue-500', activeText: 'text-white', badgeActive: 'bg-blue-600 text-white' } },
-    access: { icon: KeyRound, label: 'Acessos', color: { activeBg: 'bg-green-500', activeText: 'text-white', badgeActive: 'bg-green-600 text-white' } },
-    music: { icon: Music, label: 'Musica', color: { activeBg: 'bg-purple-500', activeText: 'text-white', badgeActive: 'bg-purple-600 text-white' } },
-    games: { icon: Gamepad2, label: 'Games', color: { activeBg: 'bg-orange-500', activeText: 'text-white', badgeActive: 'bg-orange-600 text-white' } },
-    security: { icon: Shield, label: 'Seguranca', color: { activeBg: 'bg-teal-500', activeText: 'text-white', badgeActive: 'bg-teal-600 text-white' } },
-    giftcards: { icon: Gift, label: 'Gift Cards', color: { activeBg: 'bg-pink-500', activeText: 'text-white', badgeActive: 'bg-pink-600 text-white' } },
-    courses: { icon: BookOpen, label: 'Cursos', color: { activeBg: 'bg-indigo-500', activeText: 'text-white', badgeActive: 'bg-indigo-600 text-white' } },
-    design: { icon: Star, label: 'Design', color: { activeBg: 'bg-yellow-500', activeText: 'text-white', badgeActive: 'bg-yellow-600 text-white' } },
-    accounts: { icon: UserCheck, label: 'Contas', color: { activeBg: 'bg-cyan-500', activeText: 'text-white', badgeActive: 'bg-cyan-600 text-white' } },
-    social: { icon: MessageCircle, label: 'Social', color: { activeBg: 'bg-rose-500', activeText: 'text-white', badgeActive: 'bg-rose-600 text-white' } },
-    other: { icon: Package, label: 'Outros', color: { activeBg: 'bg-gray-600', activeText: 'text-white', badgeActive: 'bg-gray-700 text-white' } },
-  };
 
-  const categories = useMemo(() => {
-    const counts: Record<string, number> = {};
-    products.forEach(p => { counts[p.category] = (counts[p.category] || 0) + 1; });
-    const cats = Object.entries(counts)
-      .map(([key, count]) => {
-        const config = categoryConfig[key] || categoryConfig.other;
-        return { key, label: config.label, icon: config.icon, color: config.color, count };
-      })
-      .sort((a, b) => b.count - a.count);
-    return [
-      { key: 'all', label: language === 'pt' ? 'Todos' : language === 'en' ? 'All' : 'Todos', icon: LayoutGrid, color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' }, count: products.length },
-      ...cats,
-    ];
-  }, [products, language]);
 
   useEffect(() => {
     loadStoreConfig();
@@ -422,33 +393,6 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
           </div>
 
           {/* Desktop Search */}
-          <div className="hidden md:flex flex-1 max-w-md mx-6">
-            <form
-              onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }}
-              className="relative w-full"
-            >
-              <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                <Search className="h-4 w-4" />
-              </button>
-              <input
-                type="text"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => { setSearchInput(''); navigateToSearch(''); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </form>
-          </div>
-
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center space-x-3">
             <button onClick={toggleTheme} className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
@@ -484,21 +428,6 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             />
             <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-lg animate-slide-down z-50">
               <div className="px-4 py-4 space-y-3">
-                <form
-                  onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); setIsMobileMenuOpen(false); }}
-                  className="relative"
-                >
-                  <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                    <Search className="h-4 w-4" />
-                  </button>
-                  <input
-                    type="text"
-                    value={searchInput}
-                    onChange={e => setSearchInput(e.target.value)}
-                    placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
-                  />
-                </form>
                 <button onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }}
                   className="w-full flex items-center justify-between p-3 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
                   <span className="font-medium">
@@ -670,8 +599,8 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                   <button
                     key={cat.id}
                     data-cat-card
-                    onClick={() => { onGetStarted(); setTimeout(() => { window.location.hash = `category/${cat.slug}`; }, 500); }}
-                    className="group relative flex-shrink-0 w-[100px] sm:w-[120px] aspect-[3/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
+                    onClick={() => { setSelectedGameCategory(selectedGameCategory === cat.slug ? null : cat.slug); }}
+                    className={`group relative flex-shrink-0 w-[100px] sm:w-[120px] aspect-[3/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 ${selectedGameCategory === cat.slug ? 'ring-4 ring-blue-500 shadow-lg scale-[1.05]' : ''}`}
                   >
                     {cat.image_url ? (
                       <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-opacity" />
@@ -697,6 +626,31 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       {/* Primary Category - Square Cards */}
       <section className="relative z-30 bg-white dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-5">
+          {/* Search bar below primary categories */}
+          <form
+            onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }}
+            className="relative max-w-2xl mx-auto mb-4 sm:mb-5"
+          >
+            <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+              <Search className="h-5 w-5" />
+            </button>
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
+              className="w-full pl-11 pr-10 py-2.5 sm:py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base transition-all shadow-sm"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => { setSearchInput(''); navigateToSearch(''); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </form>
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1.5 sm:gap-3">
             {primaryCategories.map(({ key, label, icon: Icon, color, count }) => (
               <button
@@ -735,62 +689,6 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       <section className="relative z-10 px-4 sm:px-6 lg:px-8 py-16 lg:py-20 bg-gray-50 dark:bg-gray-800/50">
         <div className="max-w-7xl mx-auto">
 
-          {/* Secondary Filter Dropdown */}
-          <div className="max-w-3xl mx-auto mb-8">
-            <div className="flex items-center gap-2 sm:gap-3 justify-end">
-              {/* Secondary Filter Dropdown */}
-              <div className="relative flex-shrink-0">
-                <button
-                  onClick={() => setShowSecondaryFilters(!showSecondaryFilters)}
-                  className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 rounded-xl border shadow-sm transition-all text-sm font-semibold whitespace-nowrap ${
-                    showSecondaryFilters || selectedCategory !== 'all'
-                      ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                  }`}
-                >
-                  <SlidersHorizontal className="h-4 w-4 flex-shrink-0" />
-                  <span className="hidden sm:inline">
-                    {t.language === 'pt' ? 'Subcategoria' : t.language === 'en' ? 'Subcategory' : 'Subcategoría'}
-                  </span>
-                  {selectedCategory !== 'all' && (
-                    <span className="sm:hidden text-xs">●</span>
-                  )}
-                  <ChevronDown className={`h-4 w-4 transition-transform ${showSecondaryFilters ? 'rotate-180' : ''}`} />
-                </button>
-                {showSecondaryFilters && (
-                  <>
-                    <div className="fixed inset-0 z-30" onClick={() => setShowSecondaryFilters(false)} />
-                    <div className="absolute right-0 top-full mt-2 z-40 w-56 sm:w-64 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-2 space-y-1 max-h-80 overflow-y-auto">
-                      {categories.map(({ key, label, icon: Icon, color, count }) => (
-                        <button
-                          key={key}
-                          onClick={() => { setSelectedCategory(key); setShowSecondaryFilters(false); }}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            selectedCategory === key
-                              ? `${color.activeBg} ${color.activeText} shadow-sm`
-                              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          <Icon className="h-4 w-4 flex-shrink-0" />
-                          <span className="flex-1 text-left whitespace-nowrap">{label}</span>
-                          {count > 0 && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                              selectedCategory === key
-                                ? color.badgeActive
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                            }`}>
-                              {count}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
           {/* Products area - Horizontal Rows */}
           <div>
           {productsLoading ? (
@@ -804,13 +702,13 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             </div>
           ) : (() => {
             const filtered = products.filter(p => {
-              const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
               const matchesPrimary = selectedPrimaryCategory === 'all' || ((p as any).primary_category || 'item') === selectedPrimaryCategory;
+              const matchesGameCategory = !selectedGameCategory || p.category === selectedGameCategory;
               const matchesSearch = !searchQuery ||
                 p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 (p.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                 p.category.toLowerCase().includes(searchQuery.toLowerCase());
-              return matchesCategory && matchesPrimary && matchesSearch;
+              return matchesGameCategory && matchesPrimary && matchesSearch;
             });
 
             if (filtered.length === 0) {
@@ -822,7 +720,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
               );
             }
 
-            const isFiltering = selectedCategory !== 'all' || selectedPrimaryCategory !== 'all' || searchQuery;
+            const isFiltering = selectedGameCategory !== null || selectedPrimaryCategory !== 'all' || searchQuery;
             const handleProductClick = (product: StoreProduct) => {
               trackView(product);
               window.location.hash = `product/${product.id}`;
