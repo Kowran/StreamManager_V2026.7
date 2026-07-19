@@ -50,6 +50,33 @@ export function ProductRatingModal({
     setSubmitting(true);
     setError('');
     try {
+      // Prevent duplicate: check if already rated this order
+      if (orderId) {
+        const { data: existing } = await supabase
+          .from('product_ratings')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('order_id', orderId)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          // Already rated — mark order and close
+          await supabase
+            .from('store_orders')
+            .update({ has_rated: true })
+            .eq('id', orderId);
+          setSuccess(true);
+          setTimeout(() => {
+            onRatingSubmitted();
+            onClose();
+            setRating(0);
+            setComment('');
+            setSuccess(false);
+          }, 1200);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('product_ratings')
         .insert({

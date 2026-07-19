@@ -318,7 +318,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     try {
       const { data: orders, error } = await supabase
         .from('store_orders')
-        .select('id, product_id')
+        .select('id, product_id, has_rated')
         .eq('user_id', user.id)
         .in('status', ['delivered', 'paid'])
         .order('created_at', { ascending: false })
@@ -327,21 +327,22 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       const lastOrder = orders[0];
       if (!lastOrder.product_id) return false;
+      if (lastOrder.has_rated) return false;
 
       const { data: rating } = await supabase
         .from('product_ratings')
         .select('id')
         .eq('user_id', user.id)
-        .eq('product_id', lastOrder.product_id)
-        .maybeSingle();
+        .eq('order_id', lastOrder.id)
+        .limit(1);
 
-      if (!rating) {
+      if (!rating || rating.length === 0) {
         const { data: prod } = await supabase
           .from('store_products')
           .select('name')
           .eq('id', lastOrder.product_id)
           .single();
-        setPendingRating({ productId: lastOrder.product_id, productName: prod?.name || 'Produto' });
+        setPendingRating({ productId: lastOrder.product_id, productName: prod?.name || 'Produto', orderId: lastOrder.id });
         return true;
       }
       return false;
@@ -1346,6 +1347,12 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
   const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
   const isAvailable = product.manual_delivery || (product as any).account_recharge || product.stock_quantity > 0;
   const canAfford = userCredit ? userCredit.balance >= Number(product.price_usdt) : false;
+  const hasPromo = product.promotion_active && product.promotional_price_usdt;
+  const discountPct = hasPromo
+    ? Math.round((1 - Number(product.promotional_price_usdt) / Number(product.price_usdt)) * 100)
+    : 0;
+  const salesCount = (product as any).seller_info?.sales_count || 0;
+  const lowStock = !product.manual_delivery && !(product as any).account_recharge && product.stock_quantity > 0 && product.stock_quantity <= 5;
 
   return (
     <div
@@ -1356,28 +1363,36 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
     >
       {/* Product Image */}
       <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
-        {/* Delivery Tag */}
-        {product.manual_delivery ? (
-          (product as any).account_recharge ? (
-            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10">
-              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-amber-500 text-white shadow-sm">
+        {/* Top-left category badge */}
+        <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-black/55 backdrop-blur-sm text-white capitalize">
+          {product.category}
+        </span>
+        {/* Top-right promo / delivery */}
+        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex flex-col items-end gap-1">
+          {hasPromo && discountPct > 0 && (
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-red-500 text-white shadow-sm">
+              -{discountPct}%
+            </span>
+          )}
+          {product.manual_delivery ? (
+            (product as any).account_recharge ? (
+              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-amber-500 text-white shadow-sm">
                 <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                {t.language === 'pt' ? 'Recarga' :
-                 t.language === 'en' ? 'Recharge' :
-                 'Recarga'}
+                {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
               </span>
-            </div>
-          ) : (
-            <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10">
-              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-blue-500 text-white shadow-sm">
+            ) : (
+              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-blue-500 text-white shadow-sm">
                 <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                {t.language === 'pt' ? 'Entrega Manual' :
-                 t.language === 'en' ? 'Manual Delivery' :
-                 'Entrega Manual'}
+                {t.language === 'pt' ? 'Manual' : t.language === 'en' ? 'Manual' : 'Manual'}
               </span>
-            </div>
-          )
-        ) : null}
+            )
+          ) : (
+            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-500 text-white shadow-sm">
+              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+              {t.language === 'pt' ? 'Auto' : t.language === 'en' ? 'Auto' : 'Auto'}
+            </span>
+          )}
+        </div>
 
         {product.image_url ? (
           <img
@@ -1392,7 +1407,7 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
             }}
           />
         ) : (
-          <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
+          <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-600 ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
             <Package className="w-10 h-10 text-white" />
           </div>
         )}
@@ -1406,77 +1421,44 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
           </div>
         )}
 
-        {/* Low Stock Badge */}
-        {/* Stock badge removed from product photo */}
+        {/* Bottom badges: low stock + sales count */}
+        <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 flex flex-col gap-1 z-10">
+          {lowStock && (
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-orange-500/90 backdrop-blur-sm text-white">
+              {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
+            </span>
+          )}
+          {salesCount > 0 && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-emerald-500/90 backdrop-blur-sm text-white">
+              <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Product Info */}
       <div className="p-2.5 sm:p-3 lg:p-4">
-        {/* Delivery Tag - Mobile only */}
-        {product.manual_delivery ? (
-          (product as any).account_recharge ? (
-            <div className="mb-2 sm:hidden">
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-500 text-white shadow-sm">
-                <Zap className="h-3 w-3 mr-1" />
-                {t.language === 'pt' ? 'Recarga' :
-                 t.language === 'en' ? 'Recharge' :
-                 'Recarga'}
-              </span>
-            </div>
-          ) : (
-            <div className="mb-2 sm:hidden">
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500 text-white shadow-sm">
-                <Truck className="h-3 w-3 mr-1" />
-                {t.language === 'pt' ? 'Entrega Manual' :
-                 t.language === 'en' ? 'Manual Delivery' :
-                 'Entrega Manual'}
-              </span>
-            </div>
-          )
-        ) : null}
-
-        <h3 className="font-bold text-xs sm:text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1">
+        <h3 className="font-bold text-xs sm:text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {product.name}
         </h3>
 
         {product.seller_info && (
-          <div className="mb-2">
+          <div className="mb-2 flex items-center gap-1.5">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onViewSellerProfile(product.seller_id || null, product.seller_info?.seller_slug);
               }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[140px]"
             >
               {product.seller_info.business_name}
             </button>
-            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-              ({product.seller_info.sales_count} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'})
+            <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+              · {product.seller_info.sales_count} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'}
             </span>
           </div>
         )}
-
-        {/* Delivery Type Badge */}
-        <div className="mb-2 flex items-center gap-1.5">
-          {product.manual_delivery ? (
-            (product as any).account_recharge ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                <Zap className="h-3 w-3 mr-1" />
-                {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                <Truck className="h-3 w-3 mr-1" />
-                {t.language === 'pt' ? 'Entrega Manual' : t.language === 'en' ? 'Manual Delivery' : 'Entrega Manual'}
-              </span>
-            )
-          ) : (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-              <Zap className="h-3 w-3 mr-1" />
-              {t.language === 'pt' ? 'Entrega Automática' : t.language === 'en' ? 'Automatic Delivery' : 'Entrega Automática'}
-            </span>
-          )}
-        </div>
 
         {/* Product Rating */}
         <div className="mb-3">
@@ -1485,9 +1467,20 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
 
         {/* Price */}
         <div className="flex items-baseline gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-          <span className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
-            {formatPrice(Number(product.price_usdt))}
-          </span>
+          {hasPromo ? (
+            <>
+              <span className="text-base sm:text-lg lg:text-xl font-bold text-red-500">
+                {formatPrice(Number(product.promotional_price_usdt))}
+              </span>
+              <span className="text-xs sm:text-sm text-gray-400 line-through">
+                {formatPrice(Number(product.price_usdt))}
+              </span>
+            </>
+          ) : (
+            <span className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
+              {formatPrice(Number(product.price_usdt))}
+            </span>
+          )}
         </div>
 
         {/* Actions */}

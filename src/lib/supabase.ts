@@ -3,7 +3,18 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    // Do NOT refresh token or refetch on window focus/visibility — only refresh on explicit user action
+    flowType: 'pkce',
+  },
+  realtime: {
+    params: { eventsPerSecond: 2 },
+  },
+});
 
 // Function to ensure user setup is complete
 export async function ensureUserSetup(userId: string, email: string): Promise<boolean> {

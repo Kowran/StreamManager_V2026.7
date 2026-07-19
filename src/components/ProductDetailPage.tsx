@@ -276,9 +276,9 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         .from('product_ratings')
         .select('id')
         .eq('user_id', user.id)
-        .eq('product_id', lastOrder.product_id)
-        .maybeSingle();
-      if (!rating) {
+        .eq('order_id', lastOrder.id)
+        .limit(1);
+      if (!rating || rating.length === 0) {
         setPendingRating({ productId: lastOrder.product_id, productName: lastOrder.store_products?.name || '', orderId: lastOrder.id });
         return true;
       }

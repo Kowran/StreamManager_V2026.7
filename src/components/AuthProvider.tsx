@@ -70,6 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Ignore token refresh events — these fire on window focus/visibility and
+      // would cause unnecessary re-renders / data refetches. The session remains valid.
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
+
       // Handle password recovery events
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
