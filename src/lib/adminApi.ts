@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 const ADMIN_API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 interface AdminUserAction {
-  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions';
+  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions' | 'freeze_balance' | 'unfreeze_balance' | 'update_name' | 'cancel_order' | 'review_appeal';
   user_id: string;
   data?: any;
 }
@@ -112,6 +112,46 @@ export class AdminAPI {
     return this.performUserAction({
       action: 'get_permissions',
       user_id: userId
+    });
+  }
+
+  static async freezeBalance(userId: string, reason?: string) {
+    return this.performUserAction({
+      action: 'freeze_balance',
+      user_id: userId,
+      data: { reason }
+    });
+  }
+
+  static async unfreezeBalance(userId: string, reason?: string) {
+    return this.performUserAction({
+      action: 'unfreeze_balance',
+      user_id: userId,
+      data: { reason }
+    });
+  }
+
+  static async updateUserName(userId: string, name: string) {
+    return this.performUserAction({
+      action: 'update_name',
+      user_id: userId,
+      data: { name }
+    });
+  }
+
+  static async cancelOrder(userId: string, orderId: string, reason?: string) {
+    return this.performUserAction({
+      action: 'cancel_order',
+      user_id: userId,
+      data: { order_id: orderId, reason }
+    });
+  }
+
+  static async reviewAppeal(userId: string, appealId: string, decision: 'approved' | 'rejected', adminResponse?: string) {
+    return this.performUserAction({
+      action: 'review_appeal',
+      user_id: userId,
+      data: { appeal_id: appealId, decision, admin_response: adminResponse }
     });
   }
 

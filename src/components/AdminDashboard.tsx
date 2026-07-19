@@ -24,7 +24,8 @@ import {
   Wallet,
   Globe,
   Scale,
-  Gamepad2
+  Gamepad2,
+  Gavel
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -92,6 +93,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
       title: language === 'pt' ? 'Gestão de Usuários' : language === 'en' ? 'User Management' : 'Gestión de Usuarios',
       items: [
         { id: 'admin-users', name: language === 'pt' ? 'Gerenciar Usuários' : language === 'en' ? 'Manage Users' : 'Gestionar Usuarios', icon: Users, color: 'from-blue-500 to-blue-600', description: language === 'pt' ? 'Visualize e gerencie todos os usuários' : language === 'en' ? 'View and manage all users' : 'Ver y gestionar todos los usuarios' },
+        { id: 'admin-appeals', name: language === 'pt' ? 'Recursos de Banimento' : language === 'en' ? 'Ban Appeals' : 'Apelaciones de Ban', icon: Gavel, color: 'from-rose-500 to-red-600', description: language === 'pt' ? 'Revise recursos de usuários banidos' : language === 'en' ? 'Review banned user appeals' : 'Revisar apelaciones de usuarios baneados' },
         { id: 'accounts-access', name: language === 'pt' ? 'Acessos de Contas' : language === 'en' ? 'Account Access' : 'Acceso a Cuentas', icon: UserCheck, color: 'from-purple-500 to-purple-600', description: language === 'pt' ? 'Gerencie acessos de contas' : language === 'en' ? 'Manage account access' : 'Gestionar acceso a cuentas' }
       ]
     },

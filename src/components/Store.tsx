@@ -24,6 +24,7 @@ interface UserCredit {
   balance: number;
   total_recharged: number;
   total_spent: number;
+  frozen?: boolean;
 }
 
 interface PaymentMethod {
@@ -277,7 +278,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     try {
       const { data, error } = await supabase
         .from('user_credits')
-        .select('balance, total_recharged, total_spent')
+        .select('balance, total_recharged, total_spent, frozen')
         .eq('user_id', user.id)
         .single();
 
@@ -285,7 +286,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
         throw error;
       }
 
-      setUserCredit(data || { balance: 0, total_recharged: 0, total_spent: 0 });
+      setUserCredit(data || { balance: 0, total_recharged: 0, total_spent: 0, frozen: false });
 
       const { data: smCredits, error: smError } = await supabase
         .from('user_sm_credits')
@@ -297,7 +298,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       }
     } catch (error) {
       console.error('Error loading user credit:', error);
-      setUserCredit({ balance: 0, total_recharged: 0, total_spent: 0 });
+      setUserCredit({ balance: 0, total_recharged: 0, total_spent: 0, frozen: false });
     }
   }
 
@@ -353,6 +354,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   function handlePurchase(product: ProductWithSeller) {
     if (!user || !userCredit) return;
+
+    if (userCredit.frozen) {
+      alert(t.language === 'pt' ? 'Seu saldo está congelado. Entre em contato com o suporte.' :
+        t.language === 'en' ? 'Your balance is frozen. Contact support.' :
+        'Tu saldo está congelado. Contacta con soporte.');
+      return;
+    }
 
     if (product.seller_id && product.seller_id === user.id) {
       alert(t.language === 'pt' ? 'Você não pode comprar seu próprio produto.' :

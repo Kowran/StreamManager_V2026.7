@@ -291,6 +291,7 @@ export interface Translation {
   allRoles: string;
   allStatus: string;
   admin: string;
+  customer: string;
   banned: string;
   bannedUsers: string;
   activeUsers: string;
@@ -612,6 +613,7 @@ const translations: Record<Language, Translation> = {
     allRoles: 'Todos os papéis',
     allStatus: 'Todos os status',
     admin: 'Administrador',
+    customer: 'Cliente',
     banned: 'Banido',
     bannedUsers: 'Usuários Banidos',
     activeUsers: 'Usuários Ativos',
@@ -1240,6 +1242,7 @@ const translations: Record<Language, Translation> = {
     allRoles: 'Todos los roles',
     allStatus: 'Todos los estados',
     admin: 'Administrador',
+    customer: 'Cliente',
     banned: 'Bloqueado',
     bannedUsers: 'Usuarios Bloqueados',
     activeUsers: 'Usuarios Activos',

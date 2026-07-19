@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase, ensureUserSetup } from '../lib/supabase';
 import { ActivityTracker } from '../lib/adminApi';
@@ -9,6 +9,8 @@ interface AuthContextType {
   loading: boolean;
   isPasswordRecovery: boolean;
   setIsPasswordRecovery: (value: boolean) => void;
+  isBanned: boolean;
+  banReason: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string, username?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -31,6 +33,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [isBanned, setIsBanned] = useState(false);
+  const banReasonRef = useRef<string | null>(null);
+
+  // Check banned status whenever user changes
+  useEffect(() => {
+    if (!user) {
+      setIsBanned(false);
+      banReasonRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('banned, ban_reason')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (cancelled) return;
+        if (profile?.banned) {
+          setIsBanned(true);
+          banReasonRef.current = profile.ban_reason || null;
+        } else {
+          setIsBanned(false);
+          banReasonRef.current = null;
+        }
+      } catch {
+        // ignore — don't block login on profile fetch failure
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   useEffect(() => {
     // Check if we're in password recovery mode
@@ -277,6 +311,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     isPasswordRecovery,
     setIsPasswordRecovery,
+    isBanned,
+    banReason: banReasonRef.current,
     signIn,
     signInWithGoogle,
     signInWithDiscord,

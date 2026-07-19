@@ -3,6 +3,7 @@ import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, M
 import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
 import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './components/AuthProvider';
+import { BannedScreen } from './components/BannedScreen';
 import { LanguageProvider, useLanguage } from './components/LanguageProvider';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { LanguageSelector } from './components/LanguageSelector';
@@ -25,6 +26,7 @@ import { UserPurchases } from './components/UserPurchases';
 import { Package } from 'lucide-react';
 import { AccountsAccessGuard } from './components/AccountsAccessGuard';
 import AdminUsersManager from './components/AdminUsersManager';
+import AdminAppealsManager from './components/AdminAppealsManager';
 import AdminSettingsManager from './components/AdminSettingsManager';
 import AdminSiteSettingsManager from './components/AdminSiteSettingsManager';
 import { LandingPage } from './components/LandingPage';
@@ -77,7 +79,7 @@ import { CategorySearchPage } from './components/CategorySearchPage';
 import { SearchResultsPage } from './components/SearchResultsPage';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
 
 interface StoreConfig {
   store_name?: string;
@@ -85,7 +87,7 @@ interface StoreConfig {
 }
 
 function AppContent() {
-  const { user, loading, isPasswordRecovery } = useAuth();
+  const { user, loading, isPasswordRecovery, isBanned, banReason } = useAuth();
   const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>('store');
@@ -503,6 +505,12 @@ function AppContent() {
             <AdminUsersManager />
           </AdminGuard>
         );
+      case 'admin-appeals':
+        return (
+          <AdminGuard page="admin-appeals">
+            <AdminAppealsManager />
+          </AdminGuard>
+        );
       case 'admin-settings':
         return (
           <AdminGuard page="admin-settings">
@@ -701,6 +709,11 @@ function AppContent() {
         <LoginForm />
       </div>
     );
+  }
+
+  // Show banned screen if user is banned
+  if (user && isBanned) {
+    return <BannedScreen banReason={banReason} />;
   }
 
   if (!user) {
