@@ -18,6 +18,7 @@ import { ProductRatingModal } from './ProductRatingModal';
 import { SellerRequestForm } from './SellerRequestForm';
 import { SMMPanel } from './SMMPanel';
 import { ProductRow } from './ProductRow';
+import { LoginModal } from './LoginModal';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 interface UserCredit {
@@ -97,6 +98,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [hasRequestedSeller, setHasRequestedSeller] = useState(false);
   const [productCategories, setProductCategories] = useState<any[]>([]);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const categoriesScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollCategories = useCallback((direction: 'left' | 'right') => {
@@ -107,13 +109,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
   }, []);
 
   useEffect(() => {
+    loadStoreData();
+    loadBanners();
+    loadProductCategories();
     if (user) {
-      loadStoreData();
       loadUserCredit();
       loadUserProfile();
     }
-    loadBanners();
-    loadProductCategories();
   }, [user]);
 
   async function loadProductCategories() {
@@ -353,7 +355,11 @@ export function Store({ onNavigate }: StoreProps = {}) {
   }
 
   function handlePurchase(product: ProductWithSeller) {
-    if (!user || !userCredit) return;
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!userCredit) return;
 
     if (userCredit.frozen) {
       alert(t.language === 'pt' ? 'Seu saldo está congelado. Entre em contato com o suporte.' :
@@ -1223,6 +1229,15 @@ export function Store({ onNavigate }: StoreProps = {}) {
         <SellerRequestForm
           onClose={() => setShowSellerForm(false)}
           onSuccess={() => setShowSellerForm(false)}
+        />
+      )}
+
+      {/* Login Modal for non-authenticated users trying to purchase */}
+      {showLoginModal && (
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onLoginSuccess={() => setShowLoginModal(false)}
         />
       )}
     </div>

@@ -29,7 +29,7 @@ import AdminUsersManager from './components/AdminUsersManager';
 import AdminAppealsManager from './components/AdminAppealsManager';
 import AdminSettingsManager from './components/AdminSettingsManager';
 import AdminSiteSettingsManager from './components/AdminSiteSettingsManager';
-import { LandingPage } from './components/LandingPage';
+
 import { AccountsAccessManager } from './components/AccountsAccessManager';
 import { MessageCircle } from 'lucide-react';
 import { SupportSystem } from './components/SupportSystem';
@@ -73,7 +73,7 @@ import { AdminBannerManager } from './components/AdminBannerManager';
 import { AdminCouponsManager } from './components/AdminCouponsManager';
 import { NicknameSetupModal } from './components/NicknameSetupModal';
 import { ChatInbox } from './components/ChatInbox';
-import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
+
 import { AdminProductCategoriesManager } from './components/AdminProductCategoriesManager';
 import { CategorySearchPage } from './components/CategorySearchPage';
 import { SearchResultsPage } from './components/SearchResultsPage';
@@ -99,9 +99,7 @@ function AppContent() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const [needsUsername, setNeedsUsername] = useState(false);
-  const [showLanding, setShowLanding] = useState(true);
-  const [showSellerRecruitment, setShowSellerRecruitment] = useState(false);
-  const [subdomain, setSubdomain] = useState<'main' | 'login' | 'home'>('main');
+
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [siteSettings, setSiteSettings] = useState<{ site_name?: string; header_logo_url?: string; browser_title?: string; favicon_url?: string } | null>(null);
   const [sellerSlug, setSellerSlug] = useState<string | null>(null);
@@ -203,26 +201,8 @@ function AppContent() {
   }
 
   useEffect(() => {
-    detectSubdomain();
     loadStoreConfig();
   }, []);
-
-  function detectSubdomain() {
-    const hostname = window.location.hostname;
-    const parts = hostname.split('.');
-
-    if (parts.length > 2 || hostname.includes('localhost')) {
-      const sub = parts[0];
-      if (sub === 'login' || sub === 'painel' || sub === 'panel' || sub === 'dashboard') {
-        if (sub === 'dashboard') { window.history.pushState(null, '', '/store'); window.dispatchEvent(new PopStateEvent('popstate')); return; }
-        setSubdomain('login');
-        setShowLanding(false);
-      } else if (sub === 'home' || sub === 'www' || hostname.includes('localhost')) {
-        setSubdomain('home');
-        setShowLanding(true);
-      }
-    }
-  }
 
   useEffect(() => {
     if (!user) {
@@ -716,337 +696,8 @@ function AppContent() {
     return <BannedScreen banReason={banReason} />;
   }
 
-  if (!user) {
-    if (activeTab === 'product-detail' && productDetailId) {
-      return (
-        <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
-          <AnnouncementBar />
-          <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
-            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center py-3 sm:py-4 lg:py-6">
-                <div className="flex items-center">
-                  <button
-                    onClick={() => {
-                      setActiveTab('store');
-                      setProductDetailId(null);
-                      window.history.pushState(null, '', '/store');
-                    }}
-                    className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
-                  >
-                    {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
-                      <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-6 w-6 object-cover rounded-lg mr-2"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
-                        <CreditCard className="h-3 w-3 text-white" />
-                      </div>
-                    )}
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">
-                      {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveTab('store');
-                      setProductDetailId(null);
-                      window.history.pushState(null, '', '/store');
-                    }}
-                    className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
-                  >
-                    {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
-                      <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : null}
-                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
-                    </div>
-                    <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                      {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
-                    </span>
-                  </button>
-                </div>
-                <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
-                  <button onClick={toggleTheme}
-                    className="hidden lg:block p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
-                    {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-                  </button>
-                  <div className="hidden lg:block"><CurrencySelector /></div>
-                  <div className="hidden lg:block"><LanguageSelector /></div>
-                  <button onClick={() => setShowLoginModal(true)}
-                    className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-                    <LogIn className="h-4 w-4 mr-1.5" />
-                    <span className="hidden sm:inline">{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </header>
-          <ProductDetailPage
-            productId={productDetailId}
-            onBack={() => {
-              setActiveTab('store');
-              setProductDetailId(null);
-              window.history.pushState(null, '', '/store');
-            }}
-            onGetStarted={() => {
-              if (subdomain === 'home') {
-                const currentUrl = new URL(window.location.href);
-                const hostname = currentUrl.hostname;
-                const parts = hostname.split('.');
-                if (parts.length > 2 || hostname.includes('localhost')) {
-                  const mainDomain = parts.slice(-2).join('.');
-                  const loginUrl = hostname.includes('localhost')
-                    ? `${currentUrl.protocol}//localhost:${currentUrl.port}/login`
-                    : `${currentUrl.protocol}//login.${mainDomain}`;
-                  window.location.href = loginUrl;
-                } else {
-                  setShowLanding(false);
-                }
-              } else {
-                setShowLanding(false);
-              }
-            }}
-            onNavigate={navigateWithRecharge}
-          />
-          {showLoginModal && (
-            <LoginModal
-              isOpen={showLoginModal}
-              onClose={() => setShowLoginModal(false)}
-              onLoginSuccess={() => setShowLoginModal(false)}
-            />
-          )}
-        </div>
-      );
-    }
-    // Product detail page takes priority over landing page for logged-in users
-    if (activeTab === 'product-detail' && productDetailId) {
-      return (
-        <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
-          <AnnouncementBar />
-          <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
-            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center py-3 sm:py-4 lg:py-6">
-                <div className="flex items-center">
-                  <button
-                    onClick={() => {
-                      setActiveTab('store');
-                      setProductDetailId(null);
-                      window.history.pushState(null, '', '/store');
-                    }}
-                    className="flex items-center hover:opacity-80 transition-opacity"
-                  >
-                    {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
-                      <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : null}
-                    <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                      <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
-                    </div>
-                    <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                      {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
-                    </span>
-                  </button>
-                </div>
-                <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
-                  <button onClick={toggleTheme}
-                    className="hidden lg:block p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors">
-                    {theme === 'light' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-                  </button>
-                  <div className="hidden lg:block"><CurrencySelector /></div>
-                  <div className="hidden lg:block"><LanguageSelector /></div>
-                  <button onClick={() => { setShowLanding(false); setActiveTab('store'); window.history.pushState(null, '', '/store'); }}
-                    className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-                    <LogIn className="h-4 w-4 mr-1.5" />
-                    <span className="hidden sm:inline">{t.language === 'pt' ? 'Ir para Loja' : t.language === 'en' ? 'Go to Store' : 'Ir a la Tienda'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </header>
-          <ProductDetailPage
-            productId={productDetailId}
-            onBack={() => {
-              setActiveTab('store');
-              setProductDetailId(null);
-              window.history.pushState(null, '', '/store');
-            }}
-            onGetStarted={() => {
-              setShowLanding(false);
-            }}
-            onNavigate={navigateWithRecharge}
-          />
-        </div>
-      );
-    }
-    if (showSellerRecruitment) {
-      return (
-        <div className="min-h-screen flex flex-col">
-          <AnnouncementBar />
-          <SellerRecruitmentPage
-            onBack={() => { setShowSellerRecruitment(false); setShowLanding(true); }}
-            onBecomeSeller={() => {
-              setShowSellerRecruitment(false);
-              setShowLanding(false);
-              if (!user) {
-                setShowLogin(true);
-              } else {
-                setActiveTab('seller-request');
-              }
-            }}
-          />
-        </div>
-      );
-    }
-    if (subdomain === 'home' || (subdomain === 'main' && showLanding)) {
-      return (
-        <div className="min-h-screen flex flex-col">
-          <AnnouncementBar />
-          <LandingPage onGetStarted={() => {
-        if (subdomain === 'home') {
-          const currentUrl = new URL(window.location.href);
-          const hostname = currentUrl.hostname;
-          const parts = hostname.split('.');
-          if (parts.length > 2 || hostname.includes('localhost')) {
-            const mainDomain = parts.slice(-2).join('.');
-            const loginUrl = hostname.includes('localhost')
-              ? `${currentUrl.protocol}//localhost:${currentUrl.port}/login`
-              : `${currentUrl.protocol}//login.${mainDomain}`;
-            window.location.href = loginUrl;
-          } else {
-            setShowLanding(false);
-          }
-        } else {
-          setShowLanding(false);
-        }
-          }} onSellerRecruitment={() => { setShowSellerRecruitment(true); setShowLanding(false); }} />
-        </div>
-      );
-    }
-    return (
-      <div className="min-h-screen flex flex-col">
-        <AnnouncementBar />
-        <LoginForm onBack={() => {
-      if (subdomain === 'login') {
-        const currentUrl = new URL(window.location.href);
-        const hostname = currentUrl.hostname;
-        const parts = hostname.split('.');
-        if (parts.length > 2 || hostname.includes('localhost')) {
-          const mainDomain = parts.slice(-2).join('.');
-          const homeUrl = hostname.includes('localhost')
-            ? `${currentUrl.protocol}//localhost:${currentUrl.port}/`
-            : `${currentUrl.protocol}//home.${mainDomain}`;
-          window.location.href = homeUrl;
-        } else {
-          setShowLanding(true);
-        }
-      } else {
-        setShowLanding(true);
-      }
-    }} />
-      </div>
-    );
-  }
-
   // Search results page for logged-out users
-  if (!user && activeTab === 'search-results') {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
-        <AnnouncementBar />
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
-          <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-3 sm:py-4">
-              <button
-                onClick={() => {
-                  setActiveTab('store');
-                  setSearchQuery('');
-                  window.history.pushState(null, '', '/store');
-                  setShowLanding(true);
-                }}
-                className="flex items-center hover:opacity-80 transition-opacity"
-              >
-                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
-                  <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg" />
-                ) : (
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg">
-                    <CreditCard className="h-5 w-5 text-white" />
-                  </div>
-                )}
-                <span className="ml-3 text-lg font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
-                </span>
-              </button>
-              <button
-                onClick={() => { setShowLanding(true); setSearchQuery(''); window.history.pushState(null, '', '/store'); }}
-                className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-              >
-                <LogIn className="h-4 w-4 mr-1.5" />
-                <span className="hidden sm:inline">{t.language === 'pt' ? 'Voltar' : t.language === 'en' ? 'Back' : 'Volver'}</span>
-              </button>
-            </div>
-          </div>
-        </header>
-        <SearchResultsPage
-          query={searchQuery}
-          onBack={() => {
-            setActiveTab('store');
-            setSearchQuery('');
-            window.history.pushState(null, '', '/store');
-            setShowLanding(true);
-          }}
-          onProductClick={(product: any) => {
-            setProductDetailId(product.id);
-            setActiveTab('product-detail');
-            window.history.pushState(null, '', `/product/${product.id}`);
-          }}
-          onNavigate={navigateWithRecharge}
-        />
-        <Footer
-          navigationLinks={footerNavigation}
-          onNavigate={(id) => {
-            setActiveTab(id as ActiveTab);
-            window.history.pushState(null, '', `/${id}`);
-          }}
-        />
-      </div>
-    );
-  }
-
   // Product detail page for logged-out users: render with app-style header
-  if (!user && activeTab === 'product-detail' && productDetailId) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
-        <AnnouncementBar />
-        <ProductDetailPage
-          productId={productDetailId}
-          onBack={() => {
-            setActiveTab('store');
-            setProductDetailId(null);
-            window.history.pushState(null, '', '/store');
-          }}
-          onGetStarted={() => {
-            if (subdomain === 'home') {
-              const currentUrl = new URL(window.location.href);
-              const hostname = currentUrl.hostname;
-              const parts = hostname.split('.');
-              if (parts.length > 2 || hostname.includes('localhost')) {
-                const mainDomain = parts.slice(-2).join('.');
-                const loginUrl = hostname.includes('localhost')
-                  ? `${currentUrl.protocol}//localhost:${currentUrl.port}/login`
-                  : `${currentUrl.protocol}//login.${mainDomain}`;
-                window.location.href = loginUrl;
-              } else {
-                setShowLanding(false);
-              }
-            } else {
-              setShowLanding(false);
-            }
-          }}
-          onNavigate={navigateWithRecharge}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
       {/* Force nickname setup for users without a username */}
@@ -1220,7 +871,17 @@ function AppContent() {
                 )}
               </button>
               <NotificationCenter />
-              <UserMenu onNavigate={navigateWithRecharge} isAdmin={isAdmin} isSeller={isSeller} />
+              {user ? (
+                <UserMenu onNavigate={navigateWithRecharge} isAdmin={isAdmin} isSeller={isSeller} />
+              ) : (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                >
+                  <LogIn className="h-4 w-4 mr-1.5" />
+                  <span className="hidden sm:inline">{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1357,7 +1018,7 @@ function AppContent() {
               window.history.pushState(null, '', '/store');
             }}
             onGetStarted={() => {
-              setShowLanding(false);
+              setShowLoginModal(true);
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -1407,6 +1068,14 @@ function AppContent() {
 
       {/* Admin Popups */}
       <PopupDisplay />
+
+      {showLoginModal && (
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onLoginSuccess={() => setShowLoginModal(false)}
+        />
+      )}
     </div>
   );
 }
