@@ -5,6 +5,7 @@ import {
   Truck, ChevronRight, Sparkles, BadgeCheck, ThumbsUp,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { fetchSellerBySlug, fetchSellerInfo } from '../lib/sellerInfo';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -148,18 +149,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       setLoading(true);
       setError(null);
 
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('seller_slug', sellerSlug)
-        .maybeSingle();
-
-      if (profileError) {
-        setError(t.language === 'pt' ? 'Erro ao carregar perfil do vendedor' :
-                t.language === 'en' ? 'Error loading seller profile' :
-                'Error al cargar el perfil del vendedor');
-        return;
-      }
+      const profileData = await fetchSellerBySlug(sellerSlug);
 
       if (!profileData) {
         setError(t.language === 'pt' ? 'Vendedor não encontrado' :
@@ -257,11 +247,8 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
       if (ratingsWithDetails && ratingsWithDetails.length > 0) {
         const userIds = [...new Set(ratingsWithDetails.map((r: any) => r.user_id))] as string[];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || 'Anonymous']));
+        const profilesMap = await fetchSellerInfo(userIds);
+        const profileMap = new Map(Object.entries(profilesMap).map(([id, s]) => [id, s.full_name || 'Anonymous']));
 
         setRatings(ratingsWithDetails.map((r: any) => ({
           id: r.id,
@@ -300,11 +287,8 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       const allRaterIds = [...new Set([...(sellerRatings || []), ...(customerRatings || [])].map(r => r.rater_id))] as string[];
       let profileMap = new Map<string, string>();
       if (allRaterIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', allRaterIds);
-        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name || 'Anonymous']));
+        const profilesMap = await fetchSellerInfo(allRaterIds);
+        profileMap = new Map(Object.entries(profilesMap).map(([id, s]) => [id, s.full_name || 'Anonymous']));
       }
 
       if (sellerRatings) {

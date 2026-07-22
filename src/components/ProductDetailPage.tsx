@@ -10,6 +10,7 @@ import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
 import { supabase, StoreProduct, ProductVariation } from '../lib/supabase';
+import { fetchSingleSellerInfo, fetchAdminSellerInfo } from '../lib/sellerInfo';
 import { LoginModal } from './LoginModal';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { PurchaseConfirmModal } from './PurchaseConfirmModal';
@@ -164,29 +165,23 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       const salesCount = Number(productSalesCount) || 0;
 
       if (data.seller_id) {
-        const { data: sellerData } = await supabase
-          .from('profiles')
-          .select('full_name, seller_slug, avatar_url, username, seller_level')
-          .eq('id', data.seller_id)
-          .maybeSingle();
+        const sellerData = await fetchSingleSellerInfo(data.seller_id);
+        const { data: levelInfo } = await supabase
+          .rpc('get_seller_level_info', { p_seller_id: data.seller_id });
         productData.seller_info = {
           business_name: sellerData?.full_name || sellerData?.username || sellerData?.seller_slug || 'Vendedor',
           sales_count: salesCount,
-          seller_slug: sellerData?.seller_slug,
+          seller_slug: sellerData?.seller_slug ?? null,
           avatar_url: sellerData?.avatar_url || null,
-          seller_level: sellerData?.seller_level || 1,
+          seller_level: (levelInfo as any)?.seller_level || 1,
           seller_id: data.seller_id,
         };
       } else {
-        const { data: adminProfile } = await supabase
-          .from('profiles')
-          .select('id, full_name, seller_slug, avatar_url')
-          .eq('role', 'admin')
-          .maybeSingle();
+        const adminProfile = await fetchAdminSellerInfo();
         productData.seller_info = {
           business_name: adminProfile?.full_name || 'Admin',
           sales_count: salesCount,
-          seller_slug: adminProfile?.seller_slug,
+          seller_slug: adminProfile?.seller_slug ?? null,
           avatar_url: adminProfile?.avatar_url || null,
           seller_id: adminProfile?.id || null,
         };

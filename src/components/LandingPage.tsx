@@ -5,6 +5,7 @@ import { useCurrency } from './CurrencyProvider';
 import { LanguageSelector } from './LanguageSelector';
 import { useTheme } from './ThemeProvider';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
+import { fetchSellerInfo } from '../lib/sellerInfo';
 import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
 import { ProductRow } from './ProductRow';
@@ -305,10 +306,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       const sellerIds = ([...new Set((data || []).map(p => p.seller_id).filter(Boolean))] as string[]);
       const sellerMap: Record<string, { name: string; slug: string | null; avatar: string | null; rating: number; ratingCount: number }> = {};
       if (sellerIds.length > 0) {
-        const { data: sellers } = await supabase
-          .from('profiles')
-          .select('id, full_name, seller_slug, username, avatar_url')
-          .in('id', sellerIds);
+        const sellersMap = await fetchSellerInfo(sellerIds);
         // Fetch seller ratings from user_ratings (customers rating seller)
         const { data: ratingRows } = await supabase
           .from('user_ratings')
@@ -321,9 +319,9 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
           ratingAgg[r.rated_user_id].sum += Number(r.rating) || 0;
           ratingAgg[r.rated_user_id].count += 1;
         }
-        for (const s of sellers || []) {
-          const agg = ratingAgg[s.id];
-          sellerMap[s.id] = {
+        for (const [id, s] of Object.entries(sellersMap)) {
+          const agg = ratingAgg[id];
+          sellerMap[id] = {
             name: s.full_name || s.username || s.seller_slug || 'Vendedor',
             slug: s.seller_slug,
             avatar: s.avatar_url || null,
