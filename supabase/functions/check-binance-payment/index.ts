@@ -130,6 +130,72 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const trimmedUserOrderId = (user_order_id || '').trim();
+
+    // Geo-blocked orders are manual P2P transfers — no Binance Pay API order exists.
+    // Accept the user-submitted transaction ID, store it for audit, and mark as completed.
+    const isGeoOrder = order_id?.startsWith('GEO');
+    if (isGeoOrder && trimmedUserOrderId) {
+      // Prevent double-crediting if already completed
+      if (payment.status === 'completed') {
+        return new Response(JSON.stringify({ status: 'completed' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      await supabase
+        .from('binance_payments')
+        .update({
+          status: 'completed',
+          updated_at: new Date().toISOString(),
+          webhook_data: {
+            ...payment.webhook_data,
+            user_transaction_id: trimmedUserOrderId,
+            manual_confirmation: true,
+          },
+        })
+        .eq('id', payment.id);
+
+      const { data: userCredits } = await supabase
+        .from('user_credits')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const paymentAmount = parseFloat(payment.amount_usd) || 0;
+      const currentBalance = userCredits?.balance || 0;
+      const newBalance = currentBalance + paymentAmount;
+
+      await supabase.from('user_credits').upsert({
+        user_id: user.id,
+        balance: newBalance,
+        total_recharged: (userCredits?.total_recharged || 0) + paymentAmount,
+      });
+
+      await supabase.from('credit_transactions').insert({
+        user_id: user.id,
+        type: 'recharge',
+        amount: paymentAmount,
+        balance_before: currentBalance,
+        balance_after: newBalance,
+        description: `Recarga via Binance Pay (Manual) - TxID ${trimmedUserOrderId}`,
+        reference_type: 'binance_payment',
+        reference_id: payment.id,
+        metadata: { order_id, user_order_id: trimmedUserOrderId, manual: true },
+      });
+
+      await sendEmailNotification('recharge_deposit', user.id, {
+        user_name: 'Cliente',
+        amount: paymentAmount.toFixed(2),
+        new_balance: newBalance.toFixed(2),
+      });
+
+      return new Response(JSON.stringify({ status: 'completed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // For non-geo orders, query the Binance Pay API
     const { data: config, error: configError } = await supabase
       .from('binance_config')
       .select('*')
@@ -139,15 +205,10 @@ Deno.serve(async (req: Request) => {
 
     const { api_key: apiKey, api_secret: apiSecret } = config;
 
-    // Try querying by our stored prepayId first (skip for geo-blocked GEO* orders)
-    const isGeoOrder = order_id?.startsWith('GEO');
-    let result = isGeoOrder
-      ? { status: 'FAIL', data: { status: 'UNKNOWN' } }
-      : await queryBinance({ prepayId: order_id }, apiKey, apiSecret);
+    let result = await queryBinance({ prepayId: order_id }, apiKey, apiSecret);
     console.log('Query by prepayId result:', JSON.stringify(result));
 
     // If user typed a different ID, try it as prepayId and then as merchantTradeNo
-    const trimmedUserOrderId = (user_order_id || '').trim();
     if (trimmedUserOrderId && trimmedUserOrderId !== order_id && result.data?.status !== 'PAID') {
       const byUserPrepay = await queryBinance({ prepayId: trimmedUserOrderId }, apiKey, apiSecret);
       console.log('Query by user prepayId result:', JSON.stringify(byUserPrepay));
