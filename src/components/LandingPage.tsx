@@ -342,15 +342,15 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         } catch { /* ignore */ }
       }));
 
-      // Fetch product ratings summary
+      // Fetch product ratings summary (view columns: id, average_rating, total_ratings)
       const { data: ratingSummaries } = await supabase
         .from('product_rating_summary')
-        .select('product_id, average_rating, rating_count')
-        .in('product_id', (data || []).map(p => p.id));
+        .select('id, average_rating, total_ratings')
+        .in('id', (data || []).map(p => p.id));
 
       const ratingMap: Record<string, { avg: number; count: number }> = {};
       for (const r of ratingSummaries || []) {
-        ratingMap[r.product_id] = { avg: Number(r.average_rating) || 0, count: Number(r.rating_count) || 0 };
+        ratingMap[r.id] = { avg: Number(r.average_rating) || 0, count: Number(r.total_ratings) || 0 };
       }
 
       const enriched = (data || []).map(p => ({
