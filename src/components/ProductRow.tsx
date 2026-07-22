@@ -129,64 +129,59 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
                     <Package className="w-10 h-10 text-gray-300 dark:text-gray-600" />
                   </div>
                 )}
-                {/* Top row badges */}
-                <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1">
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-black/55 backdrop-blur-sm text-white capitalize">
+                {/* Promo badge stays on image */}
+                {hasPromo && discountPct > 0 && (
+                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm">
+                    -{discountPct}%
+                  </span>
+                )}
+                {/* Sold-out badge stays on image */}
+                {!available && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500/90 backdrop-blur-sm text-white">
+                    {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
+                  </span>
+                )}
+                {/* Low stock badge stays on image */}
+                {available && product.stock_quantity > 0 && product.stock_quantity <= 5 && !(product as any).manual_delivery && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange-500/90 backdrop-blur-sm text-white">
+                    {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
+                  </span>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="p-3.5">
+                {/* Tags below image: category, sold count, delivery type */}
+                <div className="mb-2 flex items-center flex-wrap gap-1">
+                  <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 capitalize">
                     {product.category}
                   </span>
-                  {hasPromo && discountPct > 0 && (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm">
-                      -{discountPct}%
+                  {salesCount > 0 && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                      <TrendingUp className="h-2.5 w-2.5" />
+                      {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
                     </span>
                   )}
-                </div>
-                {/* Bottom-left availability / stock */}
-                <div className="absolute bottom-2 left-2 flex flex-col gap-1">
-                  {!available ? (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500/90 backdrop-blur-sm text-white">
-                      {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
-                    </span>
-                  ) : (
-                    <>
-                      {product.stock_quantity > 0 && product.stock_quantity <= 5 && !(product as any).manual_delivery && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange-500/90 backdrop-blur-sm text-white">
-                          {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-                        </span>
-                      )}
-                      {salesCount > 0 && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/90 backdrop-blur-sm text-white">
-                          <TrendingUp className="h-2.5 w-2.5" />
-                          {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
-                        </span>
-                      )}
-                    </>
-                  )}
-                </div>
-                {/* Delivery type bottom-right */}
-                <div className="absolute bottom-2 right-2">
                   {(product as any).manual_delivery ? (
                     (product as any).account_recharge ? (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/90 backdrop-blur-sm text-white">
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                         <Zap className="h-2.5 w-2.5" />
                         {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-blue-500/90 backdrop-blur-sm text-white">
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                         <Truck className="h-2.5 w-2.5" />
                         {t.language === 'pt' ? 'Manual' : t.language === 'en' ? 'Manual' : 'Manual'}
                       </span>
                     )
                   ) : (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/90 backdrop-blur-sm text-white">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
                       <Zap className="h-2.5 w-2.5" />
                       {t.language === 'pt' ? 'Automático' : t.language === 'en' ? 'Automatic' : 'Automático'}
                     </span>
                   )}
                 </div>
-              </div>
 
-              {/* Content */}
-              <div className="p-3.5">
                 <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1.5 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                   {product.name}
                 </h3>
