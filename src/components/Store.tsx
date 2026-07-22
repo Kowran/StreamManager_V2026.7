@@ -185,12 +185,20 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       async function getSellerRating(sellerId: string): Promise<{ average_rating: number; rating_count: number }> {
         if (sellerRatingCache[sellerId]) return sellerRatingCache[sellerId];
+        const sellerProductIds = (data || []).filter(p => p.seller_id === sellerId).map(p => p.id);
+        if (sellerProductIds.length === 0) {
+          const empty = { average_rating: 0, rating_count: 0 };
+          sellerRatingCache[sellerId] = empty;
+          return empty;
+        }
         const { data: ratings } = await supabase
           .from('product_ratings')
-          .select('rating, product_id')
-          .in('product_id', (data || []).filter(p => p.seller_id === sellerId).map(p => p.id));
-        const count = ratings?.length || 0;
-        const avg = count > 0 ? ratings!.reduce((s: number, r: any) => s + r.rating, 0) / count : 0;
+          .select('rating, user_id')
+          .in('product_id', sellerProductIds);
+        // Exclude self-ratings (where the rater is the seller themselves)
+        const buyerRatings = (ratings || []).filter((r: any) => r.user_id !== sellerId);
+        const count = buyerRatings.length;
+        const avg = count > 0 ? buyerRatings.reduce((s: number, r: any) => s + r.rating, 0) / count : 0;
         const result = { average_rating: avg, rating_count: count };
         sellerRatingCache[sellerId] = result;
         return result;
@@ -231,7 +239,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               ...product,
               stock_quantity: totalStock,
               seller_info: {
-                business_name: sellerData?.full_name || sellerData?.username || sellerData?.seller_slug || 'Vendedor',
+                business_name: sellerData?.username || sellerData?.full_name || sellerData?.seller_slug || 'Vendedor',
                 sales_count: salesCount,
                 seller_slug: sellerData?.seller_slug,
                 avatar_url: sellerData?.avatar_url,
@@ -247,7 +255,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             stock_quantity: totalStock,
             seller_id: adminProfile?.id ?? null,
             seller_info: {
-              business_name: adminProfile?.full_name || 'Admin',
+              business_name: adminProfile?.username || adminProfile?.full_name || 'Admin',
               sales_count: salesCount,
               seller_slug: adminProfile?.seller_slug,
               avatar_url: null,
