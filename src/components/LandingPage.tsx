@@ -79,6 +79,8 @@ interface StoreProduct {
   sales_count?: number;
   seller_rating?: number;
   seller_rating_count?: number;
+  average_rating?: number;
+  rating_count?: number;
 }
 
 export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPageProps) {
@@ -340,6 +342,17 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         } catch { /* ignore */ }
       }));
 
+      // Fetch product ratings summary
+      const { data: ratingSummaries } = await supabase
+        .from('product_rating_summary')
+        .select('product_id, average_rating, rating_count')
+        .in('product_id', (data || []).map(p => p.id));
+
+      const ratingMap: Record<string, { avg: number; count: number }> = {};
+      for (const r of ratingSummaries || []) {
+        ratingMap[r.product_id] = { avg: Number(r.average_rating) || 0, count: Number(r.rating_count) || 0 };
+      }
+
       const enriched = (data || []).map(p => ({
         ...p,
         seller_name: p.seller_id ? sellerMap[p.seller_id]?.name || null : null,
@@ -348,6 +361,8 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         seller_rating: p.seller_id ? sellerMap[p.seller_id]?.rating || 0 : 0,
         seller_rating_count: p.seller_id ? sellerMap[p.seller_id]?.ratingCount || 0 : 0,
         sales_count: salesCountMap[p.id] || 0,
+        average_rating: ratingMap[p.id]?.avg || 0,
+        rating_count: ratingMap[p.id]?.count || 0,
       }));
 
       const sorted = enriched.sort((a, b) => {
@@ -592,9 +607,18 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       {productCategories.length > 0 && (
         <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-6">
           <div className="w-full mx-auto">
-            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-3">
-              {t.language === 'pt' ? 'Categorias de Jogos' : t.language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
+                {t.language === 'pt' ? 'Categorias de Jogos' : t.language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
+              </h2>
+              <button
+                onClick={() => navigateToSearch('')}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap"
+              >
+                {t.language === 'pt' ? 'Ver tudo' : t.language === 'en' ? 'See all' : 'Ver todo'}
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
             <div className="relative group/cat">
               <button
                 onClick={() => scrollCategories('left')}
@@ -822,6 +846,17 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                               <div className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3" />
                                 {product.sales_count} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
+                              </div>
+                            )}
+                            {product.rating_count > 0 && product.average_rating > 0 && (
+                              <div className="mt-1 flex items-center gap-1">
+                                <div className="flex items-center gap-0.5">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <Star key={i} className={`h-3 w-3 ${i < Math.round(product.average_rating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                                  ))}
+                                </div>
+                                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">{product.average_rating.toFixed(1)}</span>
+                                <span className="text-[9px] text-gray-400">({product.rating_count})</span>
                               </div>
                             )}
                           </div>

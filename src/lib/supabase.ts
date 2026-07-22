@@ -108,6 +108,14 @@ export interface StoreProduct {
   promotion_end_date?: string | null;
   slug?: string;
   seller_id?: string | null;
+  seller_name?: string | null;
+  seller_slug?: string | null;
+  seller_avatar?: string | null;
+  seller_rating?: number;
+  seller_rating_count?: number;
+  sales_count?: number;
+  average_rating?: number;
+  rating_count?: number;
   account_recharge?: boolean;
   delivery_time?: string;
   created_at: string;

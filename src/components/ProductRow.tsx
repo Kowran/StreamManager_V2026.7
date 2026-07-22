@@ -198,6 +198,22 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
                   </div>
                 )}
 
+                {/* Product rating */}
+                {(product as any).rating_count > 0 && (product as any).average_rating > 0 && (
+                  <div className="mb-2 flex items-center gap-1">
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <Star
+                          key={i}
+                          className={`h-3 w-3 ${i < Math.round((product as any).average_rating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">{(product as any).average_rating.toFixed(1)}</span>
+                    <span className="text-[9px] text-gray-400">({(product as any).rating_count})</span>
+                  </div>
+                )}
+
                 {/* Price */}
                 <div className="flex items-baseline gap-2">
                   {hasPromo ? (
