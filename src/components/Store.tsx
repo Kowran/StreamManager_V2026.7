@@ -552,12 +552,12 @@ export function Store({ onNavigate }: StoreProps = {}) {
   }
 
   const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
-    account: { icon: UserCheck, label: language === 'pt' ? 'Contas' : language === 'en' ? 'Accounts' : 'Cuentas', color: { activeBg: 'bg-indigo-500', activeText: 'text-white', badgeActive: 'bg-indigo-600 text-white' } },
-    item: { icon: Package, label: language === 'pt' ? 'Itens' : 'Items', color: { activeBg: 'bg-emerald-500', activeText: 'text-white', badgeActive: 'bg-emerald-600 text-white' } },
-    mobile_recharge: { icon: Smartphone, label: language === 'pt' ? 'Recarga' : language === 'en' ? 'Recharge' : 'Recarga', color: { activeBg: 'bg-teal-500', activeText: 'text-white', badgeActive: 'bg-teal-600 text-white' } },
-    game: { icon: Gamepad2, label: language === 'pt' ? 'Jogos' : language === 'en' ? 'Games' : 'Juegos', color: { activeBg: 'bg-orange-500', activeText: 'text-white', badgeActive: 'bg-orange-600 text-white' } },
-    gift_card: { icon: Gift, label: language === 'pt' ? 'Gift Cards' : 'Gift Cards', color: { activeBg: 'bg-pink-500', activeText: 'text-white', badgeActive: 'bg-pink-600 text-white' } },
-    top_up: { icon: Coins, label: language === 'pt' ? 'Top-Up' : 'Top-Up', color: { activeBg: 'bg-amber-500', activeText: 'text-white', badgeActive: 'bg-amber-600 text-white' } },
+    account: { icon: UserCheck, label: language === 'pt' ? 'Contas' : language === 'en' ? 'Accounts' : 'Cuentas', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    item: { icon: Package, label: language === 'pt' ? 'Itens' : 'Items', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    mobile_recharge: { icon: Smartphone, label: language === 'pt' ? 'Recarga' : language === 'en' ? 'Recharge' : 'Recarga', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    game: { icon: Gamepad2, label: language === 'pt' ? 'Jogos' : language === 'en' ? 'Games' : 'Juegos', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    gift_card: { icon: Gift, label: language === 'pt' ? 'Gift Cards' : 'Gift Cards', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    top_up: { icon: Coins, label: language === 'pt' ? 'Top-Up' : 'Top-Up', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
   };
 
   const primaryCategories = useMemo(() => {
@@ -579,17 +579,17 @@ export function Store({ onNavigate }: StoreProps = {}) {
   }, [products, language]);
 
   const categoryConfig: Record<string, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
-    streaming: { icon: Clapperboard, label: 'Streaming', color: { activeBg: 'bg-red-500', activeText: 'text-white', badgeActive: 'bg-red-600 text-white' } },
-    music: { icon: Music, label: language === 'pt' ? 'Música' : 'Music', color: { activeBg: 'bg-purple-500', activeText: 'text-white', badgeActive: 'bg-purple-600 text-white' } },
-    gaming: { icon: Gamepad2, label: 'Gaming', color: { activeBg: 'bg-orange-500', activeText: 'text-white', badgeActive: 'bg-orange-600 text-white' } },
-    software: { icon: Code, label: 'Software', color: { activeBg: 'bg-blue-500', activeText: 'text-white', badgeActive: 'bg-blue-600 text-white' } },
-    other: { icon: Package, label: language === 'pt' ? 'Outros' : language === 'en' ? 'Other' : 'Otros', color: { activeBg: 'bg-gray-600', activeText: 'text-white', badgeActive: 'bg-gray-700 text-white' } },
+    streaming: { icon: Clapperboard, label: 'Streaming', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    music: { icon: Music, label: language === 'pt' ? 'Música' : 'Music', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    gaming: { icon: Gamepad2, label: 'Gaming', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    software: { icon: Code, label: 'Software', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
+    other: { icon: Package, label: language === 'pt' ? 'Outros' : language === 'en' ? 'Other' : 'Otros', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
   };
 
   const smmCategoryConfig = {
     icon: TrendingUp,
     label: language === 'pt' ? 'Redes Sociais' : language === 'en' ? 'Social Media' : 'Redes Sociales',
-    color: { activeBg: 'bg-pink-500', activeText: 'text-white', badgeActive: 'bg-pink-600 text-white' },
+    color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' },
   };
 
   const categories = useMemo(() => {
@@ -781,7 +781,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
                   <StoreIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                   <span>{t.language === 'pt' ? 'Minha Loja' : t.language === 'en' ? 'My Store' : 'Mi Tienda'}</span>
                 </button>
-              ) : userRole !== 'admin' && !hasRequestedSeller ? (
+              ) : user && userRole !== 'admin' && !hasRequestedSeller ? (
                 <button
                   onClick={() => setShowSellerForm(true)}
                   className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all text-sm font-bold whitespace-nowrap"

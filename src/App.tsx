@@ -857,20 +857,22 @@ function AppContent() {
                   <span className="text-sm font-bold">${creditBalance.toFixed(2)}</span>
                 </button>
               )}
-              {/* Chat Button */}
-              <button
-                onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '/messages'); }}
-                className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
-                title={t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes'}
-              >
-                <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                {chatUnreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full">
-                    {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
-                  </span>
-                )}
-              </button>
-              <NotificationCenter />
+              {/* Chat Button - only for authenticated users */}
+              {user && (
+                <button
+                  onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '/messages'); }}
+                  className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  title={t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes'}
+                >
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                  {chatUnreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-4 px-1 bg-blue-500 text-white text-[10px] font-bold rounded-full">
+                      {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
+                    </span>
+                  )}
+                </button>
+              )}
+              {user && <NotificationCenter />}
               {user ? (
                 <UserMenu onNavigate={navigateWithRecharge} isAdmin={isAdmin} isSeller={isSeller} />
               ) : (
