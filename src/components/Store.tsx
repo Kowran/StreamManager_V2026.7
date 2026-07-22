@@ -43,6 +43,9 @@ interface ProductWithSeller extends StoreProduct {
     business_name: string;
     sales_count: number;
     seller_slug?: string;
+    avatar_url?: string | null;
+    average_rating?: number;
+    rating_count?: number;
   };
 }
 
@@ -176,7 +179,22 @@ export function Store({ onNavigate }: StoreProps = {}) {
         .maybeSingle();
 
       // Cache seller profiles to avoid duplicate queries for the same seller
-      const sellerProfileCache: Record<string, { business_name: string; seller_slug: string }> = {};
+      const sellerProfileCache: Record<string, { full_name: string; seller_slug: string; username: string; avatar_url: string | null }> = {};
+      // Cache seller ratings to avoid duplicate queries
+      const sellerRatingCache: Record<string, { average_rating: number; rating_count: number }> = {};
+
+      async function getSellerRating(sellerId: string): Promise<{ average_rating: number; rating_count: number }> {
+        if (sellerRatingCache[sellerId]) return sellerRatingCache[sellerId];
+        const { data: ratings } = await supabase
+          .from('product_ratings')
+          .select('rating, product_id')
+          .in('product_id', (data || []).filter(p => p.seller_id === sellerId).map(p => p.id));
+        const count = ratings?.length || 0;
+        const avg = count > 0 ? ratings!.reduce((s: number, r: any) => s + r.rating, 0) / count : 0;
+        const result = { average_rating: avg, rating_count: count };
+        sellerRatingCache[sellerId] = result;
+        return result;
+      }
 
       const productsWithSellers = await Promise.all(
         (data || []).map(async (product) => {
@@ -194,21 +212,21 @@ export function Store({ onNavigate }: StoreProps = {}) {
           }
 
           if (product.seller_id) {
-            let sellerData: { full_name: string; seller_slug: string; username: string } | null = null;
+            let sellerData: { full_name: string; seller_slug: string; username: string; avatar_url: string | null } | null = null;
             if (sellerProfileCache[product.seller_id]) {
               sellerData = sellerProfileCache[product.seller_id];
             } else {
               const { data: sd } = await supabase
                 .from('profiles')
-                .select('full_name, seller_slug, username')
+                .select('full_name, seller_slug, username, avatar_url')
                 .eq('id', product.seller_id)
                 .maybeSingle();
               sellerData = sd;
               if (sd) {
-                const displayName = sd.full_name || sd.username || sd.seller_slug || 'Vendedor';
-                sellerProfileCache[product.seller_id] = { business_name: displayName, seller_slug: sd.seller_slug, username: sd.username };
+                sellerProfileCache[product.seller_id] = { full_name: sd.full_name, seller_slug: sd.seller_slug, username: sd.username, avatar_url: sd.avatar_url };
               }
             }
+            const sellerRating = await getSellerRating(product.seller_id);
             return {
               ...product,
               stock_quantity: totalStock,
@@ -216,10 +234,14 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 business_name: sellerData?.full_name || sellerData?.username || sellerData?.seller_slug || 'Vendedor',
                 sales_count: salesCount,
                 seller_slug: sellerData?.seller_slug,
+                avatar_url: sellerData?.avatar_url,
+                average_rating: sellerRating.average_rating,
+                rating_count: sellerRating.rating_count,
               }
             };
           }
 
+          const adminRating = await getSellerRating(adminProfile?.id || '');
           return {
             ...product,
             stock_quantity: totalStock,
@@ -228,6 +250,9 @@ export function Store({ onNavigate }: StoreProps = {}) {
               business_name: adminProfile?.full_name || 'Admin',
               sales_count: salesCount,
               seller_slug: adminProfile?.seller_slug,
+              avatar_url: null,
+              average_rating: adminRating.average_rating,
+              rating_count: adminRating.rating_count,
             }
           };
         })
@@ -928,6 +953,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             products={recommendedProducts}
             onProductClick={handleProductClick}
             icon={<Shuffle className="w-5 h-5 text-blue-500" />}
+            onViewAll={() => { setActiveCategory('all'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           />
           {bestSellers.length > 0 && (
             <ProductRow
@@ -936,6 +962,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               products={bestSellers}
               onProductClick={handleProductClick}
               icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
+              onViewAll={() => { setActiveCategory('all'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             />
           )}
           {productsByCategory.map(({ category, products: catProducts }) => (
@@ -945,6 +972,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               products={catProducts}
               onProductClick={handleProductClick}
               icon={<FolderTree className="w-5 h-5 text-amber-500" />}
+              onViewAll={() => { setActiveCategory(category); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             />
           ))}
           {recentlyViewedProducts.length > 0 && (

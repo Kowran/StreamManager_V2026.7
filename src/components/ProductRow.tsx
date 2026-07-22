@@ -1,20 +1,34 @@
 import React, { useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, Package, Truck, Zap, Star, Store, ArrowRight, TrendingUp, BadgeCheck, Clock } from 'lucide-react';
 import { StoreProduct } from '../lib/supabase';
+
+interface SellerInfo {
+  business_name: string;
+  sales_count: number;
+  seller_slug?: string;
+  avatar_url?: string | null;
+  average_rating?: number;
+  rating_count?: number;
+}
+
+interface ProductWithSellerInfo extends StoreProduct {
+  seller_info?: SellerInfo;
+  sales_count?: number;
+}
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
 
 interface ProductRowProps {
   title: string;
   subtitle?: string;
-  products: StoreProduct[];
+  products: ProductWithSellerInfo[];
   onProductClick: (product: StoreProduct) => void;
   emptyMessage?: string;
   icon?: React.ReactNode;
   onViewAll?: () => void;
 }
 
-export function ProductRow({ title, subtitle, products, onProductClick, emptyMessage, icon, onViewAll }: ProductRowProps) {
+export function ProductRow({ title, subtitle, products, onProductClick, emptyMessage, icon, onViewAll }: ProductRowProps & { products: ProductWithSellerInfo[] }) {
   const { formatPrice } = useCurrency();
   const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -87,11 +101,11 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
         {products.map(product => {
           const available = (product as any).manual_delivery || product.stock_quantity > 0;
           const hasPromo = product.promotion_active && product.promotional_price_usdt;
-          const sellerName = (product as any).seller_name;
-          const sellerAvatar = (product as any).seller_avatar;
-          const sellerRating = (product as any).seller_rating || 0;
-          const sellerRatingCount = (product as any).seller_rating_count || 0;
-          const salesCount = (product as any).sales_count || 0;
+          const sellerName = product.seller_info?.business_name;
+          const sellerAvatar = product.seller_info?.avatar_url;
+          const sellerRating = product.seller_info?.average_rating || 0;
+          const sellerRatingCount = product.seller_info?.rating_count || 0;
+          const salesCount = product.seller_info?.sales_count || (product as any).sales_count || 0;
           const discountPct = hasPromo
             ? Math.round((1 - Number(product.promotional_price_usdt) / Number(product.price_usdt)) * 100)
             : 0;
