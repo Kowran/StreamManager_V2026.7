@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, type LucideIcon } from 'lucide-react';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, Info, Wallet, Quote, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -102,6 +102,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [hasRequestedSeller, setHasRequestedSeller] = useState(false);
   const [productCategories, setProductCategories] = useState<any[]>([]);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [recentRatings, setRecentRatings] = useState<any[]>([]);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const categoriesScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollCategories = useCallback((direction: 'left' | 'right') => {
@@ -115,6 +117,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     loadStoreData();
     loadBanners();
     loadProductCategories();
+    loadRecentRatings();
     if (user) {
       loadUserCredit();
       loadUserProfile();
@@ -346,6 +349,55 @@ export function Store({ onNavigate }: StoreProps = {}) {
         .order('display_order', { ascending: true });
       if (error) return;
       setBanners(data || []);
+    } catch { /* ignore */ }
+  }
+
+  async function loadRecentRatings() {
+    try {
+      const { data, error } = await supabase
+        .from('product_ratings')
+        .select('id, rating, comment, created_at, user_id, product_id')
+        .order('created_at', { ascending: false })
+        .limit(12);
+      if (error || !data) return;
+
+      const productIds = [...new Set(data.map(r => r.product_id).filter(Boolean))];
+      const userIds = [...new Set(data.map(r => r.user_id).filter(Boolean))];
+
+      const [productsRes, usersRes] = await Promise.all([
+        productIds.length > 0
+          ? supabase.from('store_products').select('id, name, image_url, seller_id').in('id', productIds)
+          : Promise.resolve({ data: [], error: null }),
+        userIds.length > 0
+          ? supabase.from('profiles').select('id, username, full_name, avatar_url').in('id', userIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      const productMap = new Map((productsRes.data || []).map((p: any) => [p.id, p]));
+      const userMap = new Map((usersRes.data || []).map((u: any) => [u.id, u]));
+
+      const enriched = data
+        .filter((r: any) => {
+          const product = productMap.get(r.product_id);
+          return product && product.seller_id !== r.user_id;
+        })
+        .map((r: any) => {
+          const product = productMap.get(r.product_id);
+          const userInfo = userMap.get(r.user_id);
+          return {
+            id: r.id,
+            rating: r.rating,
+            comment: r.comment,
+            created_at: r.created_at,
+            product_name: product?.name || 'Produto',
+            product_image: product?.image_url,
+            buyer_name: userInfo?.username || userInfo?.full_name || 'Cliente',
+            buyer_avatar: userInfo?.avatar_url,
+          };
+        })
+        .slice(0, 8);
+
+      setRecentRatings(enriched);
     } catch { /* ignore */ }
   }
 
@@ -695,25 +747,68 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   return (
     <div className="space-y-4 sm:space-y-6 min-w-0 overflow-x-hidden">
-      {/* Header - Seller actions only */}
-      <div className="flex flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {userRole === 'seller' && onNavigate ? (
-            <button
-              onClick={() => onNavigate('seller-store')}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-xs sm:text-sm font-bold whitespace-nowrap"
-            >
-              <StoreIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span>{t.language === 'pt' ? 'Minha Loja' : t.language === 'en' ? 'My Store' : 'Mi Tienda'}</span>
-            </button>
-          ) : userRole !== 'admin' && !hasRequestedSeller ? (
-            <button
-              onClick={() => setShowSellerForm(true)}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 text-xs sm:text-sm font-bold whitespace-nowrap"
-            >
-              <StoreIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span>{t.language === 'pt' ? 'Ser Vendedor' : t.language === 'en' ? 'Be a Seller' : 'Ser Vendedor'}</span>
-            </button>
-          ) : null}
+      {/* Hero Section - Buy & Sell text + How it works */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 dark:from-slate-900 dark:via-blue-950 dark:to-black p-6 sm:p-10 shadow-xl">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500 rounded-full blur-3xl" />
+        </div>
+        <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+          <div className="flex-1 max-w-2xl">
+            <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2 sm:mb-3 leading-tight">
+              {t.language === 'pt' ? 'Compre e Venda com Segurança' : t.language === 'en' ? 'Buy and Sell with Confidence' : 'Compra y Vende con Seguridad'}
+            </h1>
+            <p className="text-sm sm:text-base text-blue-100 leading-relaxed mb-4">
+              {t.language === 'pt'
+                ? 'Encontre os melhores produtos digitais a preços justos. Crie sua conta, recarregue seu saldo e compre em segundos. Quer vender? Torne-se um vendedor e comece a lucrar hoje mesmo.'
+                : t.language === 'en'
+                ? 'Find the best digital products at fair prices. Create your account, recharge your balance and buy in seconds. Want to sell? Become a seller and start earning today.'
+                : 'Encuentra los mejores productos digitales a precios justos. Crea tu cuenta, recarga tu saldo y compra en segundos. ¿Quieres vender? Conviértete en vendedor y empieza a ganar hoy.'}
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => setShowHowItWorks(true)}
+                className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-white/15 backdrop-blur-md border border-white/25 hover:bg-white/25 text-white rounded-xl text-sm font-bold transition-all hover:scale-105"
+              >
+                <Info className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span>{t.language === 'pt' ? 'Como funciona o sistema de vendedor' : t.language === 'en' ? 'How the seller system works' : 'Cómo funciona el sistema de vendedor'}</span>
+              </button>
+              {userRole === 'seller' && onNavigate ? (
+                <button
+                  onClick={() => onNavigate('seller-store')}
+                  className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all text-sm font-bold whitespace-nowrap"
+                >
+                  <StoreIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span>{t.language === 'pt' ? 'Minha Loja' : t.language === 'en' ? 'My Store' : 'Mi Tienda'}</span>
+                </button>
+              ) : userRole !== 'admin' && !hasRequestedSeller ? (
+                <button
+                  onClick={() => setShowSellerForm(true)}
+                  className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all text-sm font-bold whitespace-nowrap"
+                >
+                  <StoreIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span>{t.language === 'pt' ? 'Ser Vendedor' : t.language === 'en' ? 'Be a Seller' : 'Ser Vendedor'}</span>
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <div className="hidden lg:flex flex-col gap-3 flex-shrink-0">
+            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-xl px-4 py-3 border border-white/15">
+              <Wallet className="h-8 w-8 text-emerald-400" />
+              <div>
+                <p className="text-white text-sm font-semibold">{t.language === 'pt' ? 'Compre em segundos' : t.language === 'en' ? 'Buy in seconds' : 'Compra en segundos'}</p>
+                <p className="text-blue-200 text-xs">{t.language === 'pt' ? 'Entrega automática' : t.language === 'en' ? 'Automatic delivery' : 'Entrega automática'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-xl px-4 py-3 border border-white/15">
+              <StoreIcon className="h-8 w-8 text-blue-400" />
+              <div>
+                <p className="text-white text-sm font-semibold">{t.language === 'pt' ? 'Venda sem complicações' : t.language === 'en' ? 'Sell hassle-free' : 'Vende sin complicaciones'}</p>
+                <p className="text-blue-200 text-xs">{t.language === 'pt' ? 'Painel do vendedor' : t.language === 'en' ? 'Seller dashboard' : 'Panel de vendedor'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Rotating Banner Carousel */}
@@ -1115,6 +1210,125 @@ export function Store({ onNavigate }: StoreProps = {}) {
       </>
       )}
       </div>
+
+      {/* Recent Reviews Section */}
+      {recentRatings.length > 0 && !isFiltering && activeCategory !== 'smm' && (
+        <div className="mt-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Quote className="h-5 w-5 text-blue-500" />
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+              {t.language === 'pt' ? 'Avaliações Recentes' : t.language === 'en' ? 'Recent Reviews' : 'Reseñas Recientes'}
+            </h2>
+            <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent dark:from-gray-700" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {recentRatings.map((review) => (
+              <div
+                key={review.id}
+                className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
+              >
+                <div className="flex items-center gap-2.5 mb-3">
+                  {review.buyer_avatar ? (
+                    <img src={review.buyer_avatar} alt={review.buyer_name} className="h-8 w-8 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-600" />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {review.buyer_name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{review.buyer_name}</p>
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {review.comment && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-3 mb-2">{review.comment}</p>
+                )}
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-50 dark:border-gray-700/50">
+                  {review.product_image && (
+                    <img src={review.product_image} alt="" className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                  )}
+                  <p className="text-[11px] text-gray-500 dark:text-gray-500 truncate">{review.product_name}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* How It Works Modal */}
+      {showHowItWorks && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setShowHowItWorks(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                  {t.language === 'pt' ? 'Como Funciona o Sistema de Vendedor' : t.language === 'en' ? 'How the Seller System Works' : 'Cómo Funciona el Sistema de Vendedor'}
+                </h2>
+              </div>
+              <button onClick={() => setShowHowItWorks(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              {[
+                { icon: UserCheck, title: t.language === 'pt' ? '1. Crie sua conta' : t.language === 'en' ? '1. Create your account' : '1. Crea tu cuenta', desc: t.language === 'pt' ? 'Cadastre-se gratuitamente no site. Qualquer usuário pode se tornar vendedor.' : t.language === 'en' ? 'Sign up for free on the site. Any user can become a seller.' : 'Regístrate gratis en el sitio. Cualquier usuario puede convertirse en vendedor.', color: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30' },
+                { icon: StoreIcon, title: t.language === 'pt' ? '2. Solicite ser vendedor' : t.language === 'en' ? '2. Apply to be a seller' : '2. Solicita ser vendedor', desc: t.language === 'pt' ? 'Clique em "Ser Vendedor" e preencha o formulário. Nossa equipe vai analisar seu pedido.' : t.language === 'en' ? 'Click "Be a Seller" and fill out the form. Our team will review your request.' : 'Haz clic en "Ser Vendedor" y completa el formulario. Nuestro equipo revisará tu solicitud.', color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30' },
+                { icon: Package, title: t.language === 'pt' ? '3. Cadastre seus produtos' : t.language === 'en' ? '3. List your products' : '3. Registra tus productos', desc: t.language === 'pt' ? 'Após aprovação, cadastre seus produtos digitais com preço, descrição e imagens.' : t.language === 'en' ? 'After approval, list your digital products with price, description and images.' : 'Tras la aprobación, registra tus productos digitales con precio, descripción e imágenes.', color: 'text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30' },
+                { icon: Zap, title: t.language === 'pt' ? '4. Venda com entrega automática' : t.language === 'en' ? '4. Sell with automatic delivery' : '4. Vende con entrega automática', desc: t.language === 'pt' ? 'Quando alguém compra, o produto é entregue automaticamente ao cliente e você recebe o valor.' : t.language === 'en' ? 'When someone buys, the product is automatically delivered to the customer and you receive the money.' : 'Cuando alguien compra, el producto se entrega automáticamente al cliente y recibes el dinero.', color: 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30' },
+                { icon: Wallet, title: t.language === 'pt' ? '5. Receba seus ganhos' : t.language === 'en' ? '5. Withdraw your earnings' : '5. Retira tus ganancias', desc: t.language === 'pt' ? 'Acompanhe suas vendas no painel do vendedor e solicite saques quando quiser.' : t.language === 'en' ? 'Track your sales in the seller dashboard and request withdrawals whenever you want.' : 'Sigue tus ventas en el panel de vendedor y solicita retiros cuando quieras.', color: 'text-teal-600 dark:text-teal-400 bg-teal-100 dark:bg-teal-900/30' },
+              ].map((step, i) => {
+                const Icon = step.icon;
+                return (
+                  <div key={i} className="flex gap-4">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${step.color}`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 pt-0.5">
+                      <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1">{step.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{step.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <div className="flex items-start gap-2">
+                  <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+                    {t.language === 'pt'
+                      ? 'Todas as transações são protegidas. O dinheiro só é liberado ao vendedor após a entrega do produto ao comprador.'
+                      : t.language === 'en'
+                      ? 'All transactions are protected. The money is only released to the seller after the product is delivered to the buyer.'
+                      : 'Todas las transacciones están protegidas. El dinero solo se libera al vendedor después de que el producto se entrega al comprador.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                {userRole !== 'admin' && !hasRequestedSeller && (
+                  <button
+                    onClick={() => { setShowHowItWorks(false); setShowSellerForm(true); }}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-bold text-sm transition-all shadow-lg"
+                  >
+                    {t.language === 'pt' ? 'Quero ser vendedor' : t.language === 'en' ? 'I want to be a seller' : 'Quiero ser vendedor'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowHowItWorks(false)}
+                  className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  {t.language === 'pt' ? 'Fechar' : t.language === 'en' ? 'Close' : 'Cerrar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Product Details Modal */}
       {showProductModal && selectedProduct && (
