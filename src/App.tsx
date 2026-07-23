@@ -53,6 +53,7 @@ import { AdminSMMProviders } from './components/AdminSMMProviders';
 import { AdminSMMOrders } from './components/AdminSMMOrders';
 import Community from './components/Community';
 import AdminCommunityManager from './components/AdminCommunityManager';
+import Blog from './components/Blog';
 import { AdminSellerRequests } from './components/AdminSellerRequests';
 import { ExpiringItemsChat } from './components/ExpiringItemsChat';
 import { FlyingBalloon } from './components/FlyingBalloon';
@@ -79,7 +80,7 @@ import { CategorySearchPage } from './components/CategorySearchPage';
 import { SearchResultsPage } from './components/SearchResultsPage';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
 
 interface StoreConfig {
   store_name?: string;
@@ -372,7 +373,8 @@ function AppContent() {
   const headerNavigation: { id: string; name: string; icon: typeof Newspaper }[] = [];
 
   const footerNavigation = [
-    { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: Newspaper },
+    { id: 'blog', name: t.language === 'pt' ? 'Blog' : t.language === 'en' ? 'Blog' : 'Blog', icon: Newspaper },
+    { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: MessageCircle },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Streaming' : t.language === 'en' ? 'Streaming' : 'Streaming', icon: Play },
   ];
@@ -586,6 +588,8 @@ function AppContent() {
         );
       case 'community':
         return <Community />;
+      case 'blog':
+        return <Blog onNavigate={(tab) => setActiveTab(tab as ActiveTab)} />;
       case 'admin-community':
         return (
           <AdminGuard page="admin-community">

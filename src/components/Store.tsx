@@ -19,6 +19,7 @@ import { SellerRequestForm } from './SellerRequestForm';
 import { SMMPanel } from './SMMPanel';
 import { ProductRow } from './ProductRow';
 import { LoginModal } from './LoginModal';
+import { BlogPreview } from './Blog';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 interface UserCredit {
@@ -1317,6 +1318,9 @@ export function Store({ onNavigate }: StoreProps = {}) {
           </div>
         </div>
       </div>
+
+      {/* Blog & News Preview */}
+      <BlogPreview onSeeAll={() => onNavigate?.('blog')} />
 
       {/* How It Works Modal */}
       {showHowItWorks && (
