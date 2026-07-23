@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle, LogIn, Search, Wallet, Gamepad2 } from 'lucide-react';
-import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
+import { useNotifications } from './hooks/useNotifications';
 import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './components/AuthProvider';
 import { BannedScreen } from './components/BannedScreen';
@@ -51,7 +51,6 @@ import { SMMPanel } from './components/SMMPanel';
 import { AdminSMMManager } from './components/AdminSMMManager';
 import { AdminSMMProviders } from './components/AdminSMMProviders';
 import { AdminSMMOrders } from './components/AdminSMMOrders';
-import Community from './components/Community';
 import AdminCommunityManager from './components/AdminCommunityManager';
 import Blog from './components/Blog';
 import { AdminSellerRequests } from './components/AdminSellerRequests';
@@ -112,7 +111,6 @@ function AppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [creditBalance, setCreditBalance] = useState(0);
-  const communityUnreadCount = useCommunityUnreadCount(user?.id);
 
   useEffect(() => {
     if (!user) { setCreditBalance(0); return; }
@@ -394,7 +392,7 @@ function AppContent() {
   const footerNavigation = [
     { id: 'game-categories', name: t.language === 'pt' ? 'Jogos' : t.language === 'en' ? 'Games' : 'Juegos', icon: Gamepad2 },
     { id: 'blog', name: t.language === 'pt' ? 'Blog' : t.language === 'en' ? 'Blog' : 'Blog', icon: Newspaper },
-    { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: MessageCircle },
+
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Streaming' : t.language === 'en' ? 'Streaming' : 'Streaming', icon: Play },
   ];
@@ -606,8 +604,6 @@ function AppContent() {
             <AdminCouponsManager />
           </AdminGuard>
         );
-      case 'community':
-        return <Community />;
       case 'blog':
         return <Blog onNavigate={(tab) => setActiveTab(tab as ActiveTab)} />;
       case 'game-categories':
@@ -860,11 +856,6 @@ function AppContent() {
                     >
                       <IconComponent className="h-4 w-4" />
                       <span className="hidden lg:inline">{item.name}</span>
-                      {item.id === 'community' && communityUnreadCount > 0 && (
-                        <span className="flex items-center justify-center min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full">
-                          {communityUnreadCount > 9 ? '9+' : communityUnreadCount}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
