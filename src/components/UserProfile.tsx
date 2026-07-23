@@ -7,6 +7,7 @@ import { useNotificationContext } from './NotificationProvider';
 import { SellerRequestForm } from './SellerRequestForm';
 import { OnlineBadge } from './OnlineBadge';
 import { PasswordChangeModal } from './PasswordChangeModal';
+import { TwoFactorSetupModal } from './TwoFactorSetupModal';
 import { LevelBadge, LevelProgressBar } from './LevelBadge';
 
 interface UserProfileData {
@@ -74,6 +75,9 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [disabling2FA, setDisabling2FA] = useState(false);
   const [showSellerRequestForm, setShowSellerRequestForm] = useState(false);
   const [hasRequestedSeller, setHasRequestedSeller] = useState(false);
   const [hasStreamingAccess, setHasStreamingAccess] = useState(false);
@@ -127,6 +131,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
         profile_badge: profile.profile_badge || '',
       });
       setHideExpiringBalloon(profile.hide_expiring_balloon || false);
+      setTwoFactorEnabled((profile as any).two_factor_enabled || false);
       setCoverZoom(profile.cover_zoom ? Number(profile.cover_zoom) : 1.0);
       setCoverPosX(profile.cover_position_x ? Number(profile.cover_position_x) : 50.0);
       setCoverPosY(profile.cover_position_y ? Number(profile.cover_position_y) : 50.0);
@@ -299,6 +304,21 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     } finally { setSaving(false); }
   }
 
+  async function toggle2FA() {
+    if (!user) return;
+    if (twoFactorEnabled) {
+      setDisabling2FA(true);
+      try {
+        const { error } = await supabase.from('profiles')
+          .update({ two_factor_enabled: false, two_factor_secret: null }).eq('id', user.id);
+        if (error) throw error;
+        setTwoFactorEnabled(false);
+      } catch { /* ignore */ } finally { setDisabling2FA(false); }
+    } else {
+      setShow2FAModal(true);
+    }
+  }
+
   async function toggleExpiringBalloon() {
     if (!user) return;
     setSavingBalloonPref(true);
@@ -366,6 +386,11 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     changePassword: language === 'pt' ? 'Alterar senha' : 'Change password',
     keepSecure: language === 'pt' ? 'Mantenha sua conta segura' : 'Keep your account secure',
     change: language === 'pt' ? 'Alterar' : 'Change',
+    twoFactor: language === 'pt' ? 'Autenticação em Duas Etapas' : 'Two-Factor Authentication',
+    twoFactorDesc: language === 'pt' ? 'Adicione uma camada extra de segurança à sua conta' : 'Add an extra layer of security to your account',
+    enable: language === 'pt' ? 'Ativar' : 'Enable',
+    disable: language === 'pt' ? 'Desativar' : 'Disable',
+    enabled: language === 'pt' ? 'Ativada' : 'Enabled',
     expiringBalloon: language === 'pt' ? 'Balão de contas vencidas' : 'Expiring accounts balloon',
     floatingNotif: language === 'pt' ? 'Notificação flutuante' : 'Floating notification',
     securityTips: language === 'pt' ? 'Dicas de segurança' : 'Security tips',
@@ -1012,6 +1037,23 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                     </button>
                   </div>
 
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${twoFactorEnabled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                        <Shield className={`h-5 w-5 ${twoFactorEnabled ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{tr.twoFactor}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{tr.twoFactorDesc}</p>
+                      </div>
+                    </div>
+                    <button onClick={toggle2FA} disabled={disabling2FA}
+                      className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors disabled:opacity-50 ${twoFactorEnabled ? 'bg-red-500 hover:bg-red-600 text-white' : 'text-white'}`}
+                      style={!twoFactorEnabled ? { backgroundColor: themeColor } : {}}>
+                      {disabling2FA ? '...' : twoFactorEnabled ? tr.disable : tr.enable}
+                    </button>
+                  </div>
+
                   {hasStreamingAccess && (
                     <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
                       <div className="flex items-center gap-3">
@@ -1088,6 +1130,8 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
       </div>
 
       <PasswordChangeModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
+
+      <TwoFactorSetupModal isOpen={show2FAModal} onClose={() => setShow2FAModal(false)} onSuccess={() => { setShow2FAModal(false); setTwoFactorEnabled(true); }} siteName={siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'} />
 
       {showSellerRequestForm && (
         <SellerRequestForm

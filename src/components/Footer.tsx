@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Instagram, Youtube, MessageCircle, Mail, Globe, Heart, Twitter, Send, Music2, X, Cookie, HelpCircle, FileText, ShoppingCart, Shield, Info, ChevronDown, ChevronRight, Sun, Moon } from 'lucide-react';
+import { Instagram, Youtube, MessageCircle, Mail, Globe, Heart, Twitter, Send, Music2, X, Cookie, HelpCircle, FileText, ShoppingCart, Shield, Info, ChevronDown, ChevronRight, Sun, Moon, DollarSign, Briefcase } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 import { useTheme } from './ThemeProvider';
@@ -34,7 +34,7 @@ interface StoreConfig {
   };
 }
 
-type LegalDoc = 'faq' | 'terms' | 'purchase' | 'privacy' | 'about';
+type LegalDoc = 'faq' | 'terms' | 'purchase' | 'privacy' | 'about' | 'fees' | 'careers';
 
 const COOKIE_CONSENT_KEY = 'cookie_consent_v1';
 
@@ -141,6 +141,8 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
     { key: 'terms', label: tr('Termos de Uso', 'Terms of Use', 'Términos de Uso'), icon: FileText },
     { key: 'purchase', label: tr('Termos de Compra', 'Purchase Terms', 'Términos de Compra'), icon: ShoppingCart },
     { key: 'privacy', label: tr('Política de Privacidade', 'Privacy Policy', 'Política de Privacidad'), icon: Shield },
+    { key: 'fees', label: tr('Taxas e Prazos', 'Fees & Deadlines', 'Comisiones y Plazos'), icon: DollarSign },
+    { key: 'careers', label: tr('Trabalhe Conosco', 'Work With Us', 'Trabaja con Nosotros'), icon: Briefcase },
     { key: 'about', label: tr('Sobre Nós', 'About Us', 'Sobre Nosotros'), icon: Info },
   ];
 
@@ -379,6 +381,8 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
         </div>
       ),
     },
+    fees: { title: '', body: <div /> },
+    careers: { title: '', body: <div /> },
   };
 
   return (
@@ -503,7 +507,18 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                   return (
                     <li key={link.key}>
                       <button
-                        onClick={() => { setOpenDoc(link.key); setOpenFaqItem(null); }}
+                        onClick={() => {
+                          if (link.key === 'fees') {
+                            window.history.pushState(null, '', '/fees-page');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
+                          } else if (link.key === 'careers') {
+                            window.history.pushState(null, '', '/work-with-us');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
+                          } else {
+                            setOpenDoc(link.key);
+                            setOpenFaqItem(null);
+                          }
+                        }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <Icon className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />

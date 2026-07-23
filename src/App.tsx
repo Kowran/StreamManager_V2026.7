@@ -48,6 +48,8 @@ import { AdminEmailVerifier } from './components/AdminEmailVerifier';
 import { NetflixEmailFinder } from './components/NetflixEmailFinder';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
+import { FeesPage } from './components/FeesPage';
+import { WorkWithUsPage } from './components/WorkWithUsPage';
 import { SMMPanel } from './components/SMMPanel';
 import { AdminSMMManager } from './components/AdminSMMManager';
 import { AdminSMMProviders } from './components/AdminSMMProviders';
@@ -83,7 +85,7 @@ import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
 
 interface StoreConfig {
   store_name?: string;
@@ -307,6 +309,10 @@ function AppContent() {
         const sq = decodeURIComponent(path.replace('search/', ''));
         setSearchQuery(sq);
         setActiveTab('search-results');
+      } else if (path.startsWith('fees-page') || path.startsWith('fees')) {
+        setActiveTab('fees-page');
+      } else if (path.startsWith('work-with-us') || path.startsWith('careers')) {
+        setActiveTab('work-with-us');
       } else if (path.startsWith('blog/')) {
         setActiveTab('blog');
       } else if (path.startsWith('seller-store/')) {
@@ -699,6 +705,24 @@ function AppContent() {
         );
       case 'seller-store':
         return <SellerStore />;
+      case 'fees-page':
+        return (
+          <FeesPage
+            onBack={() => {
+              setActiveTab('store');
+              window.history.pushState(null, '', '/store');
+            }}
+          />
+        );
+      case 'work-with-us':
+        return (
+          <WorkWithUsPage
+            onBack={() => {
+              setActiveTab('store');
+              window.history.pushState(null, '', '/store');
+            }}
+          />
+        );
       case 'seller-profile':
         if (!sellerSlug) return <Store onNavigate={navigateWithRecharge} />;
         return (
