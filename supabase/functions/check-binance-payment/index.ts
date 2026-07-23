@@ -335,7 +335,7 @@ Deno.serve(async (req: Request) => {
     // requests race for the same Order ID, only the first one wins and credits
     // the balance. The second update affects 0 rows and we abort without
     // double-crediting.
-    const { data: updatedRow, count: updatedCount } = await supabase
+    const { data: updatedRow } = await supabase
       .from('binance_payments')
       .update({
         status: 'completed',
@@ -349,9 +349,10 @@ Deno.serve(async (req: Request) => {
         },
       })
       .eq('id', payment.id)
-      .eq('status', 'pending');
+      .eq('status', 'pending')
+      .select();
 
-    if (updatedCount === 0 || !updatedRow || updatedRow.length === 0) {
+    if (!updatedRow || updatedRow.length === 0) {
       // Another request already completed this record — abort to avoid a duplicate credit.
       console.warn(`Concurrent completion blocked for payment ${payment.id} (Order ID ${trimmedUserOrderId})`);
       return new Response(JSON.stringify({
