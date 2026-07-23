@@ -8,6 +8,7 @@ import { SellerRequestForm } from './SellerRequestForm';
 import { OnlineBadge } from './OnlineBadge';
 import { PasswordChangeModal } from './PasswordChangeModal';
 import { TwoFactorSetupModal } from './TwoFactorSetupModal';
+import { SellerSettings } from './SellerSettings';
 import { LevelBadge, LevelProgressBar } from './LevelBadge';
 
 interface UserProfileData {
@@ -61,7 +62,7 @@ const BADGES = [
   { label: '🎯 Pro', value: '🎯 Pro' },
 ];
 
-type TabKey = 'overview' | 'info' | 'appearance' | 'security' | 'reviews';
+type TabKey = 'overview' | 'info' | 'appearance' | 'security' | 'reviews' | 'store';
 
 export function UserProfile({ onNavigate }: UserProfileProps = {}) {
   const { user } = useAuth();
@@ -388,6 +389,8 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     change: language === 'pt' ? 'Alterar' : 'Change',
     twoFactor: language === 'pt' ? 'Autenticação em Duas Etapas' : 'Two-Factor Authentication',
     twoFactorDesc: language === 'pt' ? 'Adicione uma camada extra de segurança à sua conta' : 'Add an extra layer of security to your account',
+    storeTab: language === 'pt' ? 'Loja' : 'Store',
+    viewPublicProfile: language === 'pt' ? 'Ver Perfil Público' : 'View Public Profile',
     enable: language === 'pt' ? 'Ativar' : 'Enable',
     disable: language === 'pt' ? 'Desativar' : 'Disable',
     enabled: language === 'pt' ? 'Ativada' : 'Enabled',
@@ -433,6 +436,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     { key: 'appearance', label: tr.appearance, icon: Palette },
     { key: 'security', label: tr.security, icon: Shield },
     { key: 'reviews', label: tr.reviews, icon: Star },
+    ...((profile.role === 'seller' || profile.role === 'admin') ? [{ key: 'store' as TabKey, label: tr.storeTab, icon: Store }] : []),
   ];
 
   return (
@@ -597,8 +601,17 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               </div>
             </div>
 
-            {/* Edit / Save buttons */}
-            <div className="flex-shrink-0 pt-2 sm:pt-0 sm:pb-2">
+            {/* Edit / Save buttons + View Public Profile */}
+            <div className="flex flex-col gap-2 flex-shrink-0 pt-2 sm:pt-0 sm:pb-2">
+              <button
+                onClick={() => {
+                  window.history.pushState(null, '', `/user/${profile.id}`);
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Globe className="h-4 w-4" />{tr.viewPublicProfile}
+              </button>
               {!editing ? (
                 <button
                   onClick={() => setEditing(true)}
@@ -1128,6 +1141,22 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
           </div>
         </section>
       </div>
+
+      {activeTab === 'store' && (profile.role === 'seller' || profile.role === 'admin') && (
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setActiveTab('overview')}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{tr.storeTab}</h2>
+              <button onClick={() => setActiveTab('overview')} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              <SellerSettings />
+            </div>
+          </div>
+        </div>
+      )}
 
       <PasswordChangeModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
 

@@ -39,17 +39,6 @@ interface PaymentMethod {
   processing_time?: string;
 }
 
-function formatSellerName(name: string): string {
-  if (!name) return name;
-  const lower = name.toLowerCase();
-  const exceptions = ['de', 'da', 'do', 'das', 'dos', 'e', 'the', 'of', 'and', 'y'];
-  return lower.split(/\s+/).map((word, i) => {
-    if (i > 0 && exceptions.includes(word)) return word;
-    if (word.length === 0) return word;
-    return word.charAt(0).toUpperCase() + word.slice(1);
-  }).join(' ');
-}
-
 interface ProductWithSeller extends StoreProduct {
   seller_info?: {
     business_name: string;
@@ -281,7 +270,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               ...product,
               stock_quantity: totalStock,
               seller_info: {
-                business_name: formatSellerName(sellerData?.username || sellerData?.full_name || sellerData?.seller_slug || 'Vendedor'),
+                business_name: sellerData?.username || sellerData?.full_name || sellerData?.seller_slug || 'Vendedor',
                 sales_count: salesCount,
                 total_sales: sellerTotalSales,
                 seller_slug: sellerData?.seller_slug,
@@ -299,7 +288,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             stock_quantity: totalStock,
             seller_id: adminProfile?.id ?? null,
             seller_info: {
-              business_name: formatSellerName(adminProfile?.username || adminProfile?.full_name || 'Admin'),
+              business_name: adminProfile?.username || adminProfile?.full_name || 'Admin',
               sales_count: salesCount,
               total_sales: adminTotalSales,
               seller_slug: adminProfile?.seller_slug,

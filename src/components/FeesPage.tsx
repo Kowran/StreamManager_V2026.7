@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, Clock, Zap, Shield, CreditCard, Smartphone, Coins, ArrowLeft, Info } from 'lucide-react';
+import { DollarSign, Clock, Zap, Shield, CreditCard, Smartphone, Coins, ArrowLeft, Info, Store, TrendingUp, Wallet, Percent } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 
 interface FeesPageProps {
@@ -116,6 +116,78 @@ export function FeesPage({ onBack }: FeesPageProps) {
             'Las comisiones se aplican sobre el monto de la transacción y pueden variar según el método elegido. Las recargas vía PIX y criptomonedas no tienen comisiones adicionales. El plazo de procesamiento se cuenta desde la confirmación del pago.'
           )}
         </p>
+      </div>
+
+      <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 p-6 shadow-xl">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
+            <Store className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-white">{tr('Taxas e Prazos do Vendedor', 'Seller Fees & Deadlines', 'Comisiones y Plazos del Vendedor')}</h2>
+            <p className="text-xs text-blue-200">{tr('Informações para vendedores da plataforma', 'Information for platform sellers', 'Información para vendedores de la plataforma')}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Percent className="h-4 w-4 text-cyan-300" />
+              <span className="text-sm font-semibold text-white">{tr('Comissão da Plataforma', 'Platform Commission', 'Comisión de la Plataforma')}</span>
+            </div>
+            <p className="text-2xl font-bold text-cyan-300">5%</p>
+            <p className="text-xs text-blue-200 mt-1">{tr('sobre cada venda concluída', 'on each completed sale', 'sobre cada venta completada')}</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Wallet className="h-4 w-4 text-emerald-300" />
+              <span className="text-sm font-semibold text-white">{tr('Saque Mínimo', 'Minimum Withdrawal', 'Retiro Mínimo')}</span>
+            </div>
+            <p className="text-2xl font-bold text-emerald-300">$10.00</p>
+            <p className="text-xs text-blue-200 mt-1">{tr('valor mínimo para solicitar saque', 'minimum amount to request withdrawal', 'monto mínimo para solicitar retiro')}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-amber-300" />
+              <span className="text-sm text-blue-100">{tr('Prazo de Liberação do Saque', 'Withdrawal Release Time', 'Plazo de Liberación del Retiro')}</span>
+            </div>
+            <span className="text-sm font-semibold text-white">{tr('3 a 7 dias úteis', '3 to 7 business days', '3 a 7 días hábiles')}</span>
+          </div>
+          <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-green-300" />
+              <span className="text-sm text-blue-100">{tr('Período de Retenção', 'Hold Period', 'Período de Retención')}</span>
+            </div>
+            <span className="text-sm font-semibold text-white">{tr('48h após confirmação', '48h after confirmation', '48h después de la confirmación')}</span>
+          </div>
+          <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-blue-300" />
+              <span className="text-sm text-blue-100">{tr('Cashback ao Comprador', 'Buyer Cashback', 'Cashback al Comprador')}</span>
+            </div>
+            <span className="text-sm font-semibold text-white">{tr('Definido pelo vendedor', 'Set by seller', 'Definido por el vendedor')}</span>
+          </div>
+          <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/5">
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-purple-300" />
+              <span className="text-sm text-blue-100">{tr('Taxa de Estorno', 'Chargeback Fee', 'Tarifa de Reversión')}</span>
+            </div>
+            <span className="text-sm font-semibold text-white">{tr('Sem taxa para o vendedor', 'No fee for seller', 'Sin tarifa para el vendedor')}</span>
+          </div>
+        </div>
+
+        <div className="mt-5 bg-white/5 rounded-xl p-4 border border-white/10">
+          <p className="text-xs text-blue-200 leading-relaxed">
+            {tr(
+              'A comissão da plataforma é descontada automaticamente do saldo do vendedor no momento em que a venda é concluída. O valor restante fica disponível para saque após o período de retenção. Vendedores com nível mais alto podem ter benefícios especiais como menor comissão e saques prioritários.',
+              'The platform commission is automatically deducted from the seller balance when the sale is completed. The remaining amount becomes available for withdrawal after the hold period. Higher-level sellers may receive special benefits such as lower commission and priority withdrawals.',
+              'La comisión de la plataforma se descuenta automáticamente del saldo del vendedor cuando se completa la venta. El monto restante queda disponible para retiro después del período de retención. Los vendedores de nivel superior pueden recibir beneficios especiales como menor comisión y retiros prioritarios.'
+            )}
+          </p>
+        </div>
       </div>
     </div>
   );
