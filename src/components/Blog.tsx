@@ -194,7 +194,14 @@ export default function Blog({ onNavigate }: { onNavigate?: (tab: string) => voi
   const openPost = async (post: BlogPost) => {
     setSelectedPost(post);
     setView('detail');
+    window.history.pushState(null, '', `/blog/${post.id}`);
     await supabase.rpc('increment_blog_views', { p_post_id: post.id });
+  };
+
+  const backToList = () => {
+    setView('list');
+    setSelectedPost(null);
+    window.history.pushState(null, '', '/blog');
   };
 
   const handleDelete = async (postId: string) => {
@@ -235,7 +242,7 @@ export default function Blog({ onNavigate }: { onNavigate?: (tab: string) => voi
 
           {/* Back button floating */}
           <button
-            onClick={() => { setView('list'); setSelectedPost(null); }}
+            onClick={backToList}
             className="absolute top-4 left-4 flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-md text-white text-sm font-medium hover:bg-white/20 transition-all"
           >
             <ChevronLeft className="w-4 h-4" />

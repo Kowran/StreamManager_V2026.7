@@ -21,6 +21,11 @@ export function SellerStore() {
   const [activeTab, setActiveTab] = useState<SellerTab>('dashboard');
   const [isSeller, setIsSeller] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const sellerNavigate = (tab: SellerTab) => {
+    setActiveTab(tab);
+    window.history.pushState(null, '', `/seller-store/${tab}`);
+  };
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [openTicketsCount, setOpenTicketsCount] = useState(0);
   const [pendingQuestionsCount, setPendingQuestionsCount] = useState(0);
@@ -133,7 +138,7 @@ export function SellerStore() {
 
   function renderTab() {
     switch (activeTab) {
-      case 'dashboard': return <SellerDashboardOverview onNavigate={(tab) => setActiveTab(tab as SellerTab)} />;
+      case 'dashboard': return <SellerDashboardOverview onNavigate={(tab) => sellerNavigate(tab as SellerTab)} />;
       case 'products': return <SellerProductsManager />;
       case 'orders': return <SellerOrdersManager />;
       case 'qa': return <SellerQAManager />;
@@ -176,7 +181,7 @@ export function SellerStore() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => sellerNavigate(tab.id)}
                 className={`relative flex items-center gap-2 px-3 lg:px-4 py-2.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-sm'

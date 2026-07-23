@@ -161,6 +161,10 @@ function AppContent() {
       setPresetRechargeAmount(opts.presetAmount);
     }
     setActiveTab(tab as ActiveTab);
+    const dynamicRoutes = ['product-detail', 'user-profile', 'seller-profile', 'checkout', 'category-search', 'search-results'];
+    if (!dynamicRoutes.includes(tab)) {
+      window.history.pushState(null, '', `/${tab}`);
+    }
   };
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -302,6 +306,10 @@ function AppContent() {
         const sq = decodeURIComponent(path.replace('search/', ''));
         setSearchQuery(sq);
         setActiveTab('search-results');
+      } else if (path.startsWith('blog/')) {
+        setActiveTab('blog');
+      } else if (path.startsWith('seller-store/')) {
+        setActiveTab('seller-store');
       } else if (path && path !== activeTab) {
         setSellerSlug(null);
         setProductDetailId(null);
@@ -320,7 +328,7 @@ function AppContent() {
 
   // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
-    if (user && !loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'category-search' && activeTab !== 'search-results') {
+    if (!loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'category-search' && activeTab !== 'search-results') {
       const currentPath = window.location.pathname.slice(1);
       if (currentPath !== activeTab) {
         window.history.pushState(null, '', `/${activeTab}`);
@@ -424,14 +432,9 @@ function AppContent() {
           </AdminGuard>
         );
       case 'store':
-        return <Store onNavigate={(tab, opts) => {
-          if (tab === 'credits' && opts?.presetAmount) {
-            setPresetRechargeAmount(opts.presetAmount);
-          }
-          setActiveTab(tab);
-        }} />;
+        return <Store onNavigate={navigateWithRecharge} />;
       case 'smm':
-        return <SMMPanel onNavigate={(tab) => setActiveTab(tab as ActiveTab)} />;
+        return <SMMPanel onNavigate={navigateWithRecharge} />;
       case 'admin-smm-providers':
         return (
           <AdminGuard page="admin-smm-providers">
@@ -475,6 +478,7 @@ function AppContent() {
             onProductClick={(product: any) => {
               setProductDetailId(product.id);
               setActiveTab('product-detail');
+              window.history.pushState(null, '', `/product/${product.id}`);
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -491,6 +495,7 @@ function AppContent() {
             onProductClick={(product: any) => {
               setProductDetailId(product.id);
               setActiveTab('product-detail');
+              window.history.pushState(null, '', `/product/${product.id}`);
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -605,7 +610,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'blog':
-        return <Blog onNavigate={(tab) => setActiveTab(tab as ActiveTab)} />;
+        return <Blog onNavigate={navigateWithRecharge} />;
       case 'game-categories':
         return (
           <GameCategoriesPage
@@ -698,7 +703,9 @@ function AppContent() {
               window.history.pushState(null, '', '/store');
             }}
             onProductClick={(product: any) => {
-              console.log('Product clicked:', product);
+              setProductDetailId(product.id);
+              setActiveTab('product-detail');
+              window.history.pushState(null, '', `/product/${product.id}`);
             }}
           />
         );
