@@ -6,24 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 };
 
-function generateNonce(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function generateSignature(timestamp: string, nonce: string, body: string, secretKey: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const payload = `${timestamp}\n${nonce}\n${body}\n`;
-  const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(secretKey),
-    { name: 'HMAC', hash: 'SHA-512' },
-    false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-}
-
 async function sendEmailNotification(
   templateType: string,
   recipientId: string,
@@ -53,24 +35,104 @@ async function sendEmailNotification(
   }
 }
 
-async function queryBinance(body: Record<string, string>, apiKey: string, apiSecret: string) {
-  const timestamp = Date.now().toString();
-  const nonce = generateNonce();
-  const bodyString = JSON.stringify(body);
-  const signature = await generateSignature(timestamp, nonce, bodyString, apiSecret);
+/**
+ * Query Binance Pay Trade History to find an incoming transfer matching the
+ * transaction ID and amount the user reported. This uses the C2C transfer
+ * endpoint (GET /sapi/v1/pay/transactions) which does NOT create orders and
+ * therefore incurs no merchant acquiring fees.
+ *
+ * Binance Pay REST API uses HMAC-SHA256 with the API secret on a query string.
+ */
+async function queryPayTransactions(
+  params: { startTime?: number; endTime?: number },
+  apiKey: string,
+  apiSecret: string
+): Promise<any> {
+  const timestamp = Date.now();
+  const recvWindow = 5000;
 
-  const res = await fetch('https://bpay.binanceapi.com/binancepay/openapi/v2/order/query', {
-    method: 'POST',
+  const queryString = `timestamp=${timestamp}&recvWindow=${recvWindow}` +
+    (params.startTime ? `&startTime=${params.startTime}` : '') +
+    (params.endTime ? `&endTime=${params.endTime}` : '');
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(apiSecret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(queryString));
+  const signature = Array.from(new Uint8Array(sig))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+
+  const url = `https://api.binance.com/sapi/v1/pay/transactions?${queryString}&signature=${signature}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
     headers: {
-      'Content-Type': 'application/json',
-      'BinancePay-Timestamp': timestamp,
-      'BinancePay-Nonce': nonce,
-      'BinancePay-Certificate-SN': apiKey,
-      'BinancePay-Signature': signature,
+      'X-MBX-APIKEY': apiKey,
     },
-    body: bodyString,
   });
   return res.json();
+}
+
+/**
+ * Search recent incoming Pay transactions for one whose transactionId matches
+ * the user-provided ID and whose amount equals the expected deposit amount.
+ * We look back up to 7 days in pages of 100.
+ */
+async function findMatchingTransfer(
+  transactionId: string,
+  expectedAmount: number,
+  apiKey: string,
+  apiSecret: string
+): Promise<{ matched: boolean; reason?: string }> {
+  const now = Date.now();
+  const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+
+  try {
+    let result = await queryPayTransactions(
+      { startTime: sevenDaysAgo, endTime: now },
+      apiKey,
+      apiSecret
+    );
+
+    // Handle API error
+    if (result.code && result.code !== '000000' && result.success !== true) {
+      console.error('Binance Pay API error:', JSON.stringify(result));
+      return { matched: false, reason: 'Erro ao consultar a Binance. Tente novamente.' };
+    }
+
+    const transactions: any[] = result.data || [];
+
+    // Search through all returned transactions
+    for (const tx of transactions) {
+      // Only incoming transfers (positive amount) to our account
+      const txAmount = parseFloat(tx.amount);
+      if (txAmount <= 0) continue;
+
+      // Match by transaction ID (Binance returns e.g. "M_P_71505104267788288")
+      const txId: string = tx.transactionId || '';
+      if (txId === transactionId) {
+        // Verify the amount matches (allow tiny float tolerance)
+        if (Math.abs(txAmount - expectedAmount) < 0.01) {
+          return { matched: true };
+        }
+        return {
+          matched: false,
+          reason: `Transação encontrada, mas o valor (USDT ${txAmount.toFixed(2)}) não corresponde ao valor solicitado (USDT ${expectedAmount.toFixed(2)}).`,
+        };
+      }
+    }
+
+    return {
+      matched: false,
+      reason: 'Transação não encontrada no histórico da Binance. Verifique o Order ID e tente novamente.',
+    };
+  } catch (err) {
+    console.error('Error querying Binance Pay transactions:', err);
+    return { matched: false, reason: 'Erro ao conectar com a Binance. Tente novamente.' };
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -90,39 +152,27 @@ Deno.serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) throw new Error('Invalid authentication');
 
-    // order_id = internal prepayId or GEO fallback ID stored in DB
-    // user_order_id = Order ID typed by the user from the Binance app
     const { order_id, user_order_id } = await req.json();
 
-    let payment = null;
-    let paymentError = null;
+    const trimmedUserOrderId = (user_order_id || '').trim();
+    if (!trimmedUserOrderId) {
+      return new Response(JSON.stringify({
+        status: 'pending',
+        error: 'Digite o ID da transação gerado pelo Binance Pay.',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // First try by stored order_id
-    const { data: p1, error: e1 } = await supabase
+    // Find the pending payment record in our DB
+    const { data: payment, error: paymentError } = await supabase
       .from('binance_payments')
       .select('*')
       .eq('order_id', order_id)
       .eq('user_id', user.id)
       .maybeSingle();
-    payment = p1;
-    paymentError = e1;
 
-    // If not found and user typed an ID, try finding by that ID directly
-    if ((!payment || paymentError) && user_order_id) {
-      const trimmed = user_order_id.trim();
-      const { data: p2, error: e2 } = await supabase
-        .from('binance_payments')
-        .select('*')
-        .eq('order_id', trimmed)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (p2) {
-        payment = p2;
-        paymentError = null;
-      }
-    }
-
-    if (paymentError || !payment) throw new Error('Payment not found');
+    if (paymentError || !payment) throw new Error('Payment record not found');
 
     if (payment.status === 'completed') {
       return new Response(JSON.stringify({ status: 'completed' }), {
@@ -130,174 +180,101 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const trimmedUserOrderId = (user_order_id || '').trim();
-
-    const isGeoOrder = order_id?.startsWith('GEO');
-
-    // For non-geo orders, try the Binance Pay API first
-    let apiConfirmed = false;
-    let apiFailed = false;
-
-    if (!isGeoOrder) {
-      try {
-        const { data: config, error: configError } = await supabase
-          .from('binance_config')
-          .select('*')
-          .maybeSingle();
-
-        if (!configError && config) {
-          const { api_key: apiKey, api_secret: apiSecret } = config;
-
-          let result = await queryBinance({ prepayId: order_id }, apiKey, apiSecret);
-          console.log('Query by prepayId result:', JSON.stringify(result));
-
-          // If user typed a different ID, try it as prepayId and then as merchantTradeNo
-          if (trimmedUserOrderId && trimmedUserOrderId !== order_id && result.data?.status !== 'PAID') {
-            const byUserPrepay = await queryBinance({ prepayId: trimmedUserOrderId }, apiKey, apiSecret);
-            console.log('Query by user prepayId result:', JSON.stringify(byUserPrepay));
-            if (byUserPrepay.status === 'SUCCESS' && byUserPrepay.data?.status === 'PAID') {
-              result = byUserPrepay;
-            } else {
-              const merchantTradeNo = payment.webhook_data?.merchant_trade_no || trimmedUserOrderId;
-              const byMerchant = await queryBinance({ merchantTradeNo }, apiKey, apiSecret);
-              console.log('Query by merchantTradeNo result:', JSON.stringify(byMerchant));
-              if (byMerchant.status === 'SUCCESS' && byMerchant.data?.status === 'PAID') {
-                result = byMerchant;
-              }
-            }
-          }
-
-          const orderStatus = result.data?.status;
-          if (orderStatus === 'PAID') {
-            apiConfirmed = true;
-          } else if (['EXPIRED', 'CANCELED', 'ERROR'].includes(orderStatus)) {
-            apiFailed = true;
-          }
-        }
-      } catch (apiErr) {
-        console.error('Binance API query failed, falling back to manual:', apiErr);
-      }
-    }
-
-    // If the API confirmed PAID, credit via the API path
-    if (apiConfirmed) {
-      await supabase
-        .from('binance_payments')
-        .update({ status: 'completed', updated_at: new Date().toISOString() })
-        .eq('id', payment.id);
-
-      const { data: userCredits } = await supabase
-        .from('user_credits')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      const paymentAmount = parseFloat(payment.amount_usd) || 0;
-      const currentBalance = userCredits?.balance || 0;
-      const newBalance = currentBalance + paymentAmount;
-
-      await supabase.from('user_credits').upsert({
-        user_id: user.id,
-        balance: newBalance,
-        total_recharged: (userCredits?.total_recharged || 0) + paymentAmount,
-      });
-
-      await supabase.from('credit_transactions').insert({
-        user_id: user.id,
-        type: 'recharge',
-        amount: paymentAmount,
-        balance_before: currentBalance,
-        balance_after: newBalance,
-        description: `Recarga via Binance Pay - Order ${order_id}`,
-        reference_type: 'binance_payment',
-        reference_id: payment.id,
-        metadata: { order_id, user_order_id: trimmedUserOrderId || null },
-      });
-
-      await sendEmailNotification('recharge_deposit', user.id, {
-        user_name: 'Cliente',
-        amount: paymentAmount.toFixed(2),
-        new_balance: newBalance.toFixed(2),
-      });
-
-      return new Response(JSON.stringify({ status: 'completed' }), {
+    if (payment.status === 'failed') {
+      return new Response(JSON.stringify({
+        status: 'failed',
+        error: 'Este pagamento foi marcado como falhou. Crie um novo.',
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // If the API explicitly failed (EXPIRED/CANCELED/ERROR), don't allow manual confirmation
-    if (apiFailed) {
-      await supabase
-        .from('binance_payments')
-        .update({ status: 'failed', updated_at: new Date().toISOString() })
-        .eq('id', payment.id);
+    // Load Binance API credentials
+    const { data: config, error: configError } = await supabase
+      .from('binance_config')
+      .select('api_key, api_secret, is_active')
+      .maybeSingle();
 
-      return new Response(JSON.stringify({ status: 'failed' }), {
+    if (configError || !config || !config.is_active) {
+      return new Response(JSON.stringify({
+        status: 'pending',
+        error: 'Binance Pay não está configurado.',
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // API didn't confirm (either geo-blocked order, API unavailable, or user paid via
-    // Binance ID P2P transfer instead of the Pay QR). Accept the user-submitted transaction
-    // ID as manual confirmation with full audit trail.
-    if (trimmedUserOrderId) {
-      await supabase
-        .from('binance_payments')
-        .update({
-          status: 'completed',
-          updated_at: new Date().toISOString(),
-          webhook_data: {
-            ...payment.webhook_data,
-            user_transaction_id: trimmedUserOrderId,
-            manual_confirmation: true,
-          },
-        })
-        .eq('id', payment.id);
+    const expectedAmount = parseFloat(payment.amount_usd) || 0;
 
-      const { data: userCredits } = await supabase
-        .from('user_credits')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+    // Query Binance Pay Trade History to verify the transfer
+    const { matched, reason } = await findMatchingTransfer(
+      trimmedUserOrderId,
+      expectedAmount,
+      config.api_key,
+      config.api_secret
+    );
 
-      const paymentAmount = parseFloat(payment.amount_usd) || 0;
-      const currentBalance = userCredits?.balance || 0;
-      const newBalance = currentBalance + paymentAmount;
-
-      await supabase.from('user_credits').upsert({
-        user_id: user.id,
-        balance: newBalance,
-        total_recharged: (userCredits?.total_recharged || 0) + paymentAmount,
-      });
-
-      await supabase.from('credit_transactions').insert({
-        user_id: user.id,
-        type: 'recharge',
-        amount: paymentAmount,
-        balance_before: currentBalance,
-        balance_after: newBalance,
-        description: `Recarga via Binance Pay (Manual) - TxID ${trimmedUserOrderId}`,
-        reference_type: 'binance_payment',
-        reference_id: payment.id,
-        metadata: { order_id, user_order_id: trimmedUserOrderId, manual: true },
-      });
-
-      await sendEmailNotification('recharge_deposit', user.id, {
-        user_name: 'Cliente',
-        amount: paymentAmount.toFixed(2),
-        new_balance: newBalance.toFixed(2),
-      });
-
-      return new Response(JSON.stringify({ status: 'completed' }), {
+    if (!matched) {
+      return new Response(JSON.stringify({
+        status: 'pending',
+        error: reason || 'Pagamento não confirmado pela Binance.',
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // No transaction ID provided and API didn't confirm
-    return new Response(JSON.stringify({ status: payment.status }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Transfer confirmed — credit the user's balance
+    await supabase
+      .from('binance_payments')
+      .update({
+        status: 'completed',
+        tx_id: trimmedUserOrderId,
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        webhook_data: {
+          ...payment.webhook_data,
+          transaction_id: trimmedUserOrderId,
+          confirmed_via: 'pay_trade_history',
+        },
+      })
+      .eq('id', payment.id);
+
+    const { data: userCredits } = await supabase
+      .from('user_credits')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const currentBalance = userCredits?.balance || 0;
+    const newBalance = currentBalance + expectedAmount;
+
+    await supabase.from('user_credits').upsert({
+      user_id: user.id,
+      balance: newBalance,
+      total_recharged: (userCredits?.total_recharged || 0) + expectedAmount,
     });
 
+    await supabase.from('credit_transactions').insert({
+      user_id: user.id,
+      type: 'recharge',
+      amount: expectedAmount,
+      balance_before: currentBalance,
+      balance_after: newBalance,
+      description: `Recarga via Binance Pay - TxID ${trimmedUserOrderId}`,
+      reference_type: 'binance_payment',
+      reference_id: payment.id,
+      metadata: { order_id, user_order_id: trimmedUserOrderId },
+    });
+
+    await sendEmailNotification('recharge_deposit', user.id, {
+      user_name: 'Cliente',
+      amount: expectedAmount.toFixed(2),
+      new_balance: newBalance.toFixed(2),
+    });
+
+    return new Response(JSON.stringify({ status: 'completed' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (err: any) {
     console.error('Error checking Binance payment:', err);
     return new Response(

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, CheckCircle, Clock, AlertTriangle, Search } from 'lucide-react';
+import { X, Copy, CheckCircle, Clock, AlertTriangle, Search, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
-import { useLanguage } from './LanguageProvider';
 import QRCodeLib from 'qrcode';
 
 interface BinancePaymentModalProps {
@@ -16,18 +15,16 @@ type Step = 'init' | 'qr' | 'confirm' | 'verifying' | 'completed' | 'failed';
 
 export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: BinancePaymentModalProps) {
   const { user, session } = useAuth();
-  const { t } = useLanguage();
   const [step, setStep] = useState<Step>('init');
   const [loading, setLoading] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState('');
-  const [internalOrderId, setInternalOrderId] = useState(''); // prepayId from Binance
+  const [internalOrderId, setInternalOrderId] = useState('');
   const [qrCode, setQrCode] = useState('');
-  const [userOrderId, setUserOrderId] = useState(''); // typed by user
+  const [userTxId, setUserTxId] = useState('');
+  const [binanceId, setBinanceId] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [copiedBinanceId, setCopiedBinanceId] = useState(false);
   const [configEnabled, setConfigEnabled] = useState(false);
-  const [binanceId, setBinanceId] = useState('1145829605');
 
   useEffect(() => {
     if (isOpen) {
@@ -52,7 +49,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
     }
   };
 
-  const createPayment = async () => {
+  const startDeposit = async () => {
     if (!user || !session || !configEnabled) return;
     try {
       setLoading(true);
@@ -70,35 +67,20 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao criar pagamento');
 
-      if (data.geo_blocked) {
-        // Geo-blocked: show static QR, user pays manually and enters Order ID
-        setPaymentUrl('');
-        setInternalOrderId(data.order_id);
-        setQrCode('/photo_2026-07-11_11-04-20.jpg');
-        setStep('qr');
-        return;
-      }
-
-      setPaymentUrl(data.payment_url);
       setInternalOrderId(data.order_id);
+      if (data.binance_id) setBinanceId(data.binance_id);
 
+      // Generate a QR code encoding the Binance ID for easy scanning
       let qrSrc: string;
       try {
-        qrSrc = data.qr_image_url || (await QRCodeLib.toDataURL(data.payment_url));
+        qrSrc = await QRCodeLib.toDataURL(`https://app.binance.com/payment/link?binanceId=${data.binance_id}`);
       } catch {
         qrSrc = '/photo_2026-07-11_11-04-20.jpg';
       }
       setQrCode(qrSrc);
       setStep('qr');
     } catch (err: any) {
-      const msg = err.message || t.paymentCreationError;
-      if (msg.includes('geo') || msg.includes('region') || msg.includes('location') || msg.includes('country') || msg.includes('restricted')) {
-        // Geo-blocked: show static QR and allow user to enter Order ID manually
-        setQrCode('/photo_2026-07-11_11-04-20.jpg');
-        setStep('qr');
-      } else {
-        setError(msg);
-      }
+      setError(err.message || 'Erro ao iniciar pagamento');
     } finally {
       setLoading(false);
     }
@@ -106,9 +88,9 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
 
   const verifyPayment = async () => {
     if (!session) return;
-    const trimmed = userOrderId.trim();
+    const trimmed = userTxId.trim();
     if (!trimmed) {
-      setError('Digite o ID da ordem gerado pelo Binance Pay.');
+      setError('Digite o ID da transação gerado pelo Binance Pay.');
       return;
     }
 
@@ -135,11 +117,10 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
         setTimeout(() => onSuccess(), 2000);
       } else if (data.status === 'failed') {
         setStep('failed');
-        setError('Pagamento falhou ou foi cancelado.');
+        setError(data.error || 'Pagamento falhou ou foi cancelado.');
       } else {
-        // still pending / not confirmed
         setStep('confirm');
-        setError('Pagamento ainda não confirmado pela Binance. Verifique o ID e tente novamente.');
+        setError(data.error || 'Pagamento ainda não confirmado pela Binance. Verifique o ID e tente novamente.');
       }
     } catch (err: any) {
       setStep('confirm');
@@ -147,24 +128,22 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, isBinanceId = false) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const copyBinanceId = () => {
-    navigator.clipboard.writeText(binanceId);
-    setCopiedBinanceId(true);
-    setTimeout(() => setCopiedBinanceId(false), 2000);
+    if (isBinanceId) {
+      setCopiedBinanceId(true);
+      setTimeout(() => setCopiedBinanceId(false), 2000);
+    } else {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleClose = () => {
     setStep('init');
-    setPaymentUrl('');
     setInternalOrderId('');
     setQrCode('');
-    setUserOrderId('');
+    setUserTxId('');
     setError('');
     setCopied(false);
     setCopiedBinanceId(false);
@@ -172,11 +151,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
   };
 
   const resetToConfirm = () => {
-    setStep('qr');
-    setPaymentUrl('');
-    setInternalOrderId('');
-    setQrCode('');
-    setUserOrderId('');
+    setStep('confirm');
     setError('');
   };
 
@@ -216,19 +191,22 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Como funciona</h3>
                 <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1.5 list-decimal list-inside">
-                  <li>Clique em <strong>Gerar Pagamento</strong></li>
-                  <li>Escaneie o QR Code com o app Binance ou abra o link</li>
-                  <li>Conclua o pagamento no app Binance Pay</li>
-                  <li>Copie o <strong>Order ID</strong> exibido pela Binance e cole aqui</li>
-                  <li>Clique em <strong>Verificar Pagamento</strong> para liberar seus créditos</li>
+                  <li>Clique em <strong>Iniciar depósito</strong></li>
+                  <li>Abra o app Binance e vá em <strong>Transferir → Enviar</strong></li>
+                  <li>Cole o <strong>Binance ID</strong> exibido e envie <strong>${amount.toFixed(2)} USDT</strong></li>
+                  <li>Copie o <strong>ID da transação</strong> exibido no histórico</li>
+                  <li>Cole o ID aqui e clique em <strong>Verificar Pagamento</strong></li>
                 </ol>
+              </div>
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
+                <strong>Importante:</strong> O saldo só será creditado após a confirmação da transação pela Binance. Certifique-se de enviar exatamente o valor solicitado.
               </div>
               {configEnabled && (
                 <button
-                  onClick={createPayment}
+                  onClick={startDeposit}
                   className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold transition-colors"
                 >
-                  Gerar Pagamento
+                  Iniciar depósito
                 </button>
               )}
             </div>
@@ -238,11 +216,11 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
           {loading && (
             <div className="flex flex-col items-center justify-center py-10">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400 text-sm">Gerando pagamento...</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Preparando depósito...</p>
             </div>
           )}
 
-          {/* Step: qr — show QR and ask user to pay, then advance to confirm */}
+          {/* Step: qr — show Binance ID and instructions */}
           {step === 'qr' && (
             <div className="space-y-4">
               {/* QR Code */}
@@ -266,7 +244,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                     className="flex-1 px-3 py-2.5 border border-yellow-400 dark:border-yellow-500 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-base sm:text-sm font-mono font-bold tracking-wider"
                   />
                   <button
-                    onClick={copyBinanceId}
+                    onClick={() => copyToClipboard(binanceId, true)}
                     className="px-3 py-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors flex-shrink-0 flex items-center gap-1 font-medium text-sm"
                   >
                     {copiedBinanceId ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
@@ -278,36 +256,6 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                 </p>
               </div>
 
-              {/* Geo-block info banner */}
-              {!paymentUrl && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
-                  <strong>Atenção:</strong> Devido a restrições regionais, escaneie o QR code acima na Binance App ou use o Binance ID para depósito, e digite o ID do pedido na próxima etapa para confirmar seu pagamento.
-                </div>
-              )}
-
-              {/* Payment link — only when dynamically generated */}
-              {paymentUrl && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Ou abra o link de pagamento:
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={paymentUrl}
-                    readOnly
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-xs"
-                  />
-                  <button
-                    onClick={() => copyToClipboard(paymentUrl)}
-                    className="px-3 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors flex-shrink-0"
-                  >
-                    {copied ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              )}
-
               <button
                 onClick={() => { setStep('confirm'); setError(''); }}
                 className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-semibold transition-colors"
@@ -317,7 +265,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
             </div>
           )}
 
-          {/* Step: confirm — user enters their Binance Order ID */}
+          {/* Step: confirm — user enters their Binance transaction ID */}
           {step === 'confirm' && (
             <div className="space-y-4">
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
@@ -326,7 +274,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                   <div>
                     <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-200">Confirmação de pagamento</p>
                     <p className="text-xs text-yellow-800 dark:text-yellow-300 mt-1">
-                      Após concluir o pagamento no Binance Pay, abra o histórico de ordens e copie o <strong>Order ID</strong> gerado pela Binance. Cole abaixo para confirmar.
+                      Após concluir a transferência no Binance Pay, abra o histórico e copie o <strong>ID da transação</strong>. Cole abaixo para confirmar.
                     </p>
                   </div>
                 </div>
@@ -334,23 +282,23 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Order ID do Binance Pay
+                  ID da transação do Binance Pay
                 </label>
                 <input
                   type="text"
-                  value={userOrderId}
-                  onChange={e => { setUserOrderId(e.target.value); setError(''); }}
-                  placeholder="Ex: 987654321012345678"
+                  value={userTxId}
+                  onChange={e => { setUserTxId(e.target.value); setError(''); }}
+                  placeholder="Ex: M_P_71505104267788288"
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 />
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  Encontre o Order ID no app Binance em <em>Carteira → Histórico → Binance Pay</em>.
+                  Encontre o ID no app Binance em <em>Carteira → Histórico → Binance Pay</em>.
                 </p>
               </div>
 
               <button
                 onClick={verifyPayment}
-                disabled={!userOrderId.trim()}
+                disabled={!userTxId.trim()}
                 className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
               >
                 <Search className="w-4 h-4" />
@@ -372,7 +320,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500" />
               <p className="text-gray-600 dark:text-gray-300 font-medium">Verificando pagamento...</p>
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                Consultando a Binance para confirmar sua transação.
+                Consultando o histórico de transações da Binance para confirmar sua transferência.
               </p>
             </div>
           )}
@@ -396,7 +344,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Pagamento não confirmado</h3>
               <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Não foi possível confirmar seu pagamento. Verifique o Order ID e tente novamente.
+                {error || 'Não foi possível confirmar seu pagamento. Verifique o ID da transação e tente novamente.'}
               </p>
               <button
                 onClick={resetToConfirm}
