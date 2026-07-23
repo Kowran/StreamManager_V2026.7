@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, Search, Package, Loader, Truck, Zap, X, Star, UserCheck, Coins, Smartphone, Gamepad2, Gift, LayoutGrid, ShoppingCart, TrendingUp, ArrowRight, type LucideIcon } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { ChevronLeft, Search, Package, Loader, Truck, Zap, X, Star, UserCheck, Coins, Smartphone, Gamepad2, Gift, LayoutGrid, ShoppingCart, TrendingUp, ArrowRight, SlidersHorizontal, Tag, CheckCircle2, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
@@ -20,6 +20,7 @@ interface ProductWithSeller extends StoreProduct {
     seller_slug?: string;
     seller_rating?: number;
     seller_rating_count?: number;
+    seller_avatar?: string | null;
   };
 }
 
@@ -32,6 +33,26 @@ const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: 
   top_up: { icon: Coins, label: 'Top-Up', color: { activeBg: 'bg-amber-500', activeText: 'text-white', badgeActive: 'bg-amber-600 text-white' } },
 };
 
+interface FilterState {
+  minPrice: string;
+  maxPrice: string;
+  deliveryType: 'all' | 'auto' | 'manual' | 'recharge';
+  inStockOnly: boolean;
+  onPromotion: boolean;
+  minRating: number;
+  sellerId: string | null;
+}
+
+const defaultFilters: FilterState = {
+  minPrice: '',
+  maxPrice: '',
+  deliveryType: 'all',
+  inStockOnly: false,
+  onPromotion: false,
+  minRating: 0,
+  sellerId: null,
+};
+
 export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerProfile }: SearchResultsPageProps) {
   const { language } = useLanguage();
   const { formatPrice } = useCurrency();
@@ -41,6 +62,10 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
   const [searchInput, setSearchInput] = useState(query);
   const [sortBy, setSortBy] = useState<'relevance' | 'price_low' | 'price_high' | 'newest' | 'best_selling'>('relevance');
   const [activePrimaryCategory, setActivePrimaryCategory] = useState<'all' | PrimaryCategory>('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(defaultFilters);
+  const [sellers, setSellers] = useState<Array<{ id: string; name: string; avatar?: string | null }>>([]);
+  const filtersRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSearchInput(query);
@@ -61,17 +86,15 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
         .order('created_at', { ascending: false });
       if (prodErr) throw prodErr;
 
-      // Cache seller profiles and seller ratings to avoid duplicate queries
-      const sellerProfileCache: Record<string, { business_name: string; seller_slug?: string; rating: number; rating_count: number }> = {};
+      const sellerProfileCache: Record<string, { business_name: string; seller_slug?: string; rating: number; rating_count: number; avatar?: string | null }> = {};
 
       async function getSellerInfo(sellerId: string) {
         if (sellerProfileCache[sellerId]) return sellerProfileCache[sellerId];
         const { data: sd } = await supabase
           .from('profiles')
-          .select('full_name, username, seller_slug')
+          .select('full_name, username, seller_slug, avatar_url')
           .eq('id', sellerId)
           .maybeSingle();
-        // Fetch seller rating aggregate from user_ratings (customers rating seller)
         const { data: ratingData } = await supabase
           .from('user_ratings')
           .select('rating')
@@ -84,6 +107,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
           seller_slug: sd?.seller_slug,
           rating: avg,
           rating_count: ratings.length,
+          avatar: sd?.avatar_url || null,
         };
         sellerProfileCache[sellerId] = info;
         return info;
@@ -91,7 +115,6 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
 
       const withSellers: ProductWithSeller[] = await Promise.all(
         (rawProducts || []).map(async (p: any) => {
-          // Per-product sales count
           let salesCount = 0;
           try {
             const { data: productSalesCount } = await supabase.rpc('get_product_sales_count', { product_uuid: p.id });
@@ -107,10 +130,10 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
               seller_slug: info.seller_slug,
               seller_rating: info.rating,
               seller_rating_count: info.rating_count,
+              seller_avatar: info.avatar,
             };
           } else {
-            // Admin products: aggregate admin ratings (rated_user_id null is not supported; use 0)
-            sellerInfo = { business_name: 'Admin', sales_count: salesCount, seller_rating: 0, seller_rating_count: 0 };
+            sellerInfo = { business_name: 'Admin', sales_count: salesCount, seller_rating: 0, seller_rating_count: 0, seller_avatar: null };
           }
 
           let totalStock = p.stock_quantity;
@@ -126,6 +149,17 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
       );
 
       setProducts(withSellers);
+
+      // Build unique seller list for filter dropdown
+      const sellerMap = new Map<string, { id: string; name: string; avatar?: string | null }>();
+      withSellers.forEach(p => {
+        if (p.seller_id && p.seller_info) {
+          if (!sellerMap.has(p.seller_id)) {
+            sellerMap.set(p.seller_id, { id: p.seller_id, name: p.seller_info.business_name, avatar: p.seller_info.seller_avatar });
+          }
+        }
+      });
+      setSellers(Array.from(sellerMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -151,6 +185,18 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
     ];
   }, [products, language]);
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.minPrice) count++;
+    if (filters.maxPrice) count++;
+    if (filters.deliveryType !== 'all') count++;
+    if (filters.inStockOnly) count++;
+    if (filters.onPromotion) count++;
+    if (filters.minRating > 0) count++;
+    if (filters.sellerId) count++;
+    return count;
+  }, [filters]);
+
   const filtered = useMemo(() => {
     const q = (query || '').toLowerCase().trim();
     let list = products;
@@ -163,6 +209,37 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
     if (activePrimaryCategory !== 'all') {
       list = list.filter(p => ((p as any).primary_category || 'item') === activePrimaryCategory);
     }
+
+    // Apply detailed filters
+    if (filters.minPrice) {
+      const min = parseFloat(filters.minPrice);
+      if (!isNaN(min)) list = list.filter(p => Number(p.price_usdt) >= min);
+    }
+    if (filters.maxPrice) {
+      const max = parseFloat(filters.maxPrice);
+      if (!isNaN(max)) list = list.filter(p => Number(p.price_usdt) <= max);
+    }
+    if (filters.deliveryType !== 'all') {
+      list = list.filter(p => {
+        if (filters.deliveryType === 'auto') return !(p as any).manual_delivery;
+        if (filters.deliveryType === 'manual') return (p as any).manual_delivery && !(p as any).account_recharge;
+        if (filters.deliveryType === 'recharge') return (p as any).manual_delivery && (p as any).account_recharge;
+        return true;
+      });
+    }
+    if (filters.inStockOnly) {
+      list = list.filter(p => (p as any).manual_delivery || (p as any).account_recharge || p.stock_quantity > 0);
+    }
+    if (filters.onPromotion) {
+      list = list.filter(p => p.promotion_active && p.promotional_price_usdt);
+    }
+    if (filters.minRating > 0) {
+      list = list.filter(p => (p.seller_info?.seller_rating || 0) >= filters.minRating);
+    }
+    if (filters.sellerId) {
+      list = list.filter(p => p.seller_id === filters.sellerId);
+    }
+
     const sorted = [...list];
     switch (sortBy) {
       case 'price_low':
@@ -181,7 +258,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
         break;
     }
     return sorted;
-  }, [products, query, sortBy, activePrimaryCategory]);
+  }, [products, query, sortBy, activePrimaryCategory, filters]);
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     onProductClick(product);
@@ -196,6 +273,11 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
     window.history.pushState(null, '', `/search/${encodeURIComponent(newQuery)}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
+
+  const resetFilters = () => setFilters(defaultFilters);
+
+  const tr = (pt: string, en: string, es: string) =>
+    language === 'pt' ? pt : language === 'en' ? en : es;
 
   if (loading) {
     return (
@@ -212,7 +294,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
         <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
         <button onClick={onBack} className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <ChevronLeft className="h-4 w-4 mr-1" /> {language === 'pt' ? 'Voltar à loja' : language === 'en' ? 'Back to store' : 'Volver a la tienda'}
+          <ChevronLeft className="h-4 w-4 mr-1" /> {tr('Voltar à loja', 'Back to store', 'Volver a la tienda')}
         </button>
       </div>
     );
@@ -226,7 +308,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
         className="inline-flex items-center text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
       >
         <ChevronLeft className="h-4 w-4 mr-1" />
-        {language === 'pt' ? 'Voltar à loja' : language === 'en' ? 'Back to store' : 'Volver a la tienda'}
+        {tr('Voltar à loja', 'Back to store', 'Volver a la tienda')}
       </button>
 
       {/* Search header */}
@@ -236,17 +318,13 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
         </div>
         <div className="relative p-6 sm:p-8 flex flex-col justify-center h-full min-h-[140px] sm:min-h-[180px]">
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            {language === 'pt' ? 'Resultados da busca' : language === 'en' ? 'Search results' : 'Resultados de búsqueda'}
+            {tr('Resultados da busca', 'Search results', 'Resultados de búsqueda')}
           </h1>
           <p className="text-white/80 text-sm">
             {query ? (
-              <>
-                {language === 'pt' ? `"${query}" — ${filtered.length} produto(s) encontrado(s)` : language === 'en' ? `"${query}" — ${filtered.length} product(s) found` : `"${query}" — ${filtered.length} producto(s) encontrado(s)`}
-              </>
+              <span>"{query}" — {filtered.length} {tr('produto(s) encontrado(s)', 'product(s) found', 'producto(s) encontrado(s)')}</span>
             ) : (
-              <>
-                {language === 'pt' ? `${filtered.length} produto(s) disponível(s)` : language === 'en' ? `${filtered.length} product(s) available` : `${filtered.length} producto(s) disponible(s)`}
-              </>
+              <span>{filtered.length} {tr('produto(s) disponível(s)', 'product(s) available', 'producto(s) disponible(s)')}</span>
             )}
           </p>
         </div>
@@ -289,8 +367,8 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
         </div>
       )}
 
-      {/* Search + sort bar */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      {/* Search + sort + filter bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <form onSubmit={handleSearchSubmit} className="relative flex-1">
           <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
             <Search className="h-4 w-4" />
@@ -298,7 +376,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
           <input
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder={language === 'pt' ? 'Buscar produtos...' : language === 'en' ? 'Search products...' : 'Buscar productos...'}
+            placeholder={tr('Buscar produtos...', 'Search products...', 'Buscar productos...')}
             className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
           />
           {searchInput && (
@@ -311,28 +389,204 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
             </button>
           )}
         </form>
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value as any)}
-          className="px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
-        >
-          <option value="relevance">{language === 'pt' ? 'Relevância' : 'Relevance'}</option>
-          <option value="price_low">{language === 'pt' ? 'Menor preço' : 'Price: Low'}</option>
-          <option value="price_high">{language === 'pt' ? 'Maior preço' : 'Price: High'}</option>
-          <option value="newest">{language === 'pt' ? 'Mais recentes' : 'Newest'}</option>
-          <option value="best_selling">{language === 'pt' ? 'Mais vendidos' : 'Best selling'}</option>
-        </select>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-all text-sm font-medium ${
+              showFilters || activeFilterCount > 0
+                ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400'
+                : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {tr('Filtros', 'Filters', 'Filtros')}
+            {activeFilterCount > 0 && (
+              <span className="bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as any)}
+            className="px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 text-sm"
+          >
+            <option value="relevance">{tr('Relevância', 'Relevance', 'Relevancia')}</option>
+            <option value="price_low">{tr('Menor preço', 'Price: Low', 'Precio: Bajo')}</option>
+            <option value="price_high">{tr('Maior preço', 'Price: High', 'Precio: Alto')}</option>
+            <option value="newest">{tr('Mais recentes', 'Newest', 'Más recientes')}</option>
+            <option value="best_selling">{tr('Mais vendidos', 'Best selling', 'Más vendidos')}</option>
+          </select>
+        </div>
       </div>
+
+      {/* Detailed Filter Panel */}
+      {showFilters && (
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-blue-500" />
+              {tr('Filtros Avançados', 'Advanced Filters', 'Filtros Avanzados')}
+            </h3>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={resetFilters}
+                className="text-sm text-red-500 hover:text-red-600 font-medium transition-colors"
+              >
+                {tr('Limpar tudo', 'Clear all', 'Limpiar todo')}
+              </button>
+            )}
+          </div>
+
+          <div className="p-4 space-y-5">
+            {/* Price Range */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                {tr('Faixa de Preço (USDT)', 'Price Range (USDT)', 'Rango de Precio (USDT)')}
+              </label>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={filters.minPrice}
+                    onChange={e => setFilters(f => ({ ...f, minPrice: e.target.value }))}
+                    placeholder={tr('Mín', 'Min', 'Mín')}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <span className="text-gray-400 text-sm">—</span>
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={filters.maxPrice}
+                    onChange={e => setFilters(f => ({ ...f, maxPrice: e.target.value }))}
+                    placeholder={tr('Máx', 'Max', 'Máx')}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Delivery Type */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                {tr('Tipo de Entrega', 'Delivery Type', 'Tipo de Entrega')}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { key: 'all', label: tr('Todos', 'All', 'Todos'), icon: LayoutGrid },
+                  { key: 'auto', label: tr('Automática', 'Automatic', 'Automática'), icon: Zap },
+                  { key: 'manual', label: tr('Manual', 'Manual', 'Manual'), icon: Truck },
+                  { key: 'recharge', label: tr('Recarga', 'Recharge', 'Recarga'), icon: Smartphone },
+                ] as const).map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilters(f => ({ ...f, deliveryType: key }))}
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      filters.deliveryType === key
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Toggles: In Stock + On Promotion */}
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={() => setFilters(f => ({ ...f, inStockOnly: !f.inStockOnly }))}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  filters.inStockOnly
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {tr('Em estoque', 'In stock only', 'En stock')}
+              </button>
+              <button
+                onClick={() => setFilters(f => ({ ...f, onPromotion: !f.onPromotion }))}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  filters.onPromotion
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                <Tag className="h-4 w-4" />
+                {tr('Em promoção', 'On promotion', 'En promoción')}
+              </button>
+            </div>
+
+            {/* Min Seller Rating */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                {tr('Avaliação Mínima do Vendedor', 'Minimum Seller Rating', 'Calificación Mínima del Vendedor')}
+              </label>
+              <div className="flex items-center gap-2">
+                {[0, 1, 2, 3, 4, 5].map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setFilters(f => ({ ...f, minRating: r }))}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      filters.minRating === r
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {r === 0 ? (
+                      tr('Todos', 'Any', 'Todos')
+                    ) : (
+                      <>
+                        <Star className="h-3.5 w-3.5" />
+                        {r}+
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Seller Filter */}
+            {sellers.length > 1 && (
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                  {tr('Vendedor', 'Seller', 'Vendedor')}
+                </label>
+                <select
+                  value={filters.sellerId || ''}
+                  onChange={e => setFilters(f => ({ ...f, sellerId: e.target.value || null }))}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">{tr('Todos os vendedores', 'All sellers', 'Todos los vendedores')}</option>
+                  {sellers.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Products grid */}
       {filtered.length === 0 ? (
         <div className="text-center py-16">
           <Package className="h-14 w-14 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
           <p className="text-gray-500 dark:text-gray-400 mb-2">
-            {language === 'pt' ? 'Nenhum produto encontrado para a sua busca.' : language === 'en' ? 'No products found for your search.' : 'No se encontraron productos para tu búsqueda.'}
+            {tr('Nenhum produto encontrado para a sua busca.', 'No products found for your search.', 'No se encontraron productos para tu búsqueda.')}
           </p>
           <p className="text-sm text-gray-400 dark:text-gray-500">
-            {language === 'pt' ? 'Tente buscar por outro termo.' : language === 'en' ? 'Try searching for another term.' : 'Intenta buscar otro término.'}
+            {tr('Tente buscar por outro termo ou ajustar os filtros.', 'Try searching for another term or adjusting filters.', 'Intenta buscar otro término o ajustar los filtros.')}
           </p>
         </div>
       ) : (
@@ -345,6 +599,10 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
               : 0;
             const salesCount = (product as any).seller_info?.sales_count || 0;
             const lowStock = !(product as any).manual_delivery && !(product as any).account_recharge && product.stock_quantity > 0 && product.stock_quantity <= 5;
+            const sellerAvatar = (product as any).seller_info?.seller_avatar;
+            const sellerName = product.seller_info?.business_name || '';
+            const sellerRating = product.seller_info?.seller_rating || 0;
+            const sellerRatingCount = product.seller_info?.seller_rating_count || 0;
             return (
               <div
                 key={product.id}
@@ -353,39 +611,8 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
                   !isAvailable ? 'opacity-75' : ''
                 }`}
               >
-                {/* Product Image */}
+                {/* Product Image — clean, no tags */}
                 <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                  {/* Top-left category badge */}
-                  <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-black/55 backdrop-blur-sm text-white capitalize">
-                    {product.category}
-                  </span>
-                  {/* Top-right promo / delivery */}
-                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex flex-col items-end gap-1">
-                    {hasPromo && discountPct > 0 && (
-                      <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-red-500 text-white shadow-sm">
-                        -{discountPct}%
-                      </span>
-                    )}
-                    {(product as any).manual_delivery ? (
-                      (product as any).account_recharge ? (
-                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-amber-500 text-white shadow-sm">
-                          <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                          {language === 'pt' ? 'Recarga' : language === 'en' ? 'Recharge' : 'Recarga'}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-blue-500 text-white shadow-sm">
-                          <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                          {language === 'pt' ? 'Manual' : language === 'en' ? 'Manual' : 'Manual'}
-                        </span>
-                      )
-                    ) : (
-                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-500 text-white shadow-sm">
-                        <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                        {language === 'pt' ? 'Auto' : language === 'en' ? 'Auto' : 'Auto'}
-                      </span>
-                    )}
-                  </div>
-
                   {product.image_url ? (
                     <img
                       src={product.image_url}
@@ -405,25 +632,10 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
                   {!isAvailable && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-500/80 backdrop-blur-sm text-white">
-                        {language === 'pt' ? 'Esgotado' : language === 'en' ? 'Sold Out' : 'Agotado'}
+                        {tr('Esgotado', 'Sold Out', 'Agotado')}
                       </span>
                     </div>
                   )}
-
-                  {/* Bottom badges: low stock + sales count */}
-                  <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 flex flex-col gap-1 z-10">
-                    {lowStock && (
-                      <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-orange-500/90 backdrop-blur-sm text-white">
-                        {language === 'pt' ? `Restam ${product.stock_quantity}` : language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-                      </span>
-                    )}
-                    {salesCount > 0 && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-emerald-500/90 backdrop-blur-sm text-white">
-                        <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                        {salesCount} {language === 'pt' ? 'vendidos' : language === 'en' ? 'sold' : 'vendidos'}
-                      </span>
-                    )}
-                  </div>
                 </div>
 
                 {/* Product Info */}
@@ -432,6 +644,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
                     {product.name}
                   </h3>
 
+                  {/* Seller info with avatar */}
                   {product.seller_info && (
                     <div className="mb-2 flex items-center gap-1.5">
                       <button
@@ -439,12 +652,34 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
                           e.stopPropagation();
                           onViewSellerProfile?.(product.seller_id || null, product.seller_info?.seller_slug);
                         }}
-                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[140px]"
+                        className="flex items-center gap-1.5 group/seller"
                       >
-                        {product.seller_info.business_name}
+                        {sellerAvatar ? (
+                          <img
+                            src={sellerAvatar}
+                            alt={sellerName}
+                            className="w-5 h-5 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-600 shrink-0"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-white">
+                              {sellerName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-xs text-blue-600 dark:text-blue-400 group-hover/seller:underline font-medium truncate max-w-[100px]">
+                          {sellerName}
+                        </span>
                       </button>
+                      {sellerRating > 0 && (
+                        <span className="flex items-center gap-0.5 text-xs text-amber-500 shrink-0">
+                          <Star className="h-2.5 w-2.5 fill-current" />
+                          {sellerRating.toFixed(1)}
+                        </span>
+                      )}
                       <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-                        · {product.seller_info.sales_count} {language === 'pt' ? 'vendas' : language === 'en' ? 'sales' : 'ventas'}
+                        · {salesCount} {tr('vendas', 'sales', 'ventas')}
                       </span>
                     </div>
                   )}
@@ -452,6 +687,47 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
                   {/* Product Rating */}
                   <div className="mb-3">
                     <ProductRatingsDisplay productId={product.id} showTitle={false} compact={true} />
+                  </div>
+
+                  {/* Tags moved below the card — category, delivery, promo, low stock, sales */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 capitalize">
+                      {product.category}
+                    </span>
+                    {hasPromo && discountPct > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                        -{discountPct}%
+                      </span>
+                    )}
+                    {(product as any).manual_delivery ? (
+                      (product as any).account_recharge ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                          <Zap className="h-2.5 w-2.5 mr-0.5" />
+                          {tr('Recarga', 'Recharge', 'Recarga')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                          <Truck className="h-2.5 w-2.5 mr-0.5" />
+                          {tr('Manual', 'Manual', 'Manual')}
+                        </span>
+                      )
+                    ) : (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                        <Zap className="h-2.5 w-2.5 mr-0.5" />
+                        {tr('Auto', 'Auto', 'Auto')}
+                      </span>
+                    )}
+                    {lowStock && (
+                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                        {product.stock_quantity} {tr('restam', 'left', 'quedan')}
+                      </span>
+                    )}
+                    {salesCount > 0 && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                        <TrendingUp className="h-2.5 w-2.5" />
+                        {salesCount} {tr('vendidos', 'sold', 'vendidos')}
+                      </span>
+                    )}
                   </div>
 
                   {/* Price */}
@@ -485,8 +761,8 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
                     <ShoppingCart className="h-4 w-4" />
                     <span>
                       {!isAvailable
-                        ? (language === 'pt' ? 'Esgotado' : language === 'en' ? 'Sold Out' : 'Agotado')
-                        : (language === 'pt' ? 'Comprar' : language === 'en' ? 'Buy' : 'Comprar')
+                        ? (tr('Esgotado', 'Sold Out', 'Agotado'))
+                        : (tr('Comprar', 'Buy', 'Comprar'))
                       }
                     </span>
                   </button>
