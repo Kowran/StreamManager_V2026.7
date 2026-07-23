@@ -434,7 +434,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
         {/* Avatar + identity */}
         <div className="px-5 sm:px-8 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between -mt-10 sm:-mt-12 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between -mt-8 sm:-mt-10 gap-4">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
               {/* Avatar */}
               <div className="relative group flex-shrink-0">
@@ -459,7 +459,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               </div>
 
               {/* Name + badges */}
-              <div className="space-y-2 sm:pb-1">
+              <div className="space-y-2 sm:pb-2 pt-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
                     {profile.full_name || 'Vendedor'}
