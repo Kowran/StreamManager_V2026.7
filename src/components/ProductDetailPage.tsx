@@ -10,7 +10,7 @@ import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
 import { supabase, StoreProduct, ProductVariation } from '../lib/supabase';
-import { fetchSingleSellerInfo, fetchAdminSellerInfo } from '../lib/sellerInfo';
+import { fetchSingleSellerInfo, fetchAdminSellerInfo, fetchSellerInfo } from '../lib/sellerInfo';
 import { LoginModal } from './LoginModal';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { PurchaseConfirmModal } from './PurchaseConfirmModal';
@@ -30,6 +30,14 @@ interface ProductWithSeller extends StoreProduct {
   is_seller_product?: boolean;
   seller_application_id?: string;
   slug?: string;
+}
+
+interface RelatedProductExtra {
+  sellerName: string;
+  sellerAvatar: string | null;
+  salesCount: number;
+  avgRating?: number;
+  totalRatings?: number;
 }
 
 interface UserCredit {
@@ -54,6 +62,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const [storeConfig, setStoreConfig] = useState<{ store_name?: string; store_logo_url?: string; store_description?: string } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<ProductWithSeller[]>([]);
+  const [relatedExtras, setRelatedExtras] = useState<Record<string, RelatedProductExtra>>({});
   const [product, setProduct] = useState<ProductWithSeller | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -251,7 +260,46 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         .neq('id', product.id)
         .order('created_at', { ascending: false })
         .limit(4);
-      if (!error && data) setRelatedProducts(data as ProductWithSeller[]);
+      if (!error && data) {
+        setRelatedProducts(data as ProductWithSeller[]);
+        const extras: Record<string, RelatedProductExtra> = {};
+        const sellerIds = [...new Set(data.map(p => p.seller_id).filter(Boolean))] as string[];
+        const sellerMap = await fetchSellerInfo(sellerIds);
+        const needsAdmin = data.some(p => !p.seller_id);
+        const adminSeller = needsAdmin ? await fetchAdminSellerInfo() : null;
+        for (const p of data) {
+          let sellerName = storeConfig?.store_name || 'Loja';
+          let sellerAvatar: string | null = null;
+          if (p.seller_id && sellerMap[p.seller_id]) {
+            const s = sellerMap[p.seller_id];
+            sellerName = s.full_name || s.username || s.seller_slug || 'Vendedor';
+            sellerAvatar = s.avatar_url || null;
+          } else if (adminSeller) {
+            sellerName = adminSeller.full_name || 'Admin';
+            sellerAvatar = adminSeller.avatar_url || null;
+          }
+          extras[p.id] = { sellerName, sellerAvatar, salesCount: 0 };
+        }
+        const salesResults = await Promise.all(
+          data.map(p => supabase.rpc('get_product_sales_count', { product_uuid: p.id }))
+        );
+        data.forEach((p, i) => {
+          if (extras[p.id]) extras[p.id].salesCount = Number(salesResults[i].data) || 0;
+        });
+        const { data: summaries } = await supabase
+          .from('product_rating_summary')
+          .select('id, average_rating, total_ratings')
+          .in('id', data.map(p => p.id));
+        if (summaries) {
+          for (const s of summaries as any[]) {
+            if (extras[s.id]) {
+              extras[s.id].avgRating = s.average_rating;
+              extras[s.id].totalRatings = s.total_ratings;
+            }
+          }
+        }
+        setRelatedExtras(extras);
+      }
     } catch { /* ignore */ }
   }
 
@@ -394,7 +442,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 transition-colors">
       {/* Breadcrumb / Top bar */}
-      <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
+      <div className="sticky top-12 sm:top-16 lg:top-20 z-20 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800">
         <div className="w-full mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <button
             onClick={onBack}
@@ -948,6 +996,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                 {relatedProducts.map((rp) => {
                   const rpAvail = rp.manual_delivery || rp.stock_quantity > 0;
                   const rpPromo = rp.promotion_active && rp.promotional_price_usdt;
+                  const extra = relatedExtras[rp.id];
                   return (
                     <div
                       key={rp.id}
@@ -978,6 +1027,33 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       </div>
                       <div className="p-3 lg:p-4">
                         <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1.5 line-clamp-1">{rp.name}</h3>
+                        {extra && (
+                          <div className="flex items-center gap-1.5 mb-2">
+                            {extra.sellerAvatar ? (
+                              <img src={extra.sellerAvatar} alt={extra.sellerName} className="h-4 w-4 rounded-full object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            ) : (
+                              <span className="h-4 w-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-[8px] font-bold flex-shrink-0">
+                                {(extra.sellerName || 'V').charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{extra.sellerName}</span>
+                          </div>
+                        )}
+                        {extra && (
+                          <div className="flex items-center gap-2 mb-2 text-xs">
+                            {extra.totalRatings && extra.totalRatings > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                                <span className="font-medium text-gray-700 dark:text-gray-300">{extra.avgRating?.toFixed(1)}</span>
+                                <span className="text-gray-400">({extra.totalRatings})</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">{lang === 'pt' ? 'Sem avaliações' : lang === 'en' ? 'No ratings' : 'Sin reseñas'}</span>
+                            )}
+                            <span className="text-gray-300 dark:text-gray-600">·</span>
+                            <span className="text-gray-500 dark:text-gray-400">{extra.salesCount} {tr.sales}</span>
+                          </div>
+                        )}
                         <div className="flex items-baseline gap-2">
                           {rpPromo ? (
                             <>
