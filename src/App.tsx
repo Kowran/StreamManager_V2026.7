@@ -29,6 +29,7 @@ import AdminUsersManager from './components/AdminUsersManager';
 import AdminAppealsManager from './components/AdminAppealsManager';
 import AdminSettingsManager from './components/AdminSettingsManager';
 import AdminSiteSettingsManager from './components/AdminSiteSettingsManager';
+import { AdminSecurityCenter } from './components/AdminSecurityCenter';
 
 import { AccountsAccessManager } from './components/AccountsAccessManager';
 import { MessageCircle } from 'lucide-react';
@@ -82,7 +83,7 @@ import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
 
 interface StoreConfig {
   store_name?: string;
@@ -533,6 +534,12 @@ function AppContent() {
         return (
           <AdminGuard page="admin-site-settings">
             <AdminSiteSettingsManager />
+          </AdminGuard>
+        );
+      case 'admin-security':
+        return (
+          <AdminGuard page="admin-security">
+            <AdminSecurityCenter />
           </AdminGuard>
         );
       case 'accounts-access':

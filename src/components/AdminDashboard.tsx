@@ -25,7 +25,8 @@ import {
   Globe,
   Scale,
   Gamepad2,
-  Gavel
+  Gavel,
+  Shield
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -134,7 +135,8 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         { id: 'admin-netflix-accounts', name: language === 'pt' ? 'Contas Netflix' : language === 'en' ? 'Netflix Accounts' : 'Cuentas Netflix', icon: Mail, color: 'from-red-500 to-red-600', description: language === 'pt' ? 'Configure contas para buscar códigos' : language === 'en' ? 'Configure accounts to find codes' : 'Configure cuentas para buscar códigos' },
         { id: 'admin-settings', name: language === 'pt' ? 'Configurações' : language === 'en' ? 'Settings' : 'Configuraciones', icon: Settings, color: 'from-gray-500 to-gray-600', description: language === 'pt' ? 'Configure o sistema' : language === 'en' ? 'Configure the system' : 'Configurar el sistema' },
         { id: 'admin-email-templates', name: language === 'pt' ? 'Modelos de Email' : language === 'en' ? 'Email Templates' : 'Plantillas de Email', icon: Mail, color: 'from-emerald-500 to-teal-600', description: language === 'pt' ? 'Edite os modelos HTML de email' : language === 'en' ? 'Edit email HTML templates' : 'Editar plantillas HTML de email' },
-        { id: 'admin-site-settings', name: language === 'pt' ? 'Identidade do Site' : language === 'en' ? 'Site Identity' : 'Identidad del Sitio', icon: Globe, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Logo, favicon, nome e aparência do site' : language === 'en' ? 'Logo, favicon, site name and appearance' : 'Logo, favicon, nombre del sitio y apariencia' }
+        { id: 'admin-site-settings', name: language === 'pt' ? 'Identidade do Site' : language === 'en' ? 'Site Identity' : 'Identidad del Sitio', icon: Globe, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Logo, favicon, nome e aparência do site' : language === 'en' ? 'Logo, favicon, site name and appearance' : 'Logo, favicon, nombre del sitio y apariencia' },
+        { id: 'admin-security', name: language === 'pt' ? 'Centro de Segurança' : language === 'en' ? 'Security Center' : 'Centro de Seguridad', icon: Shield, color: 'from-emerald-500 to-teal-600', description: language === 'pt' ? 'Monitore e configure toda a segurança do banco de dados' : language === 'en' ? 'Monitor and configure all database security' : 'Monitore y configure toda la seguridad de la base de datos' }
       ]
     }
   ];
