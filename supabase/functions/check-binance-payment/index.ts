@@ -251,6 +251,26 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Block reuse of an Order ID that already completed a deposit. Binance Pay
+    // Order IDs are globally unique, so we check across all users — if the same
+    // Order ID already credited any account, refuse it here before hitting the
+    // Binance API.
+    const { data: alreadyUsed } = await supabase
+      .from('binance_payments')
+      .select('id, user_id, order_id')
+      .eq('tx_id', trimmedUserOrderId)
+      .eq('status', 'completed')
+      .maybeSingle();
+
+    if (alreadyUsed) {
+      return new Response(JSON.stringify({
+        status: 'failed',
+        error: 'Este Order ID já foi utilizado para confirmar um depósito anteriormente. Não é possível reutilizá-lo.',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Find the pending payment record in our DB
     const { data: payment, error: paymentError } = await supabase
       .from('binance_payments')
@@ -310,8 +330,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Transfer confirmed — credit the user's balance
-    await supabase
+    // Transfer confirmed — credit the user's balance.
+    // Use a conditional update (only flips pending → completed) so that if two
+    // requests race for the same Order ID, only the first one wins and credits
+    // the balance. The second update affects 0 rows and we abort without
+    // double-crediting.
+    const { data: updatedRow, count: updatedCount } = await supabase
       .from('binance_payments')
       .update({
         status: 'completed',
@@ -324,7 +348,19 @@ Deno.serve(async (req: Request) => {
           confirmed_via: 'pay_trade_history',
         },
       })
-      .eq('id', payment.id);
+      .eq('id', payment.id)
+      .eq('status', 'pending');
+
+    if (updatedCount === 0 || !updatedRow || updatedRow.length === 0) {
+      // Another request already completed this record — abort to avoid a duplicate credit.
+      console.warn(`Concurrent completion blocked for payment ${payment.id} (Order ID ${trimmedUserOrderId})`);
+      return new Response(JSON.stringify({
+        status: 'failed',
+        error: 'Este Order ID já foi utilizado para confirmar um depósito. Não é possível reutilizá-lo.',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const { data: userCredits } = await supabase
       .from('user_credits')
