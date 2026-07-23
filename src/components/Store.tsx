@@ -1012,6 +1012,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
               {language === 'pt' ? 'Categorias de Jogos' : language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
             </h2>
+            <button
+              onClick={() => { window.history.pushState(null, '', `/search/`); window.dispatchEvent(new PopStateEvent('popstate')); }}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap"
+            >
+              {t.language === 'pt' ? 'Ver tudo' : t.language === 'en' ? 'See all' : 'Ver todo'}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
           </div>
           <div className="relative">
             {productCategories.length > 6 && (

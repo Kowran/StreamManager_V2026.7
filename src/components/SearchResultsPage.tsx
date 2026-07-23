@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, Search, Package, Loader, Truck, Zap, X, Star, UserCheck, Coins, Smartphone, Gamepad2, Gift, LayoutGrid, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, Search, Package, Loader, Truck, Zap, X, Star, UserCheck, Coins, Smartphone, Gamepad2, Gift, LayoutGrid, ShoppingCart, TrendingUp, ArrowRight, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
+import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 
 interface SearchResultsPageProps {
   query: string;
@@ -337,88 +338,158 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {filtered.map(product => {
-            const available = (product as any).manual_delivery || product.stock_quantity > 0;
+            const isAvailable = (product as any).manual_delivery || (product as any).account_recharge || product.stock_quantity > 0;
             const hasPromo = product.promotion_active && product.promotional_price_usdt;
-            const sellerRating = product.seller_info?.seller_rating || 0;
-            const sellerRatingCount = product.seller_info?.seller_rating_count || 0;
+            const discountPct = hasPromo
+              ? Math.round((1 - Number(product.promotional_price_usdt) / Number(product.price_usdt)) * 100)
+              : 0;
+            const salesCount = (product as any).seller_info?.sales_count || 0;
+            const lowStock = !(product as any).manual_delivery && !(product as any).account_recharge && product.stock_quantity > 0 && product.stock_quantity <= 5;
             return (
               <div
                 key={product.id}
                 onClick={() => handleProductClick(product)}
-                className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1"
+                className={`group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1 min-w-0 ${
+                  !isAvailable ? 'opacity-75' : ''
+                }`}
               >
-                <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }} />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-8 h-8 text-gray-300 dark:text-gray-600" />
-                    </div>
-                  )}
-                  {!available && (
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/80 backdrop-blur-sm text-white">
-                      {language === 'pt' ? 'Esgotado' : 'Sold Out'}
-                    </span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1.5 line-clamp-1">{product.name}</h3>
-
-                  {/* Seller info: name, sales count, rating */}
-                  {product.seller_info && (
-                    <div className="mb-2 space-y-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onViewSellerProfile?.(product.seller_id || null, product.seller_info?.seller_slug);
-                          }}
-                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[60%]"
-                        >
-                          {product.seller_info.business_name}
-                        </button>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          ({product.seller_info.sales_count} {language === 'pt' ? 'vendas' : language === 'en' ? 'sales' : 'ventas'})
-                        </span>
-                      </div>
-                      {sellerRatingCount > 0 && (
-                        <div className="flex items-center gap-1">
-                          <div className="flex items-center">
-                            {[1, 2, 3, 4, 5].map(n => (
-                              <Star
-                                key={n}
-                                className={`h-3 w-3 ${n <= Math.round(sellerRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{sellerRating.toFixed(1)}</span>
-                          <span className="text-[10px] text-gray-400 dark:text-gray-500">({sellerRatingCount})</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mb-1.5 flex items-center gap-1">
-                    {(product as any).manual_delivery ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                        <Truck className="h-2.5 w-2.5 mr-0.5" />{language === 'pt' ? 'Manual' : 'Manual'}
+                {/* Product Image */}
+                <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
+                  {/* Top-left category badge */}
+                  <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-black/55 backdrop-blur-sm text-white capitalize">
+                    {product.category}
+                  </span>
+                  {/* Top-right promo / delivery */}
+                  <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex flex-col items-end gap-1">
+                    {hasPromo && discountPct > 0 && (
+                      <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-red-500 text-white shadow-sm">
+                        -{discountPct}%
                       </span>
+                    )}
+                    {(product as any).manual_delivery ? (
+                      (product as any).account_recharge ? (
+                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-amber-500 text-white shadow-sm">
+                          <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                          {language === 'pt' ? 'Recarga' : language === 'en' ? 'Recharge' : 'Recarga'}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-blue-500 text-white shadow-sm">
+                          <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                          {language === 'pt' ? 'Manual' : language === 'en' ? 'Manual' : 'Manual'}
+                        </span>
+                      )
                     ) : (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                        <Zap className="h-2.5 w-2.5 mr-0.5" />{language === 'pt' ? 'Automático' : 'Auto'}
+                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-500 text-white shadow-sm">
+                        <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                        {language === 'pt' ? 'Auto' : language === 'en' ? 'Auto' : 'Auto'}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-baseline gap-2">
+
+                  {product.image_url ? (
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${
+                        !isAvailable ? 'grayscale opacity-60' : ''
+                      }`}
+                      onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
+                    />
+                  ) : (
+                    <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-600 ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
+                      <Package className="w-10 h-10 text-white" />
+                    </div>
+                  )}
+
+                  {/* Out of Stock Overlay */}
+                  {!isAvailable && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-500/80 backdrop-blur-sm text-white">
+                        {language === 'pt' ? 'Esgotado' : language === 'en' ? 'Sold Out' : 'Agotado'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Bottom badges: low stock + sales count */}
+                  <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 flex flex-col gap-1 z-10">
+                    {lowStock && (
+                      <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-orange-500/90 backdrop-blur-sm text-white">
+                        {language === 'pt' ? `Restam ${product.stock_quantity}` : language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
+                      </span>
+                    )}
+                    {salesCount > 0 && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-emerald-500/90 backdrop-blur-sm text-white">
+                        <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                        {salesCount} {language === 'pt' ? 'vendidos' : language === 'en' ? 'sold' : 'vendidos'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Product Info */}
+                <div className="p-2.5 sm:p-3 lg:p-4">
+                  <h3 className="font-bold text-xs sm:text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                    {product.name}
+                  </h3>
+
+                  {product.seller_info && (
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewSellerProfile?.(product.seller_id || null, product.seller_info?.seller_slug);
+                        }}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[140px]"
+                      >
+                        {product.seller_info.business_name}
+                      </button>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                        · {product.seller_info.sales_count} {language === 'pt' ? 'vendas' : language === 'en' ? 'sales' : 'ventas'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Product Rating */}
+                  <div className="mb-3">
+                    <ProductRatingsDisplay productId={product.id} showTitle={false} compact={true} />
+                  </div>
+
+                  {/* Price */}
+                  <div className="flex items-baseline gap-1.5 sm:gap-2 mb-2 sm:mb-3">
                     {hasPromo ? (
                       <>
-                        <span className="text-base font-bold text-red-500">{formatPrice(Number(product.promotional_price_usdt))}</span>
-                        <span className="text-xs text-gray-400 line-through">{formatPrice(Number(product.price_usdt))}</span>
+                        <span className="text-base sm:text-lg lg:text-xl font-bold text-red-500">
+                          {formatPrice(Number(product.promotional_price_usdt))}
+                        </span>
+                        <span className="text-xs sm:text-sm text-gray-400 line-through">
+                          {formatPrice(Number(product.price_usdt))}
+                        </span>
                       </>
                     ) : (
-                      <span className="text-base font-bold text-gray-900 dark:text-white">{formatPrice(Number(product.price_usdt))}</span>
+                      <span className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
+                        {formatPrice(Number(product.price_usdt))}
+                      </span>
                     )}
                   </div>
+
+                  {/* Action button */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleProductClick(product); }}
+                    disabled={!isAvailable}
+                    className={`w-full px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
+                      isAvailable
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    <span>
+                      {!isAvailable
+                        ? (language === 'pt' ? 'Esgotado' : language === 'en' ? 'Sold Out' : 'Agotado')
+                        : (language === 'pt' ? 'Comprar' : language === 'en' ? 'Buy' : 'Comprar')
+                      }
+                    </span>
+                  </button>
                 </div>
               </div>
             );
