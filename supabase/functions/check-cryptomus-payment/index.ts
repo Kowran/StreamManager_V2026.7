@@ -37,6 +37,49 @@ async function sendEmailNotification(
   }
 }
 
+async function creditUser(supabase: any, payment: any) {
+  if (payment.status === "completed") return;
+
+  await supabase
+    .from("cryptomus_payments")
+    .update({ status: "completed", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", payment.id);
+
+  const { data: credit } = await supabase
+    .from("user_credits")
+    .select("*")
+    .eq("user_id", payment.user_id)
+    .maybeSingle();
+
+  const paymentAmount = parseFloat(payment.amount_usd) || 0;
+  const currentBalance = credit?.balance || 0;
+  const newBalance = currentBalance + paymentAmount;
+
+  await supabase.from("user_credits").upsert({
+    user_id: payment.user_id,
+    balance: newBalance,
+    total_recharged: (credit?.total_recharged || 0) + paymentAmount,
+  });
+
+  await supabase.from("credit_transactions").insert({
+    user_id: payment.user_id,
+    type: "recharge",
+    amount: paymentAmount,
+    balance_before: currentBalance,
+    balance_after: newBalance,
+    description: `Recarga via Cryptomus - ${payment.currency}`,
+    reference_type: "cryptomus_payment",
+    reference_id: payment.id,
+    metadata: { order_id: payment.order_id, uuid: payment.uuid },
+  });
+
+  await sendEmailNotification('recharge_deposit', payment.user_id, {
+    user_name: 'Cliente',
+    amount: paymentAmount.toFixed(2),
+    new_balance: newBalance.toFixed(2),
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -70,24 +113,14 @@ Deno.serve(async (req: Request) => {
     if (!payment) {
       return new Response(
         JSON.stringify({ status: "not_found" }),
-        {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (payment.status === "completed") {
       return new Response(
         JSON.stringify({ status: "paid" }),
-        {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -100,24 +133,22 @@ Deno.serve(async (req: Request) => {
     if (!config) {
       return new Response(
         JSON.stringify({ status: payment.status }),
-        {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const data = {
-      uuid: payment.external_id,
+      uuid: payment.uuid,
       order_id: payment.order_id,
     };
 
     const jsonData = JSON.stringify(data);
+    const encoder = new TextEncoder();
+    const dataBytes = encoder.encode(jsonData);
+    const base64 = btoa(String.fromCharCode(...dataBytes));
     const sign = crypto
       .createHash("md5")
-      .update(Buffer.from(jsonData).toString("base64") + config.api_secret)
+      .update(base64 + config.api_secret)
       .digest("hex");
 
     const response = await fetch("https://api.cryptomus.com/v1/payment/info", {
@@ -136,79 +167,27 @@ Deno.serve(async (req: Request) => {
       const paymentStatus = result.result.status;
 
       if (paymentStatus === "paid" || paymentStatus === "paid_over") {
-        await supabase
-          .from("cryptomus_payments")
-          .update({ status: "completed" })
-          .eq("id", payment.id);
-
-        const { data: credit } = await supabase
-          .from("user_credits")
-          .select("*")
-          .eq("user_id", payment.user_id)
-          .maybeSingle();
-
-        const currentBalance = credit?.balance || 0;
-        const newBalance = currentBalance + payment.amount;
-
-        await supabase.from("user_credits").upsert({
-          user_id: payment.user_id,
-          balance: newBalance,
-          total_recharged: (credit?.total_recharged || 0) + payment.amount,
-        });
-
-        await supabase.from("credit_transactions").insert({
-          user_id: payment.user_id,
-          type: "recharge",
-          amount: payment.amount,
-          balance_before: currentBalance,
-          balance_after: newBalance,
-          description: `Recarga via Cryptomus - ${payment.currency}`,
-          reference_type: "cryptomus_payment",
-          reference_id: payment.id,
-          metadata: { order_id: payment.order_id },
-        });
-
-        await sendEmailNotification('recharge_deposit', payment.user_id, {
-          user_name: 'Cliente',
-          amount: payment.amount.toFixed(2),
-          new_balance: newBalance.toFixed(2),
-        });
-
+        await creditUser(supabase, payment);
         return new Response(
           JSON.stringify({ status: "paid" }),
-          {
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } else if (paymentStatus === "cancel" || paymentStatus === "wrong_amount" || paymentStatus === "expired") {
         await supabase
           .from("cryptomus_payments")
-          .update({ status: "failed" })
+          .update({ status: "failed", updated_at: new Date().toISOString() })
           .eq("id", payment.id);
 
         return new Response(
           JSON.stringify({ status: "failed" }),
-          {
-            headers: {
-              ...corsHeaders,
-              "Content-Type": "application/json",
-            },
-          }
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
 
     return new Response(
       JSON.stringify({ status: "pending" }),
-      {
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
     console.error("Error checking Cryptomus payment:", error);
@@ -216,10 +195,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({ error: error.message, status: "pending" }),
       {
         status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }

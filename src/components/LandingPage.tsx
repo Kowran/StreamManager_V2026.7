@@ -670,7 +670,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
           {/* Search bar below primary categories */}
           <form
             onSubmit={e => { e.preventDefault(); navigateToSearch(searchInput); }}
-            className="relative max-w-2xl mx-auto mb-4 sm:mb-5"
+            className="relative max-w-4xl mx-auto mb-4 sm:mb-5"
           >
             <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
               <Search className="h-5 w-5" />

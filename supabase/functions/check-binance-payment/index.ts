@@ -132,17 +132,115 @@ Deno.serve(async (req: Request) => {
 
     const trimmedUserOrderId = (user_order_id || '').trim();
 
-    // Geo-blocked orders are manual P2P transfers — no Binance Pay API order exists.
-    // Accept the user-submitted transaction ID, store it for audit, and mark as completed.
     const isGeoOrder = order_id?.startsWith('GEO');
-    if (isGeoOrder && trimmedUserOrderId) {
-      // Prevent double-crediting if already completed
-      if (payment.status === 'completed') {
-        return new Response(JSON.stringify({ status: 'completed' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
 
+    // For non-geo orders, try the Binance Pay API first
+    let apiConfirmed = false;
+    let apiFailed = false;
+
+    if (!isGeoOrder) {
+      try {
+        const { data: config, error: configError } = await supabase
+          .from('binance_config')
+          .select('*')
+          .maybeSingle();
+
+        if (!configError && config) {
+          const { api_key: apiKey, api_secret: apiSecret } = config;
+
+          let result = await queryBinance({ prepayId: order_id }, apiKey, apiSecret);
+          console.log('Query by prepayId result:', JSON.stringify(result));
+
+          // If user typed a different ID, try it as prepayId and then as merchantTradeNo
+          if (trimmedUserOrderId && trimmedUserOrderId !== order_id && result.data?.status !== 'PAID') {
+            const byUserPrepay = await queryBinance({ prepayId: trimmedUserOrderId }, apiKey, apiSecret);
+            console.log('Query by user prepayId result:', JSON.stringify(byUserPrepay));
+            if (byUserPrepay.status === 'SUCCESS' && byUserPrepay.data?.status === 'PAID') {
+              result = byUserPrepay;
+            } else {
+              const merchantTradeNo = payment.webhook_data?.merchant_trade_no || trimmedUserOrderId;
+              const byMerchant = await queryBinance({ merchantTradeNo }, apiKey, apiSecret);
+              console.log('Query by merchantTradeNo result:', JSON.stringify(byMerchant));
+              if (byMerchant.status === 'SUCCESS' && byMerchant.data?.status === 'PAID') {
+                result = byMerchant;
+              }
+            }
+          }
+
+          const orderStatus = result.data?.status;
+          if (orderStatus === 'PAID') {
+            apiConfirmed = true;
+          } else if (['EXPIRED', 'CANCELED', 'ERROR'].includes(orderStatus)) {
+            apiFailed = true;
+          }
+        }
+      } catch (apiErr) {
+        console.error('Binance API query failed, falling back to manual:', apiErr);
+      }
+    }
+
+    // If the API confirmed PAID, credit via the API path
+    if (apiConfirmed) {
+      await supabase
+        .from('binance_payments')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', payment.id);
+
+      const { data: userCredits } = await supabase
+        .from('user_credits')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const paymentAmount = parseFloat(payment.amount_usd) || 0;
+      const currentBalance = userCredits?.balance || 0;
+      const newBalance = currentBalance + paymentAmount;
+
+      await supabase.from('user_credits').upsert({
+        user_id: user.id,
+        balance: newBalance,
+        total_recharged: (userCredits?.total_recharged || 0) + paymentAmount,
+      });
+
+      await supabase.from('credit_transactions').insert({
+        user_id: user.id,
+        type: 'recharge',
+        amount: paymentAmount,
+        balance_before: currentBalance,
+        balance_after: newBalance,
+        description: `Recarga via Binance Pay - Order ${order_id}`,
+        reference_type: 'binance_payment',
+        reference_id: payment.id,
+        metadata: { order_id, user_order_id: trimmedUserOrderId || null },
+      });
+
+      await sendEmailNotification('recharge_deposit', user.id, {
+        user_name: 'Cliente',
+        amount: paymentAmount.toFixed(2),
+        new_balance: newBalance.toFixed(2),
+      });
+
+      return new Response(JSON.stringify({ status: 'completed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // If the API explicitly failed (EXPIRED/CANCELED/ERROR), don't allow manual confirmation
+    if (apiFailed) {
+      await supabase
+        .from('binance_payments')
+        .update({ status: 'failed', updated_at: new Date().toISOString() })
+        .eq('id', payment.id);
+
+      return new Response(JSON.stringify({ status: 'failed' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // API didn't confirm (either geo-blocked order, API unavailable, or user paid via
+    // Binance ID P2P transfer instead of the Pay QR). Accept the user-submitted transaction
+    // ID as manual confirmation with full audit trail.
+    if (trimmedUserOrderId) {
       await supabase
         .from('binance_payments')
         .update({
@@ -195,95 +293,8 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // For non-geo orders, query the Binance Pay API
-    const { data: config, error: configError } = await supabase
-      .from('binance_config')
-      .select('*')
-      .maybeSingle();
-
-    if (configError || !config) throw new Error('Binance configuration not found');
-
-    const { api_key: apiKey, api_secret: apiSecret } = config;
-
-    let result = await queryBinance({ prepayId: order_id }, apiKey, apiSecret);
-    console.log('Query by prepayId result:', JSON.stringify(result));
-
-    // If user typed a different ID, try it as prepayId and then as merchantTradeNo
-    if (trimmedUserOrderId && trimmedUserOrderId !== order_id && result.data?.status !== 'PAID') {
-      const byUserPrepay = await queryBinance({ prepayId: trimmedUserOrderId }, apiKey, apiSecret);
-      console.log('Query by user prepayId result:', JSON.stringify(byUserPrepay));
-      if (byUserPrepay.status === 'SUCCESS' && byUserPrepay.data?.status === 'PAID') {
-        result = byUserPrepay;
-      } else {
-        const merchantTradeNo = payment.webhook_data?.merchant_trade_no || trimmedUserOrderId;
-        const byMerchant = await queryBinance({ merchantTradeNo }, apiKey, apiSecret);
-        console.log('Query by merchantTradeNo result:', JSON.stringify(byMerchant));
-        if (byMerchant.status === 'SUCCESS' && byMerchant.data?.status === 'PAID') {
-          result = byMerchant;
-        }
-      }
-    }
-
-    if (result.status !== 'SUCCESS') {
-      return new Response(JSON.stringify({ status: payment.status }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const orderStatus = result.data?.status;
-    let newStatus = payment.status;
-
-    if (orderStatus === 'PAID') {
-      newStatus = 'completed';
-
-      await supabase
-        .from('binance_payments')
-        .update({ status: 'completed', updated_at: new Date().toISOString() })
-        .eq('id', payment.id);
-
-      const { data: userCredits } = await supabase
-        .from('user_credits')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      const paymentAmount = parseFloat(payment.amount_usd) || 0;
-      const currentBalance = userCredits?.balance || 0;
-      const newBalance = currentBalance + paymentAmount;
-
-      await supabase.from('user_credits').upsert({
-        user_id: user.id,
-        balance: newBalance,
-        total_recharged: (userCredits?.total_recharged || 0) + paymentAmount,
-      });
-
-      await supabase.from('credit_transactions').insert({
-        user_id: user.id,
-        type: 'recharge',
-        amount: paymentAmount,
-        balance_before: currentBalance,
-        balance_after: newBalance,
-        description: `Recarga via Binance Pay - Order ${order_id}`,
-        reference_type: 'binance_payment',
-        reference_id: payment.id,
-        metadata: { order_id, user_order_id: trimmedUserOrderId || null },
-      });
-
-      await sendEmailNotification('recharge_deposit', user.id, {
-        user_name: 'Cliente',
-        amount: paymentAmount.toFixed(2),
-        new_balance: newBalance.toFixed(2),
-      });
-
-    } else if (['EXPIRED', 'CANCELED', 'ERROR'].includes(orderStatus)) {
-      newStatus = 'failed';
-      await supabase
-        .from('binance_payments')
-        .update({ status: 'failed', updated_at: new Date().toISOString() })
-        .eq('id', payment.id);
-    }
-
-    return new Response(JSON.stringify({ status: newStatus }), {
+    // No transaction ID provided and API didn't confirm
+    return new Response(JSON.stringify({ status: payment.status }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

@@ -81,20 +81,29 @@ Deno.serve(async (req: Request) => {
       throw new Error(result.message || "Erro ao criar pagamento");
     }
 
+    const r = result.result;
+
     await supabase.from("cryptomus_payments").insert({
       user_id: user.id,
-      amount,
-      currency: "USD",
-      external_id: result.result.uuid,
       order_id: orderId,
+      uuid: r.uuid,
+      amount_usd: amount,
+      amount_crypto: r.amount ? parseFloat(r.amount) : 0,
+      currency: r.currency || "USD",
+      network: r.network || "",
       status: "pending",
+      payment_url: r.url,
+      qr_code: r.qr || null,
+      address: r.address || null,
+      expires_at: r.expired_at ? new Date(r.expired_at * 1000).toISOString() : null,
+      webhook_data: { raw: r },
     });
 
     return new Response(
       JSON.stringify({
-        url: result.result.url,
+        url: r.url,
         order_id: orderId,
-        uuid: result.result.uuid,
+        uuid: r.uuid,
       }),
       {
         headers: {
