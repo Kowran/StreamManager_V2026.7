@@ -929,13 +929,24 @@ function AppContent() {
               {user ? (
                 <UserMenu onNavigate={navigateWithRecharge} isAdmin={isAdmin} isSeller={isSeller} />
               ) : (
-                <button
-                  onClick={() => setShowLoginModal(true)}
-                  className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
-                >
-                  <LogIn className="h-4 w-4 mr-1.5" />
-                  <span className="hidden sm:inline">{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <div className="hidden sm:block"><CurrencySelector /></div>
+                  <div className="hidden sm:block"><LanguageSelector /></div>
+                  <button
+                    onClick={toggleTheme}
+                    className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
+                    title={theme === 'dark' ? (t.language === 'pt' ? 'Tema claro' : t.language === 'en' ? 'Light theme' : 'Tema claro') : (t.language === 'pt' ? 'Tema escuro' : t.language === 'en' ? 'Dark theme' : 'Tema oscuro')}
+                  >
+                    {theme === 'dark' ? <Sun className="h-4 w-4 sm:h-5 sm:w-5" /> : <Moon className="h-4 w-4 sm:h-5 sm:w-5" />}
+                  </button>
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                  >
+                    <LogIn className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">{t.language === 'pt' ? 'Entrar' : t.language === 'en' ? 'Sign In' : 'Iniciar Sesion'}</span>
+                  </button>
+                </div>
               )}
             </div>
           </div>

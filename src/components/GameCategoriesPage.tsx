@@ -26,7 +26,7 @@ export function GameCategoriesPage({ onBack, onCategoryClick }: GameCategoriesPa
         .from('product_categories')
         .select('*')
         .eq('is_active', true)
-        .order('display_order', { ascending: true, nullsFirst: false })
+        .order('sort_order', { ascending: true, nullsFirst: false })
         .order('name', { ascending: true });
 
       if (error) throw error;

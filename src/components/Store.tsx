@@ -43,6 +43,7 @@ interface ProductWithSeller extends StoreProduct {
   seller_info?: {
     business_name: string;
     sales_count: number;
+    total_sales: number;
     seller_slug?: string;
     avatar_url?: string | null;
     average_rating?: number;
@@ -194,6 +195,16 @@ export function Store({ onNavigate }: StoreProps = {}) {
       const sellerProfileCache: Record<string, { full_name: string; seller_slug: string; username: string; avatar_url: string | null }> = {};
       // Cache seller ratings to avoid duplicate queries
       const sellerRatingCache: Record<string, { average_rating: number; rating_count: number }> = {};
+      // Cache seller total sales count to avoid duplicate queries
+      const sellerSalesCache: Record<string, number> = {};
+
+      async function getSellerTotalSales(sellerId: string): Promise<number> {
+        if (sellerId in sellerSalesCache) return sellerSalesCache[sellerId];
+        const { data } = await supabase.rpc('get_seller_sales_count', { seller_uuid: sellerId });
+        const count = Number(data) || 0;
+        sellerSalesCache[sellerId] = count;
+        return count;
+      }
 
       async function getSellerRating(sellerId: string): Promise<{ average_rating: number; rating_count: number }> {
         if (sellerRatingCache[sellerId]) return sellerRatingCache[sellerId];
@@ -247,12 +258,14 @@ export function Store({ onNavigate }: StoreProps = {}) {
               }
             }
             const sellerRating = await getSellerRating(product.seller_id);
+            const sellerTotalSales = await getSellerTotalSales(product.seller_id);
             return {
               ...product,
               stock_quantity: totalStock,
               seller_info: {
                 business_name: sellerData?.username || sellerData?.full_name || sellerData?.seller_slug || 'Vendedor',
                 sales_count: salesCount,
+                total_sales: sellerTotalSales,
                 seller_slug: sellerData?.seller_slug,
                 avatar_url: sellerData?.avatar_url,
                 average_rating: sellerRating.average_rating,
@@ -262,6 +275,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
           }
 
           const adminRating = await getSellerRating(adminProfile?.id || '');
+          const adminTotalSales = await getSellerTotalSales(adminProfile?.id || '');
           return {
             ...product,
             stock_quantity: totalStock,
@@ -269,6 +283,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             seller_info: {
               business_name: adminProfile?.username || adminProfile?.full_name || 'Admin',
               sales_count: salesCount,
+              total_sales: adminTotalSales,
               seller_slug: adminProfile?.seller_slug,
               avatar_url: null,
               average_rating: adminRating.average_rating,
@@ -1322,6 +1337,71 @@ export function Store({ onNavigate }: StoreProps = {}) {
       {/* Blog & News Preview */}
       <BlogPreview onSeeAll={() => onNavigate?.('blog')} />
 
+      {/* Advantages & Security Section */}
+      <div className="mt-10">
+        <div className="text-center mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {t.language === 'pt' ? 'Por que comprar conosco?' : t.language === 'en' ? 'Why buy from us?' : '¿Por qué comprar con nosotros?'}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t.language === 'pt' ? 'Segurança e vantagens que você só encontra aqui' : t.language === 'en' ? 'Security and advantages you will only find here' : 'Seguridad y ventajas que solo encontrarás aquí'}
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+          {/* Advantage 1 - Protected Payments */}
+          <div className="group relative bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Shield className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">
+              {t.language === 'pt' ? 'Pagamentos Protegidos' : t.language === 'en' ? 'Protected Payments' : 'Pagos Protegidos'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              {t.language === 'pt'
+                ? 'Seu dinheiro é protegido do início ao fim. O pagamento só é liberado ao vendedor após você receber o produto.'
+                : t.language === 'en'
+                ? 'Your money is protected from start to finish. Payment is only released to the seller after you receive the product.'
+                : 'Tu dinero está protegido de principio a fin. El pago solo se libera al vendedor después de que recibes el producto.'}
+            </p>
+          </div>
+          {/* Advantage 2 - Automatic Delivery */}
+          <div className="group relative bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <Zap className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">
+              {t.language === 'pt' ? 'Entrega Automática' : t.language === 'en' ? 'Automatic Delivery' : 'Entrega Automática'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              {t.language === 'pt'
+                ? 'Receba seus produtos digitais instantaneamente após a compra. Sem espera, sem complicação.'
+                : t.language === 'en'
+                ? 'Receive your digital products instantly after purchase. No waiting, no hassle.'
+                : 'Recibe tus productos digitales al instante después de la compra. Sin esperas, sin complicaciones.'}
+            </p>
+          </div>
+          {/* Advantage 3 - Verified Sellers */}
+          <div className="group relative bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <UserCheck className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white mb-2">
+              {t.language === 'pt' ? 'Vendedores Verificados' : t.language === 'en' ? 'Verified Sellers' : 'Vendedores Verificados'}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+              {t.language === 'pt'
+                ? 'Todos os vendedores passam por um processo de verificação. Compre com confiança de vendedores confiáveis.'
+                : t.language === 'en'
+                ? 'All sellers go through a verification process. Buy with confidence from trusted sellers.'
+                : 'Todos los vendedores pasan por un proceso de verificación. Compra con confianza de vendedores confiables.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* How It Works Modal */}
       {showHowItWorks && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setShowHowItWorks(false)}>
@@ -1791,7 +1871,7 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
               {product.seller_info.business_name}
             </button>
             <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-              · {product.seller_info.sales_count} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'}
+              · {product.seller_info.total_sales} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'}
             </span>
           </div>
         )}

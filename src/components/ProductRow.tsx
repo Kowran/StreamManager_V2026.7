@@ -5,6 +5,7 @@ import { StoreProduct } from '../lib/supabase';
 interface SellerInfo {
   business_name: string;
   sales_count: number;
+  total_sales?: number;
   seller_slug?: string;
   avatar_url?: string | null;
   average_rating?: number;

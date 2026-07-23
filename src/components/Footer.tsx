@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Instagram, Youtube, MessageCircle, Mail, Globe, Heart, Twitter, Send, Music2, X, Cookie, HelpCircle, FileText, ShoppingCart, Shield, Info, ChevronDown, ChevronRight } from 'lucide-react';
+import { Instagram, Youtube, MessageCircle, Mail, Globe, Heart, Twitter, Send, Music2, X, Cookie, HelpCircle, FileText, ShoppingCart, Shield, Info, ChevronDown, ChevronRight, Sun, Moon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
+import { useTheme } from './ThemeProvider';
+import { CurrencySelector } from './CurrencySelector';
+import { LanguageSelector } from './LanguageSelector';
 
 interface SiteSettings {
   site_name?: string;
@@ -42,6 +45,7 @@ interface FooterProps {
 
 export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
   const { t, language } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [openDoc, setOpenDoc] = useState<LegalDoc | null>(null);
@@ -578,7 +582,19 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
               <div className="text-xs text-gray-400 text-center md:text-left">
                 {copyrightText}
               </div>
-              <div className="flex items-center gap-4 text-xs text-gray-400">
+              <div className="flex items-center gap-3 text-xs text-gray-400">
+                <div className="flex items-center gap-2">
+                  <CurrencySelector />
+                  <LanguageSelector />
+                  <button
+                    onClick={toggleTheme}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
+                    title={theme === 'dark' ? (lang === 'pt' ? 'Tema claro' : lang === 'en' ? 'Light theme' : 'Tema claro') : (lang === 'pt' ? 'Tema escuro' : lang === 'en' ? 'Dark theme' : 'Tema oscuro')}
+                  >
+                    {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </button>
+                </div>
+                <span className="text-gray-700">|</span>
                 <button
                   onClick={() => setOpenDoc('privacy')}
                   className="hover:text-white transition-colors"
