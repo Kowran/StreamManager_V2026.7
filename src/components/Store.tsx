@@ -104,6 +104,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [hasRequestedSeller, setHasRequestedSeller] = useState(false);
   const [productCategories, setProductCategories] = useState<any[]>([]);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [sectionSpacing, setSectionSpacing] = useState(40);
   const [recentRatings, setRecentRatings] = useState<any[]>([]);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const categoriesScrollRef = useRef<HTMLDivElement>(null);
@@ -128,6 +129,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     loadBanners();
     loadProductCategories();
     loadRecentRatings();
+    loadSectionSpacing();
     if (user) {
       loadUserCredit();
       loadUserProfile();
@@ -199,11 +201,16 @@ export function Store({ onNavigate }: StoreProps = {}) {
       const sellerSalesCache: Record<string, number> = {};
 
       async function getSellerTotalSales(sellerId: string): Promise<number> {
+        if (!sellerId) return 0;
         if (sellerId in sellerSalesCache) return sellerSalesCache[sellerId];
-        const { data } = await supabase.rpc('get_seller_sales_count', { seller_uuid: sellerId });
-        const count = Number(data) || 0;
-        sellerSalesCache[sellerId] = count;
-        return count;
+        const { count } = await supabase
+          .from('store_orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('seller_id', sellerId)
+          .not('status', 'in', '(cancelled,refunded,disputed)');
+        const total = count || 0;
+        sellerSalesCache[sellerId] = total;
+        return total;
       }
 
       async function getSellerRating(sellerId: string): Promise<{ average_rating: number; rating_count: number }> {
@@ -373,6 +380,20 @@ export function Store({ onNavigate }: StoreProps = {}) {
         .order('display_order', { ascending: true });
       if (error) return;
       setBanners(data || []);
+    } catch { /* ignore */ }
+  }
+
+  async function loadSectionSpacing() {
+    try {
+      const { data, error } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'site_settings')
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') return;
+      if (data?.value && typeof data.value === 'object' && 'store_section_spacing' in data.value) {
+        setSectionSpacing(Number((data.value as any).store_section_spacing) || 40);
+      }
     } catch { /* ignore */ }
   }
 
@@ -770,7 +791,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 min-w-0 overflow-x-hidden">
+    <div className="min-w-0 overflow-x-clip" style={{ display: 'flex', flexDirection: 'column', gap: `${sectionSpacing}px` }}>
       {/* Hero Section - Buy & Sell text + How it works */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 dark:from-slate-900 dark:via-blue-950 dark:to-black p-6 sm:p-10 shadow-xl">
         <div className="absolute inset-0 opacity-10">
@@ -1334,11 +1355,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       </div>
 
-      {/* Blog & News Preview */}
-      <BlogPreview onSeeAll={() => onNavigate?.('blog')} />
-
       {/* Advantages & Security Section */}
-      <div className="mt-10">
+      <div style={{ marginTop: `${sectionSpacing}px` }}>
         <div className="text-center mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
             {t.language === 'pt' ? 'Por que comprar conosco?' : t.language === 'en' ? 'Why buy from us?' : '¿Por qué comprar con nosotros?'}
@@ -1383,7 +1401,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             </p>
           </div>
           {/* Advantage 3 - Verified Sellers */}
-          <div className="group relative bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
+          <div className="group relative bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
               <UserCheck className="h-6 w-6 text-amber-600 dark:text-amber-400" />
@@ -1400,6 +1418,11 @@ export function Store({ onNavigate }: StoreProps = {}) {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Blog & News Preview */}
+      <div style={{ marginTop: `${sectionSpacing}px` }}>
+        <BlogPreview onSeeAll={() => onNavigate?.('blog')} />
       </div>
 
       {/* How It Works Modal */}
@@ -1871,7 +1894,7 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
               {product.seller_info.business_name}
             </button>
             <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-              · {product.seller_info.total_sales} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'}
+              · {(product.seller_info.total_sales || 0)} {t.language === 'pt' ? 'vendas' : t.language === 'en' ? 'sales' : 'ventas'}
             </span>
           </div>
         )}

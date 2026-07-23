@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, Save, Loader2, CheckCircle, AlertCircle, Image as ImageIcon, Type, Mail, Link2, Navigation as Favicon, FileText, Eye, Upload, X } from 'lucide-react';
+import { Globe, Save, Loader2, CheckCircle, AlertCircle, Image as ImageIcon, Type, Mail, Link2, Navigation as Favicon, FileText, Eye, Upload, X, LayoutGrid } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface SiteSettings {
@@ -12,6 +12,7 @@ interface SiteSettings {
   copyright_text: string;
   contact_email: string;
   meta_description: string;
+  store_section_spacing: number;
   social_links: {
     instagram?: string;
     youtube?: string;
@@ -32,6 +33,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
   copyright_text: '',
   contact_email: 'support@streammanager.com.br',
   meta_description: 'Buy and sell digital products, streaming accounts, SMM services and more on the world\'s leading digital marketplace platform.',
+  store_section_spacing: 40,
   social_links: {
     instagram: '',
     youtube: '',
@@ -68,6 +70,7 @@ export default function AdminSiteSettingsManager() {
 
       const loaded = { ...DEFAULT_SETTINGS, ...(data?.value || {}) };
       loaded.social_links = { ...DEFAULT_SETTINGS.social_links, ...(data?.value?.social_links || {}) };
+      if (typeof loaded.store_section_spacing !== 'number') loaded.store_section_spacing = 40;
       setSettings(loaded);
       setOriginalSettings(loaded);
     } catch (err) {
@@ -152,6 +155,10 @@ export default function AdminSiteSettingsManager() {
   }
 
   function updateField(field: keyof SiteSettings, value: string) {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  }
+
+  function updateNumberField(field: keyof SiteSettings, value: number) {
     setSettings(prev => ({ ...prev, [field]: value }));
   }
 
@@ -337,6 +344,43 @@ export default function AdminSiteSettingsManager() {
             </div>
           </FormField>
         </div>
+      </SectionCard>
+
+      {/* Store Layout */}
+      <SectionCard icon={<LayoutGrid className="w-5 h-5" />} title="Store Layout" description="Control the spacing between sections on the store page">
+        <FormField label="Section Spacing (px)" hint="Distance in pixels between sections on the store page. Default: 40. Range: 16-120.">
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={16}
+              max={120}
+              step={4}
+              value={settings.store_section_spacing}
+              onChange={e => updateNumberField('store_section_spacing', Number(e.target.value))}
+              className="flex-1 accent-blue-600"
+            />
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={16}
+                max={120}
+                value={settings.store_section_spacing}
+                onChange={e => updateNumberField('store_section_spacing', Math.min(120, Math.max(16, Number(e.target.value) || 40)))}
+                className="w-20 px-2 py-1.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-500">px</span>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-1">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-2 rounded-full bg-blue-200 dark:bg-blue-900/40"
+                style={{ width: `${(settings.store_section_spacing / 120) * 100}%` }}
+              />
+            ))}
+          </div>
+        </FormField>
       </SectionCard>
 
       {/* Social Links */}

@@ -746,7 +746,7 @@ function AppContent() {
   // Search results page for logged-out users
   // Product detail page for logged-out users: render with app-style header
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors overflow-x-clip">
       {/* Force nickname setup for users without a username */}
       {user && needsUsername && (
         <NicknameSetupModal
@@ -930,8 +930,6 @@ function AppContent() {
                 <UserMenu onNavigate={navigateWithRecharge} isAdmin={isAdmin} isSeller={isSeller} />
               ) : (
                 <div className="flex items-center gap-1.5">
-                  <div className="hidden sm:block"><CurrencySelector /></div>
-                  <div className="hidden sm:block"><LanguageSelector /></div>
                   <button
                     onClick={toggleTheme}
                     className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
