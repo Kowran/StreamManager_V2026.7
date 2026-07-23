@@ -105,11 +105,19 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [recentRatings, setRecentRatings] = useState<any[]>([]);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   const categoriesScrollRef = useRef<HTMLDivElement>(null);
+  const ratingsScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollCategories = useCallback((direction: 'left' | 'right') => {
     if (categoriesScrollRef.current) {
       const scrollAmount = 300;
       categoriesScrollRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  }, []);
+
+  const scrollRatings = useCallback((direction: 'left' | 'right') => {
+    if (ratingsScrollRef.current) {
+      const scrollAmount = 340;
+      ratingsScrollRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
     }
   }, []);
 
@@ -1211,7 +1219,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       )}
       </div>
 
-      {/* Recent Reviews Section */}
+      {/* Recent Reviews Section — Carousel */}
       {recentRatings.length > 0 && !isFiltering && activeCategory !== 'smm' && (
         <div className="mt-2">
           <div className="flex items-center gap-2 mb-4">
@@ -1220,12 +1228,30 @@ export function Store({ onNavigate }: StoreProps = {}) {
               {t.language === 'pt' ? 'Avaliações Recentes' : t.language === 'en' ? 'Recent Reviews' : 'Reseñas Recientes'}
             </h2>
             <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent dark:from-gray-700" />
+            {/* Carousel nav buttons */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                onClick={() => scrollRatings('left')}
+                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => scrollRatings('right')}
+                className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div
+            ref={ratingsScrollRef}
+            className="flex gap-3 sm:gap-4 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory"
+          >
             {recentRatings.map((review) => (
               <div
                 key={review.id}
-                className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
+                className="flex-shrink-0 w-72 sm:w-80 snap-center bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
               >
                 <div className="flex items-center gap-2.5 mb-3">
                   {review.buyer_avatar ? (
@@ -1258,6 +1284,32 @@ export function Store({ onNavigate }: StoreProps = {}) {
           </div>
         </div>
       )}
+
+      {/* About Us Section */}
+      <div className="mt-10">
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 dark:from-blue-800 dark:via-blue-900 dark:to-indigo-950 p-6 sm:p-10 shadow-lg">
+          {/* Decorative elements */}
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-white/5 blur-3xl" />
+          <div className="relative flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+            <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center border border-white/20">
+              <Shield className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+            </div>
+            <div className="text-center sm:text-left flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                {t.language === 'pt' ? 'Quem Somos Nós' : t.language === 'en' ? 'Who We Are' : 'Quiénes Somos'}
+              </h2>
+              <p className="text-sm sm:text-base text-blue-50 leading-relaxed max-w-2xl">
+                {t.language === 'pt'
+                  ? 'Somos uma plataforma dedicada à compra e venda de produtos digitais com segurança e transparência. Conectamos vendedores qualificados a compradores de todo o mundo, garantindo entregas automáticas, pagamentos protegidos e suporte de qualidade. Nossa missão é oferecer a melhor experiência em transações digitais.'
+                  : t.language === 'en'
+                  ? 'We are a platform dedicated to buying and selling digital products with security and transparency. We connect qualified sellers with buyers worldwide, ensuring automatic delivery, protected payments, and quality support. Our mission is to provide the best experience in digital transactions.'
+                  : 'Somos una plataforma dedicada a la compra y venta de productos digitales con seguridad y transparencia. Conectamos vendedores calificados con compradores de todo el mundo, garantizando entregas automáticas, pagos protegidos y soporte de calidad. Nuestra misión es ofrecer la mejor experiencia en transacciones digitales.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* How It Works Modal */}
       {showHowItWorks && (

@@ -434,7 +434,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
         {/* Avatar + identity */}
         <div className="px-5 sm:px-8 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between -mt-14 sm:-mt-16 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between -mt-10 sm:-mt-12 gap-4">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4">
               {/* Avatar */}
               <div className="relative group flex-shrink-0">
