@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle, LogIn, Search, Wallet } from 'lucide-react';
+import { CreditCard, Play, Settings, Menu, X, User, ShoppingBag, Mail, Shield, Moon, Sun, TrendingUp, Newspaper, Users, HelpCircle, LogIn, Search, Wallet, Gamepad2 } from 'lucide-react';
 import { useCommunityUnreadCount } from './hooks/useCommunityUnreadCount';
 import { supabase } from './lib/supabase';
 import { AuthProvider, useAuth } from './components/AuthProvider';
@@ -78,9 +78,12 @@ import { ChatInbox } from './components/ChatInbox';
 import { AdminProductCategoriesManager } from './components/AdminProductCategoriesManager';
 import { CategorySearchPage } from './components/CategorySearchPage';
 import { SearchResultsPage } from './components/SearchResultsPage';
+import { GameCategoriesPage } from './components/GameCategoriesPage';
+import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
+import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results';
 
 interface StoreConfig {
   store_name?: string;
@@ -139,6 +142,18 @@ function AppContent() {
     const path = `/search/${encodeURIComponent(query)}`;
     window.history.pushState(null, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
+  const handleCreateOffer = () => {
+    if (isSeller) {
+      setActiveTab('seller-store');
+      window.history.pushState(null, '', '/seller-store');
+    } else if (user) {
+      setActiveTab('seller-recruitment');
+      window.history.pushState(null, '', '/seller-recruitment');
+    } else {
+      setShowLoginModal(true);
+    }
   };
 
   useOnlineHeartbeat(user?.id);
@@ -281,6 +296,10 @@ function AppContent() {
         const catSlug = path.replace('category/', '');
         setCategorySlug(catSlug);
         setActiveTab('category-search');
+      } else if (path.startsWith('game-categories')) {
+        setActiveTab('game-categories');
+      } else if (path.startsWith('seller-recruitment')) {
+        setActiveTab('seller-recruitment');
       } else if (path.startsWith('search/')) {
         const sq = decodeURIComponent(path.replace('search/', ''));
         setSearchQuery(sq);
@@ -373,6 +392,7 @@ function AppContent() {
   const headerNavigation: { id: string; name: string; icon: typeof Newspaper }[] = [];
 
   const footerNavigation = [
+    { id: 'game-categories', name: t.language === 'pt' ? 'Jogos' : t.language === 'en' ? 'Games' : 'Juegos', icon: Gamepad2 },
     { id: 'blog', name: t.language === 'pt' ? 'Blog' : t.language === 'en' ? 'Blog' : 'Blog', icon: Newspaper },
     { id: 'community', name: t.language === 'pt' ? 'Comunidade' : t.language === 'en' ? 'Community' : 'Comunidad', icon: MessageCircle },
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
@@ -590,6 +610,33 @@ function AppContent() {
         return <Community />;
       case 'blog':
         return <Blog onNavigate={(tab) => setActiveTab(tab as ActiveTab)} />;
+      case 'game-categories':
+        return (
+          <GameCategoriesPage
+            onBack={() => {
+              setActiveTab('store');
+              window.history.pushState(null, '', '/store');
+            }}
+            onCategoryClick={(slug) => {
+              setCategorySlug(slug);
+              setActiveTab('category-search');
+              window.history.pushState(null, '', `/category/${slug}`);
+            }}
+          />
+        );
+      case 'seller-recruitment':
+        return (
+          <SellerRecruitmentPage
+            onBack={() => {
+              setActiveTab('store');
+              window.history.pushState(null, '', '/store');
+            }}
+            onBecomeSeller={() => {
+              setActiveTab('seller-requests');
+              window.history.pushState(null, '', '/seller-requests');
+            }}
+          />
+        );
       case 'admin-community':
         return (
           <AdminGuard page="admin-community">
@@ -822,21 +869,23 @@ function AppContent() {
                   );
                 })}
               </nav>
+            </div>
 
-              {/* Desktop Search */}
+            {/* Centered Desktop Search */}
+            <div className="hidden md:flex flex-1 justify-center max-w-xl mx-4">
               <form
                 onSubmit={(e) => { e.preventDefault(); navigateToSearch(searchInput); }}
-                className="hidden md:flex relative w-40 lg:w-64 xl:w-72 ml-2"
+                className="relative w-full"
               >
                 <button type="submit" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                  <Search className="h-4 w-4" />
+                  <Search className="h-5 w-5" />
                 </button>
                 <input
                   type="text"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
-                  className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
+                  placeholder={t.language === 'pt' ? 'Buscar produtos, jogos, categorias...' : t.language === 'en' ? 'Search products, games, categories...' : 'Buscar productos, juegos, categorías...'}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
                 />
                 {searchInput && (
                   <button
@@ -844,12 +893,21 @@ function AppContent() {
                     onClick={() => { setSearchInput(''); navigateToSearch(''); }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </form>
             </div>
             <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* Create Offer Button */}
+              <button
+                onClick={handleCreateOffer}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-medium shadow-sm transition-all"
+                title={t.language === 'pt' ? 'Criar nova oferta' : t.language === 'en' ? 'Create new offer' : 'Crear nueva oferta'}
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span className="hidden lg:inline">{t.language === 'pt' ? 'Criar Oferta' : t.language === 'en' ? 'Create Offer' : 'Crear Oferta'}</span>
+              </button>
               {/* Credit Balance */}
               {user && (
                 <button
@@ -964,7 +1022,7 @@ function AppContent() {
                   type="text"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder={t.language === 'pt' ? 'Buscar produtos...' : t.language === 'en' ? 'Search products...' : 'Buscar productos...'}
+                  placeholder={t.language === 'pt' ? 'Buscar produtos, jogos, categorias...' : t.language === 'en' ? 'Search products, games, categories...' : 'Buscar productos, juegos, categorías...'}
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-all"
                 />
               </form>
@@ -980,6 +1038,17 @@ function AppContent() {
                   <span className="text-sm font-bold">${creditBalance.toFixed(2)}</span>
                 </button>
               )}
+            </div>
+
+            {/* Create Offer Button */}
+            <div className="px-4 pb-2">
+              <button
+                onClick={() => { handleCreateOffer(); setIsMobileMenuOpen(false); }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-sm font-medium shadow-sm transition-all"
+              >
+                <PlusCircle className="h-4 w-4" />
+                {t.language === 'pt' ? 'Criar Oferta' : t.language === 'en' ? 'Create Offer' : 'Crear Oferta'}
+              </button>
             </div>
 
             <nav className="mt-4 px-4">

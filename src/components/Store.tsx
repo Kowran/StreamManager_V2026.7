@@ -1014,7 +1014,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               {language === 'pt' ? 'Categorias de Jogos' : language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
             </h2>
             <button
-              onClick={() => { window.history.pushState(null, '', `/search/`); window.dispatchEvent(new PopStateEvent('popstate')); }}
+              onClick={() => { window.history.pushState(null, '', '/game-categories'); window.dispatchEvent(new PopStateEvent('popstate')); }}
               className="flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap"
             >
               {t.language === 'pt' ? 'Ver tudo' : t.language === 'en' ? 'See all' : 'Ver todo'}
