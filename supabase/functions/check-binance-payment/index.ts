@@ -47,9 +47,9 @@ async function queryPayTransactions(
   params: { startTime?: number; endTime?: number },
   apiKey: string,
   apiSecret: string
-): Promise<any> {
+): Promise<{ ok: boolean; data?: any; error?: string; httpStatus: number }> {
   const timestamp = Date.now();
-  const recvWindow = 5000;
+  const recvWindow = 10000;
 
   const queryString = `timestamp=${timestamp}&recvWindow=${recvWindow}` +
     (params.startTime ? `&startTime=${params.startTime}` : '') +
@@ -67,13 +67,40 @@ async function queryPayTransactions(
 
   const url = `https://api.binance.com/sapi/v1/pay/transactions?${queryString}&signature=${signature}`;
 
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'X-MBX-APIKEY': apiKey,
-    },
-  });
-  return res.json();
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-MBX-APIKEY': apiKey,
+      },
+    });
+  } catch (fetchErr: any) {
+    return { ok: false, error: `Falha de rede ao conectar com a Binance: ${fetchErr.message}`, httpStatus: 0 };
+  }
+
+  const rawText = await res.text();
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    return {
+      ok: false,
+      error: `Resposta inválida da Binance (HTTP ${res.status}): ${rawText.slice(0, 200)}`,
+      httpStatus: res.status,
+    };
+  }
+
+  // Binance success: { code: "000000", success: true, data: [...] }
+  // Binance error:   { code: "-xxxx", msg: "..." }
+  if (res.status >= 400 || (parsed.code && parsed.code !== '000000')) {
+    const errMsg = parsed.msg || parsed.message || parsed.error || `HTTP ${res.status}`;
+    console.error('Binance Pay API error response:', JSON.stringify(parsed));
+    return { ok: false, error: `Binance API: ${errMsg} (código ${parsed.code || res.status})`, data: parsed, httpStatus: res.status };
+  }
+
+  return { ok: true, data: parsed, httpStatus: res.status };
 }
 
 /**
@@ -91,30 +118,28 @@ async function findMatchingTransfer(
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
 
   try {
-    let result = await queryPayTransactions(
+    const result = await queryPayTransactions(
       { startTime: sevenDaysAgo, endTime: now },
       apiKey,
       apiSecret
     );
 
-    // Handle API error
-    if (result.code && result.code !== '000000' && result.success !== true) {
-      console.error('Binance Pay API error:', JSON.stringify(result));
-      return { matched: false, reason: 'Erro ao consultar a Binance. Tente novamente.' };
+    if (!result.ok) {
+      console.error('Binance Pay API error:', result.error);
+      return { matched: false, reason: result.error || 'Erro ao consultar a Binance. Tente novamente.' };
     }
 
-    const transactions: any[] = result.data || [];
+    const transactions: any[] = result.data?.data || [];
+    console.log(`Binance Pay returned ${transactions.length} transactions in last 7 days`);
 
-    // Search through all returned transactions
     for (const tx of transactions) {
-      // Only incoming transfers (positive amount) to our account
       const txAmount = parseFloat(tx.amount);
       if (txAmount <= 0) continue;
 
-      // Match by transaction ID (Binance returns e.g. "M_P_71505104267788288")
       const txId: string = tx.transactionId || '';
+      console.log(`Checking tx: ${txId} amount: ${txAmount} against user-provided: ${transactionId} expected: ${expectedAmount}`);
+
       if (txId === transactionId) {
-        // Verify the amount matches (allow tiny float tolerance)
         if (Math.abs(txAmount - expectedAmount) < 0.01) {
           return { matched: true };
         }
@@ -129,9 +154,9 @@ async function findMatchingTransfer(
       matched: false,
       reason: 'Transação não encontrada no histórico da Binance. Verifique o Order ID e tente novamente.',
     };
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error querying Binance Pay transactions:', err);
-    return { matched: false, reason: 'Erro ao conectar com a Binance. Tente novamente.' };
+    return { matched: false, reason: `Erro inesperado: ${err.message || 'Tente novamente.'}` };
   }
 }
 
