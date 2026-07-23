@@ -45,7 +45,7 @@ import { AffiliateSystem } from './components/AffiliateSystem';
 import { AdminSalesManager } from './components/AdminSalesManager';
 import { AdminWithdrawalManager } from './components/AdminWithdrawalManager';
 import { AdminEmailVerifier } from './components/AdminEmailVerifier';
-import { NetflixEmailFinder } from './components/NetflixEmailFinder';
+import { FeesPage } from './components/FeesPage';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { FeesPage } from './components/FeesPage';
@@ -85,7 +85,7 @@ import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'netflix-finder' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
 
 interface StoreConfig {
   store_name?: string;
@@ -744,12 +744,6 @@ function AppContent() {
         // Redirect to external URL
         window.open('https://streammanager.online/', '_blank');
         return <Store onNavigate={navigateWithRecharge} />;
-      case 'netflix-finder':
-        return (
-          <AdminGuard>
-            <NetflixEmailFinder />
-          </AdminGuard>
-        );
       default:
         return <Store onNavigate={navigateWithRecharge} />;
     }

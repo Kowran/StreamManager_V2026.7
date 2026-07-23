@@ -147,7 +147,7 @@ export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
         <>
           <div className="fixed inset-0 z-10" onClick={handleClose} />
 
-          <div className={`absolute right-0 mt-2 w-64 lg:w-72 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-20 ${showSettings ? 'overflow-visible' : 'overflow-hidden'}`}>
+          <div className="absolute right-0 mt-2 w-64 lg:w-72 max-h-[calc(100vh-5rem)] overflow-y-auto bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-20">
 
             {/* Settings panel (slides over main) */}
             {showSettings ? (
@@ -310,13 +310,6 @@ export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
                       <p className="px-4 pt-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
                         {lbl('Administração', 'Administration', 'Administración')}
                       </p>
-                      <button
-                        onClick={() => handleNavigate('netflix-finder')}
-                        className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
-                      >
-                        <Mail className="h-4 w-4 text-gray-400" />
-                        <span>{lbl('Código Netflix', 'Netflix Code', 'Código Netflix')}</span>
-                      </button>
                       <button
                         onClick={() => handleNavigate('admin-dashboard')}
                         className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"

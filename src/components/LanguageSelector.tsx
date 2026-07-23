@@ -29,7 +29,7 @@ export function LanguageSelector() {
             className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+          <div className="absolute left-0 right-0 bottom-full mb-2 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-50">
             <div className="py-1">
               {languages.map((lang) => (
                 <button
