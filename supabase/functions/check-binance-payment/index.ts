@@ -104,9 +104,53 @@ async function queryPayTransactions(
 }
 
 /**
- * Search recent incoming Pay transactions for one whose transactionId matches
- * the user-provided ID and whose amount equals the expected deposit amount.
- * We look back up to 7 days in pages of 100.
+ * Extract the USDT amount from a transaction. Binance Pay returns the
+ * primary `amount`/`currency` at the top level, but when multiple assets are
+ * involved the actual USDT figure lives inside `fundsDetail`. We prefer a
+ * USDT entry from fundsDetail and fall back to the top-level amount when the
+ * currency itself is USDT.
+ */
+function extractUsdtAmount(tx: any): number | null {
+  const fundsDetail: any[] = tx.fundsDetail || [];
+  const usdtFund = fundsDetail.find(
+    (f) => f.currency?.toUpperCase() === 'USDT'
+  );
+  if (usdtFund) {
+    const v = parseFloat(usdtFund.amount);
+    if (!isNaN(v)) return v;
+  }
+  if ((tx.currency || '').toUpperCase() === 'USDT') {
+    const v = parseFloat(tx.amount);
+    if (!isNaN(v)) return v;
+  }
+  return null;
+}
+
+/**
+ * Compare two ID strings loosely. Binance's website ("Orders > Payment
+ * History") labels the identifier as "Order ID" which may or may not include
+ * the same prefix as the API `transactionId`. We match when one string is a
+ * suffix of the other (after trimming spaces and ignoring case) so a user who
+ * copies only the numeric portion still gets a hit.
+ */
+function idMatches(a: string, b: string): boolean {
+  const na = a.trim().toLowerCase().replace(/\s+/g, '');
+  const nb = b.trim().toLowerCase().replace(/\s+/g, '');
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  // one is a suffix of the other (covers "M_P_12345" vs "12345")
+  if (na.endsWith(nb) || nb.endsWith(na)) return true;
+  // numeric cores match
+  const coreA = na.replace(/[^0-9]/g, '');
+  const coreB = nb.replace(/[^0-9]/g, '');
+  if (coreA && coreB && coreA === coreB) return true;
+  return false;
+}
+
+/**
+ * Search recent incoming Pay transactions for one whose transactionId (or
+ * orderId) matches the user-provided ID and whose USDT amount equals the
+ * expected deposit amount. We look back up to 7 days in pages of 100.
  */
 async function findMatchingTransfer(
   transactionId: string,
@@ -132,27 +176,45 @@ async function findMatchingTransfer(
     const transactions: any[] = result.data?.data || [];
     console.log(`Binance Pay returned ${transactions.length} transactions in last 7 days`);
 
+    let idFoundAmountMismatch: string | null = null;
+
     for (const tx of transactions) {
-      const txAmount = parseFloat(tx.amount);
-      if (txAmount <= 0) continue;
+      const txAmount = extractUsdtAmount(tx);
+      // Only consider incoming (positive) transfers
+      if (txAmount === null || txAmount <= 0) continue;
 
       const txId: string = tx.transactionId || '';
-      console.log(`Checking tx: ${txId} amount: ${txAmount} against user-provided: ${transactionId} expected: ${expectedAmount}`);
+      const txOrderId: string = tx.orderId || tx.orderID || '';
+      console.log(`Checking tx transactionId=${txId} orderId=${txOrderId} amount=${txAmount} currency=${tx.currency} against user=${transactionId} expected=${expectedAmount}`);
 
-      if (txId === transactionId) {
+      const idMatch = idMatches(txId, transactionId) || idMatches(txOrderId, transactionId);
+
+      if (idMatch) {
         if (Math.abs(txAmount - expectedAmount) < 0.01) {
           return { matched: true };
         }
-        return {
-          matched: false,
-          reason: `Transação encontrada, mas o valor (USDT ${txAmount.toFixed(2)}) não corresponde ao valor solicitado (USDT ${expectedAmount.toFixed(2)}).`,
-        };
+        idFoundAmountMismatch = `Transação encontrada, mas o valor (USDT ${txAmount.toFixed(2)}) não corresponde ao valor solicitado (USDT ${expectedAmount.toFixed(2)}).`;
+        // keep scanning in case another record matches both ID and amount
       }
     }
 
+    if (idFoundAmountMismatch) {
+      return { matched: false, reason: idFoundAmountMismatch };
+    }
+
+    // Provide a helpful diagnostic so the user (and admin) can see what IDs
+    // the API actually returned, making it easier to spot a copy/paste mismatch.
+    const recentIds = transactions
+      .filter((tx) => (extractUsdtAmount(tx) ?? 0) > 0)
+      .slice(0, 10)
+      .map((tx) => tx.transactionId || tx.orderId || '(sem id)')
+      .join(', ');
+    console.log(`No match for "${transactionId}". Recent incoming tx IDs: ${recentIds}`);
+
     return {
       matched: false,
-      reason: 'Transação não encontrada no histórico da Binance. Verifique o Order ID e tente novamente.',
+      reason:
+        'Transação não encontrada no histórico da Binance. Verifique o Order ID exibido em "Orders > Payment History" no site/app da Binance e tente novamente.',
     };
   } catch (err: any) {
     console.error('Error querying Binance Pay transactions:', err);

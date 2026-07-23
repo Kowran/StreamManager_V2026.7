@@ -192,10 +192,10 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                 <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Como funciona</h3>
                 <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1.5 list-decimal list-inside">
                   <li>Clique em <strong>Iniciar depósito</strong></li>
-                  <li>Abra o app Binance e vá em <strong>Transferir → Enviar</strong></li>
+                  <li>Abra o app/site Binance e vá em <strong>Transferir → Enviar</strong></li>
                   <li>Cole o <strong>Binance ID</strong> exibido e envie <strong>${amount.toFixed(2)} USDT</strong></li>
-                  <li>Copie o <strong>ID da transação</strong> exibido no histórico</li>
-                  <li>Cole o ID aqui e clique em <strong>Verificar Pagamento</strong></li>
+                  <li>Em <strong>Orders → Payment History</strong>, localize a transferência pelo nome, valor e <strong>Order ID</strong></li>
+                  <li>Copie o <strong>Order ID</strong> e cole aqui, depois clique em <strong>Verificar Pagamento</strong></li>
                 </ol>
               </div>
               <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
@@ -274,7 +274,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                   <div>
                     <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-200">Confirmação de pagamento</p>
                     <p className="text-xs text-yellow-800 dark:text-yellow-300 mt-1">
-                      Após concluir a transferência no Binance Pay, abra o histórico e copie o <strong>ID da transação</strong>. Cole abaixo para confirmar.
+                      Após concluir a transferência no Binance Pay, abra <strong>Orders → Payment History</strong>, localize a transferência pelo nome, valor e <strong>Order ID</strong>, copie o Order ID e cole abaixo para confirmar.
                     </p>
                   </div>
                 </div>
@@ -292,7 +292,7 @@ export function BinancePaymentModal({ isOpen, onClose, amount, onSuccess }: Bina
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                 />
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  Encontre o ID no app Binance em <em>Carteira → Histórico → Binance Pay</em>.
+                  Encontre o Order ID no app/site da Binance em <em>Orders → Payment History</em>.
                 </p>
               </div>
 
