@@ -343,6 +343,127 @@ function AppContent() {
     }
   }, [activeTab, user, loading]);
 
+  // Dynamic browser tab title based on current page
+  useEffect(() => {
+    const lang = t.language;
+    const tr = (pt: string, en: string, es: string) => lang === 'pt' ? pt : lang === 'en' ? en : es;
+
+    const staticTitles: Record<string, string> = {
+      'store': browserTitle,
+      'smm': tr('Painel SMM', 'SMM Panel', 'Panel SMM'),
+      'admin-dashboard': tr('Painel Admin', 'Admin Panel', 'Panel Admin'),
+      'admin-products': tr('Gerenciar Produtos', 'Manage Products', 'Gestionar Productos'),
+      'admin-product-categories': tr('Categorias de Produtos', 'Product Categories', 'Categorías de Productos'),
+      'admin-users': tr('Gerenciar Usuários', 'Manage Users', 'Gestionar Usuarios'),
+      'admin-sales': tr('Vendas', 'Sales', 'Ventas'),
+      'admin-payments': tr('Pagamentos', 'Payments', 'Pagos'),
+      'admin-credits': tr('Créditos', 'Credits', 'Créditos'),
+      'admin-coupons': tr('Cupons', 'Coupons', 'Cupones'),
+      'admin-settings': tr('Configurações', 'Settings', 'Configuraciones'),
+      'admin-site-settings': tr('Configurações do Site', 'Site Settings', 'Configuraciones del Sitio'),
+      'admin-support': tr('Suporte', 'Support', 'Soporte'),
+      'admin-disputes': tr('Disputas', 'Disputes', 'Disputas'),
+      'admin-withdrawals': tr('Saques', 'Withdrawals', 'Retiros'),
+      'admin-smm': tr('Gerenciar SMM', 'Manage SMM', 'Gestionar SMM'),
+      'admin-smm-orders': tr('Pedidos SMM', 'SMM Orders', 'Pedidos SMM'),
+      'admin-smm-providers': tr('Provedores SMM', 'SMM Providers', 'Proveedores SMM'),
+      'admin-community': tr('Comunidade', 'Community', 'Comunidad'),
+      'admin-notifications': tr('Notificações', 'Notifications', 'Notificaciones'),
+      'admin-popups': tr('Pop-ups', 'Popups', 'Pop-ups'),
+      'admin-announcements': tr('Anúncios', 'Announcements', 'Anuncios'),
+      'admin-banners': tr('Banners', 'Banners', 'Banners'),
+      'admin-flying-balloons': tr('Balões', 'Balloons', 'Globos'),
+      'admin-netflix-accounts': tr('Contas Netflix', 'Netflix Accounts', 'Cuentas Netflix'),
+      'admin-email-templates': tr('Modelos de Email', 'Email Templates', 'Plantillas de Email'),
+      'admin-security': tr('Segurança', 'Security', 'Seguridad'),
+      'admin-appeals': tr('Recursos', 'Appeals', 'Apelaciones'),
+      'accounts-access': tr('Acesso a Contas', 'Accounts Access', 'Acceso a Cuentas'),
+      'accounts': tr('Streaming', 'Streaming', 'Streaming'),
+      'sellers': tr('Vendedores', 'Sellers', 'Vendedores'),
+      'services': tr('Serviços', 'Services', 'Servicios'),
+      'credits': tr('Meus Créditos', 'My Credits', 'Mis Créditos'),
+      'purchases': tr('Minhas Compras', 'My Purchases', 'Mis Compras'),
+      'support': tr('Suporte', 'Support', 'Soporte'),
+      'affiliates': tr('Afiliados', 'Affiliates', 'Afiliados'),
+      'blog': tr('Blog', 'Blog', 'Blog'),
+      'game-categories': tr('Jogos', 'Games', 'Juegos'),
+      'messages': tr('Mensagens', 'Messages', 'Mensajes'),
+      'notifications': tr('Notificações', 'Notifications', 'Notificaciones'),
+      'profile': tr('Meu Perfil', 'My Profile', 'Mi Perfil'),
+      'seller-recruitment': tr('Seja Vendedor', 'Become a Seller', 'Ser Vendedor'),
+      'seller-requests': tr('Solicitações de Vendedor', 'Seller Requests', 'Solicitudes de Vendedor'),
+      'seller-store': tr('Minha Loja', 'My Store', 'Mi Tienda'),
+      'fees-page': tr('Taxas', 'Fees', 'Tarifas'),
+      'work-with-us': tr('Trabalhe Conosco', 'Work With Us', 'Trabaja con Nosotros'),
+    };
+
+    const setStaticTitle = () => {
+      if (activeTab in staticTitles) {
+        document.title = `${staticTitles[activeTab]} | ${siteName}`;
+      } else if (activeTab === 'store' || !activeTab) {
+        document.title = browserTitle;
+      }
+    };
+
+    // Dynamic titles that need data fetching
+    if (activeTab === 'product-detail' && productDetailId) {
+      let cancelled = false;
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('store_products')
+            .select('name')
+            .eq('id', productDetailId)
+            .maybeSingle();
+          if (!cancelled && data?.name) {
+            document.title = `${data.name} | ${siteName}`;
+          }
+        } catch { /* ignore */ }
+      })();
+      return () => { cancelled = true; };
+    } else if (activeTab === 'seller-profile' && sellerSlug) {
+      let cancelled = false;
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('full_name, username')
+            .eq('seller_slug', sellerSlug)
+            .maybeSingle();
+          if (!cancelled) {
+            const name = data?.username || data?.full_name;
+            if (name) document.title = `${name} | ${siteName}`;
+          }
+        } catch { /* ignore */ }
+      })();
+      return () => { cancelled = true; };
+    } else if (activeTab === 'user-profile' && profileIdentifier) {
+      let cancelled = false;
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('full_name, username')
+            .or(`username.eq.${profileIdentifier},id.eq.${profileIdentifier}`)
+            .maybeSingle();
+          if (!cancelled) {
+            const name = data?.username || data?.full_name;
+            if (name) document.title = `${name} | ${siteName}`;
+          }
+        } catch { /* ignore */ }
+      })();
+      return () => { cancelled = true; };
+    } else if (activeTab === 'category-search' && categorySlug) {
+      document.title = `${categorySlug} | ${siteName}`;
+    } else if (activeTab === 'search-results' && searchQuery) {
+      document.title = `${tr('Buscar', 'Search', 'Buscar')}: ${searchQuery} | ${siteName}`;
+    } else if (activeTab === 'checkout') {
+      document.title = `${tr('Checkout', 'Checkout', 'Checkout')} | ${siteName}`;
+    } else {
+      setStaticTitle();
+    }
+  }, [activeTab, productDetailId, sellerSlug, profileIdentifier, categorySlug, searchQuery, siteName, browserTitle, t.language]);
+
   async function loadStoreConfig() {
     try {
       const { data, error } = await supabase
