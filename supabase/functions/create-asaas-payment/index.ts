@@ -17,6 +17,10 @@ interface PaymentRequest {
   };
 }
 
+function sanitizeCpfCnpj(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 14);
+}
+
 interface AsaasConfig {
   access_token: string;
   test_mode: boolean;
@@ -101,8 +105,22 @@ Deno.serve(async (req: Request) => {
     const orderId = `AS-${Date.now()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
     const amountBRL = amount * 5.5;
 
-    const customerName = payer?.first_name || userEmail?.split('@')[0] || 'Cliente';
+    const firstName = payer?.first_name || '';
+    const lastName = payer?.last_name || '';
+    const customerName = (firstName && lastName)
+      ? `${firstName} ${lastName}`
+      : (firstName || userEmail?.split('@')[0] || 'Cliente');
     const customerEmail = payer?.email || userEmail;
+    const cpfCnpj = sanitizeCpfCnpj(payer?.cpf || '');
+
+    if (!cpfCnpj) {
+      return new Response(JSON.stringify({
+        error: 'CPF/CNPJ obrigatorio',
+        message: 'Informe um CPF ou CNPJ para gerar a cobranca.'
+      }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     let asaasCustomerId: string;
 
@@ -115,6 +133,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         name: customerName,
         email: customerEmail,
+        cpfCnpj: cpfCnpj,
         externalReference: orderId,
       }),
     });

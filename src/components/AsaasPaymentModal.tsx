@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, CreditCard, QrCode, Copy, Check, Clock, AlertTriangle, RefreshCw, Loader, FileText } from 'lucide-react';
+import { X, CreditCard, QrCode, Copy, Check, Clock, AlertTriangle, RefreshCw, Loader, FileText, User, Hash } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -21,6 +21,22 @@ interface PaymentData {
   billing_type: string;
 }
 
+function sanitizeCpf(value: string): string {
+  return value.replace(/\D/g, '');
+}
+
+function formatCpf(value: string): string {
+  const digits = sanitizeCpf(value).slice(0, 11);
+  if (digits.length > 9) {
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  } else if (digits.length > 6) {
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+  } else if (digits.length > 3) {
+    return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+  }
+  return digits;
+}
+
 export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasPaymentModalProps) {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -32,11 +48,18 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
+  const [customerName, setCustomerName] = useState('');
+  const [customerCpf, setCustomerCpf] = useState('');
+  const [formError, setFormError] = useState('');
+
   useEffect(() => {
     if (isOpen && user) {
       setPaymentData(null);
       setError('');
       setTimeLeft(0);
+      setCustomerName('');
+      setCustomerCpf('');
+      setFormError('');
     }
   }, [isOpen, user]);
 
@@ -55,7 +78,28 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
     }
   }, [paymentData]);
 
+  function validateForm(): boolean {
+    setFormError('');
+    const name = customerName.trim();
+    if (name.length < 3) {
+      setFormError('Por favor, informe seu nome completo.');
+      return false;
+    }
+    if (name.trim().split(/\s+/).length < 2) {
+      setFormError('Por favor, informe nome e sobrenome.');
+      return false;
+    }
+    const cpfDigits = sanitizeCpf(customerCpf);
+    if (cpfDigits.length !== 11) {
+      setFormError('Por favor, informe um CPF valido com 11 digitos.');
+      return false;
+    }
+    return true;
+  }
+
   async function createPayment() {
+    if (!validateForm()) return;
+
     setLoading(true);
     setError('');
 
@@ -64,6 +108,9 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
       if (!session?.access_token) {
         throw new Error('Nao autenticado');
       }
+
+      const [firstName, ...rest] = customerName.trim().split(/\s+/);
+      const lastName = rest.join(' ');
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-asaas-payment`, {
         method: 'POST',
@@ -76,7 +123,9 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
           payment_method: paymentMethod,
           payer: {
             email: user?.email,
-            first_name: user?.email?.split('@')[0] || 'Cliente'
+            first_name: firstName,
+            last_name: lastName,
+            cpf: sanitizeCpf(customerCpf),
           }
         })
       });
@@ -260,6 +309,57 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
                   </p>
                 </button>
               </div>
+            </div>
+
+            {/* Customer Data Form */}
+            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center">
+                <User className="h-4 w-4 mr-2 text-gray-500" />
+                Dados do comprador
+              </h4>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Nome completo
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Digite seu nome completo"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  CPF
+                </label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={customerCpf}
+                    onChange={(e) => setCustomerCpf(formatCpf(e.target.value))}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Obrigatorio para gerar cobrancas via Asaas.
+                </p>
+              </div>
+
+              {formError && (
+                <div className="flex items-center text-xs text-red-600 dark:text-red-400">
+                  <AlertTriangle className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                  {formError}
+                </div>
+              )}
             </div>
 
             {/* Payment Summary */}
