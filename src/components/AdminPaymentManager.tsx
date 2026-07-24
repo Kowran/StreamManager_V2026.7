@@ -44,6 +44,7 @@ const METHOD_ICONS: Record<string, string> = {
   whatsapp: 'https://i.imgur.com/Ei6JERR.png',
   triplea: 'https://i.imgur.com/nXhq7ph.png',
   asaas: 'https://i.imgur.com/3oeBwGn.jpeg',
+  infinitepay: 'https://i.imgur.com/3oeBwGn.jpeg',
 };
 
 export default function AdminPaymentManager() {

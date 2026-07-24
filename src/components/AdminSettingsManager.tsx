@@ -8,6 +8,7 @@ import { CryptomusConfigModal } from './CryptomusConfigModal';
 import { BinanceConfigModal } from './BinanceConfigModal';
 import { TripleAConfigModal } from './TripleAConfigModal';
 import { AsaasConfigModal } from './AsaasConfigModal';
+import { InfinitePayConfigModal } from './InfinitePayConfigModal';
 import { ImapConfigModal } from './ImapConfigModal';
 import { SmtpConfigModal } from './SmtpConfigModal';
 
@@ -89,6 +90,12 @@ export default function AdminSettingsManager() {
         .eq('key', 'asaas_config')
         .maybeSingle();
 
+      const { data: infinitepayData } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'infinitepay_config')
+        .maybeSingle();
+
       const gatewayList: PaymentGateway[] = [
         {
           id: 'stripe',
@@ -159,6 +166,16 @@ export default function AdminSettingsManager() {
           color: 'border-blue-500',
           hoverColor: 'hover:bg-blue-50 dark:hover:bg-blue-900/20',
           iconColor: 'text-blue-600 dark:text-blue-400'
+        },
+        {
+          id: 'infinitepay',
+          name: 'InfinitePay',
+          icon: <CreditCard className="w-8 h-8" />,
+          description: 'PIX, Cartao de Credito (Brasil)',
+          configured: !!infinitepayData?.value?.configured,
+          color: 'border-indigo-500',
+          hoverColor: 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20',
+          iconColor: 'text-indigo-600 dark:text-indigo-400'
         }
       ];
 
@@ -503,6 +520,15 @@ export default function AdminSettingsManager() {
         onClose={handleModalClose}
         onSave={() => {
           showSuccessMessage('Asaas');
+          handleModalClose();
+        }}
+      />
+
+      <InfinitePayConfigModal
+        isOpen={activeModal === 'infinitepay'}
+        onClose={handleModalClose}
+        onSave={() => {
+          showSuccessMessage('InfinitePay');
           handleModalClose();
         }}
       />
