@@ -88,7 +88,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const config: AsaasConfig = configData.value;
-    const apiBase = config.test_mode
+    const isProdToken = config.access_token?.startsWith('$aact_prod_') || false;
+    const isSandboxToken = config.access_token?.startsWith('$aact_sand_') || false;
+    const useTestMode = isSandboxToken || (!isProdToken && config.test_mode !== false);
+    const apiBase = useTestMode
       ? 'https://sandbox.asaas.com/v3'
       : 'https://api.asaas.com/v3';
 

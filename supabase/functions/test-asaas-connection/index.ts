@@ -112,7 +112,9 @@ async function testAsaasConnection(config: AsaasConfig): Promise<{ success: bool
     }
 
     const isProdToken = config.access_token.startsWith('$aact_prod_') || false;
-    const useTestMode = config.test_mode && !isProdToken;
+    const isSandboxToken = config.access_token.startsWith('$aact_sand_') || false;
+    // Auto-detect API URL from token type when possible; fall back to test_mode flag
+    const useTestMode = isSandboxToken || (!isProdToken && config.test_mode !== false);
     const apiBase = useTestMode
       ? 'https://sandbox.asaas.com/v3'
       : 'https://api.asaas.com/v3';
