@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Star, User, Calendar, MessageCircle, TrendingUp, Award } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { navigateToUserProfile } from '../lib/userProfile';
 import { useLanguage } from './LanguageProvider';
-import { PublicUserProfileModal } from './PublicUserProfileModal';
+
 
 interface ProductRating {
   id: string;
@@ -41,7 +42,7 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
   const [summary, setSummary] = useState<RatingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAllRatings, setShowAllRatings] = useState(false);
-  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (productId) {
@@ -343,7 +344,7 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-3">
                     <button
-                      onClick={() => rating.user_id && setViewingUserId(rating.user_id)}
+                      onClick={() => rating.user_id && navigateToUserProfile(rating.user_id)}
                       className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 flex-shrink-0"
                     >
                       {rating.profiles?.avatar_url ? (
@@ -354,7 +355,7 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
                     </button>
                     <div>
                       <button
-                        onClick={() => rating.user_id && setViewingUserId(rating.user_id)}
+                        onClick={() => rating.user_id && navigateToUserProfile(rating.user_id)}
                         className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer text-left"
                       >
                         {getUserDisplayName(rating)}
@@ -402,9 +403,6 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
         </div>
       )}
 
-      {viewingUserId && (
-        <PublicUserProfileModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />
-      )}
     </div>
   );
 }

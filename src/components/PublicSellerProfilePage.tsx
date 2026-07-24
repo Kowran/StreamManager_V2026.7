@@ -14,7 +14,7 @@ import { SellerReputation } from './SellerReputation';
 import { OnlineBadge } from './OnlineBadge';
 import { ChatModal } from './ChatModal';
 import { LevelBadge } from './LevelBadge';
-import { PublicUserProfileModal } from './PublicUserProfileModal';
+import { navigateToUserProfile } from '../lib/userProfile';
 
 interface PublicSellerProfilePageProps {
   sellerSlug: string;
@@ -111,7 +111,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('products');
   const [productFilter, setProductFilter] = useState<string>('all');
-  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+
 
   useEffect(() => {
     loadSellerData();
@@ -806,7 +806,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => rating.buyer_user_id && setViewingUserId(rating.buyer_user_id)}
+                            onClick={() => rating.buyer_user_id && navigateToUserProfile(rating.buyer_user_id)}
                             className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
                             style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}
                           >
@@ -818,7 +818,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                           </button>
                           <div>
                             <button
-                              onClick={() => rating.buyer_user_id && setViewingUserId(rating.buyer_user_id)}
+                              onClick={() => rating.buyer_user_id && navigateToUserProfile(rating.buyer_user_id)}
                               className={`font-medium text-sm text-gray-900 dark:text-white ${rating.buyer_user_id ? 'hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer' : 'cursor-default'}`}
                             >
                               {rating.buyer_name}
@@ -862,7 +862,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                            onClick={() => rating.rater_id && navigateToUserProfile(rating.rater_id)}
                             className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center bg-blue-500 text-white font-semibold text-sm flex-shrink-0"
                           >
                             {rating.rater_avatar ? (
@@ -873,7 +873,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                           </button>
                           <div>
                             <button
-                              onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                              onClick={() => rating.rater_id && navigateToUserProfile(rating.rater_id)}
                               className={`font-medium text-sm text-gray-900 dark:text-white ${rating.rater_id ? 'hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer' : 'cursor-default'}`}
                             >
                               {rating.rater_name}
@@ -917,7 +917,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <button
-                            onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                            onClick={() => rating.rater_id && navigateToUserProfile(rating.rater_id)}
                             className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center bg-green-500 text-white font-semibold text-sm flex-shrink-0"
                           >
                             {rating.rater_avatar ? (
@@ -928,7 +928,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                           </button>
                           <div>
                             <button
-                              onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                              onClick={() => rating.rater_id && navigateToUserProfile(rating.rater_id)}
                               className={`font-medium text-sm text-gray-900 dark:text-white ${rating.rater_id ? 'hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer' : 'cursor-default'}`}
                             >
                               {rating.rater_name}
@@ -966,9 +966,6 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         <ChatModal otherUserId={profile.id} onClose={() => setChatOpen(false)} />
       )}
 
-      {viewingUserId && (
-        <PublicUserProfileModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />
-      )}
     </div>
   );
 }

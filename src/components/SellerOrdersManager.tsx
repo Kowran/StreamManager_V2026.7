@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
-import { PublicUserProfileModal } from './PublicUserProfileModal';
+import { navigateToUserProfile } from '../lib/userProfile';
 
 interface SellerOrder {
   id: string;
@@ -53,7 +53,6 @@ export function SellerOrdersManager() {
   const [existingRating, setExistingRating] = useState<number | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [customerProfiles, setCustomerProfiles] = useState<Record<string, { username?: string | null; avatar_url?: string | null; full_name?: string | null }>>({});
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -601,7 +600,7 @@ export function SellerOrdersManager() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                     <button
-                      onClick={() => order.customer_user_id && setViewingUserId(order.customer_user_id)}
+                      onClick={() => order.customer_user_id && navigateToUserProfile(order.customer_user_id)}
                       className={`flex items-center gap-1.5 text-left ${order.customer_user_id ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer' : 'cursor-default'}`}
                     >
                       {order.customer_avatar ? (
@@ -671,7 +670,7 @@ export function SellerOrdersManager() {
                       <p className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate">{order.variation_name}</p>
                     )}
                     <button
-                      onClick={() => order.customer_user_id && setViewingUserId(order.customer_user_id)}
+                      onClick={() => order.customer_user_id && navigateToUserProfile(order.customer_user_id)}
                       className={`flex items-center gap-1 mt-0.5 text-left ${order.customer_user_id ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer' : 'cursor-default'}`}
                     >
                       {order.customer_avatar ? (
@@ -766,7 +765,7 @@ export function SellerOrdersManager() {
                   {lbl('Cliente', 'Customer', 'Cliente')}
                 </span>
                 <button
-                  onClick={() => selectedOrder.customer_user_id && setViewingUserId(selectedOrder.customer_user_id)}
+                  onClick={() => selectedOrder.customer_user_id && navigateToUserProfile(selectedOrder.customer_user_id)}
                   className={`flex items-center gap-2 text-sm font-medium ${selectedOrder.customer_user_id ? 'text-blue-600 dark:text-blue-400 hover:underline cursor-pointer' : 'text-gray-900 dark:text-white cursor-default'}`}
                 >
                   {selectedOrder.customer_avatar && (
@@ -961,9 +960,6 @@ export function SellerOrdersManager() {
         </div>
       )}
 
-      {viewingUserId && (
-        <PublicUserProfileModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />
-      )}
     </div>
   );
 }
