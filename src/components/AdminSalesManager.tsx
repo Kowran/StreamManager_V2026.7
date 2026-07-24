@@ -139,7 +139,7 @@ export function AdminSalesManager() {
       if (userIds.length > 0) {
         const { data: profiles, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, email, full_name')
+          .select('id, email, full_name, username')
           .in('id', userIds);
         
         if (profilesError) {
@@ -154,7 +154,8 @@ export function AdminSalesManager() {
         ...sale,
         profiles: profilesData.find(profile => profile.id === sale.user_id) || {
           email: 'Email não encontrado',
-          full_name: null
+          full_name: null,
+          username: null
         }
       }));
       
@@ -318,7 +319,7 @@ export function AdminSalesManager() {
     const rows = salesData.map(sale => [
       new Date(sale.purchase_date).toLocaleDateString('pt-BR'),
       sale.profiles?.email || sale.store_orders?.customer_email || '',
-      sale.profiles?.full_name || sale.store_orders?.customer_name || '',
+      sale.profiles?.username || sale.profiles?.full_name || sale.store_orders?.customer_name || '',
       sale.product_name,
       `$${sale.purchase_price.toFixed(2)}`,
       sale.store_orders?.status || 'delivered',
@@ -338,6 +339,7 @@ export function AdminSalesManager() {
       sale.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sale.profiles?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sale.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sale.profiles?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sale.store_orders?.customer_email?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCancellationFilter = showCancelledSales || sale.store_orders?.status !== 'cancelled';
@@ -643,7 +645,7 @@ export function AdminSalesManager() {
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {sale.profiles?.full_name || sale.store_orders?.customer_name || sale.profiles?.email?.split('@')[0] || 'Cliente'}
+                          {sale.profiles?.username || sale.profiles?.full_name || sale.store_orders?.customer_name || sale.profiles?.email?.split('@')[0] || 'Cliente'}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           {sale.profiles?.email || sale.store_orders?.customer_email || 'Email não disponível'}
@@ -816,7 +818,7 @@ export function AdminSalesManager() {
                     {sale.product_name}
                   </h3>
                   <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                    {sale.profiles?.full_name || sale.store_orders?.customer_name || sale.profiles?.email?.split('@')[0] || 'Cliente'}
+                    {sale.profiles?.username || sale.profiles?.full_name || sale.store_orders?.customer_name || sale.profiles?.email?.split('@')[0] || 'Cliente'}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
                     {sale.profiles?.email || sale.store_orders?.customer_email || 'Email não disponível'}
@@ -1037,7 +1039,7 @@ export function AdminSalesManager() {
                       Nome Completo
                     </label>
                     <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                      {selectedSale.profiles?.full_name || selectedSale.store_orders?.customer_name || selectedSale.profiles?.email?.split('@')[0] || 'Não informado'}
+                      {selectedSale.profiles?.username || selectedSale.profiles?.full_name || selectedSale.store_orders?.customer_name || selectedSale.profiles?.email?.split('@')[0] || 'Não informado'}
                     </p>
                   </div>
                   <div>

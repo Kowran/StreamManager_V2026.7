@@ -446,6 +446,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Fetch buyer's profile to use their nickname (username) as customer_name
+    let buyerDisplayName = user.user_metadata?.full_name || user.email || 'Usuario';
+    try {
+      const { data: buyerProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('username, full_name, email')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (buyerProfile?.username) {
+        buyerDisplayName = buyerProfile.username;
+      } else if (buyerProfile?.full_name) {
+        buyerDisplayName = buyerProfile.full_name;
+      }
+    } catch (profileErr) {
+      console.error('Error fetching buyer profile (non-fatal):', profileErr);
+    }
+
     // Start transaction by creating order
     // Note: seller_id may or may not exist as a column on store_orders depending on
     // deployment state. We try with it first; if the column is missing, retry without.
@@ -457,7 +474,7 @@ Deno.serve(async (req: Request) => {
       total_usdt: totalPrice,
       status: 'pending',
       customer_email: user.email || '',
-      customer_name: user.user_metadata?.full_name || user.email || 'Usuario',
+      customer_name: buyerDisplayName,
       coupon_id: couponId,
       discount_amount: discountAmount,
       cashback_used: cashbackUsed,
@@ -857,19 +874,18 @@ Deno.serve(async (req: Request) => {
 
     // Send sale notification email to the seller (non-fatal)
     if (product.seller_id) {
-      const buyerName = user.user_metadata?.full_name || user.email || 'Cliente';
       await sendEmailViaEdgeFunction('sale_notification', product.seller_id, {
         product_name: productName,
         quantity: String(quantity),
         total_price: totalPrice.toFixed(2),
-        buyer_name: buyerName,
+        buyer_name: buyerDisplayName,
         order_id: order.id,
       });
     }
 
     // Send purchase confirmation email to the buyer (non-fatal)
     await sendEmailViaEdgeFunction('purchase_confirmed', user.id, {
-      user_name: user.user_metadata?.full_name || user.email || 'Cliente',
+      user_name: buyerDisplayName,
       product_name: productName,
       quantity: String(quantity),
       total_price: totalPrice.toFixed(2),

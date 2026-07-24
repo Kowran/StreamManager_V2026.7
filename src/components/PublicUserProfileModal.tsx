@@ -16,6 +16,7 @@ interface PublicUserProfileModalProps {
 interface Profile {
   id: string;
   full_name: string | null;
+  username: string | null;
   avatar_url: string | null;
   cover_url: string | null;
   bio: string | null;
@@ -50,7 +51,7 @@ export function PublicUserProfileModal({ userId, onClose }: PublicUserProfileMod
       setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, cover_url, bio, theme_color, profile_badge, created_at, role, last_seen_at, user_level, user_xp, seller_level, seller_xp, seller_slug')
+        .select('id, full_name, username, avatar_url, cover_url, bio, theme_color, profile_badge, created_at, role, last_seen_at, user_level, user_xp, seller_level, seller_xp, seller_slug')
         .eq('id', userId)
         .maybeSingle();
 
@@ -150,7 +151,7 @@ export function PublicUserProfileModal({ userId, onClose }: PublicUserProfileMod
               </div>
 
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                {profile.full_name || t('Usuário', 'User', 'Usuario')}
+                {profile.username || profile.full_name || t('Usuário', 'User', 'Usuario')}
               </h2>
 
               <div className="flex items-center gap-3 mt-1.5">

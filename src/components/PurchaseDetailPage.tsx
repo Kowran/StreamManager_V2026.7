@@ -727,7 +727,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
                     }}
                     className="font-semibold text-gray-900 dark:text-white hover:underline text-left text-sm truncate block"
                   >
-                    {seller.full_name}
+                    {seller.username || seller.full_name}
                   </button>
                   {seller.seller_slug && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate">@{seller.seller_slug}</p>
