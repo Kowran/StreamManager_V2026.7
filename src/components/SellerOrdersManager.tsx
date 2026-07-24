@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
+import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface SellerOrder {
   id: string;
@@ -21,6 +22,8 @@ interface SellerOrder {
   total_brl: number;
   status: string;
   customer_name: string;
+  customer_user_id?: string | null;
+  customer_avatar?: string | null;
   created_at: string;
   updated_at: string;
   delivered_accounts?: { email: string; password: string; instructions?: string }[];
@@ -50,6 +53,8 @@ export function SellerOrdersManager() {
   const [existingRating, setExistingRating] = useState<number | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [customerProfiles, setCustomerProfiles] = useState<Record<string, { username?: string | null; avatar_url?: string | null; full_name?: string | null }>>({});
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es, [language]);
@@ -144,11 +149,27 @@ export function SellerOrdersManager() {
           .select('order_id, seller_amount, admin_amount, admin_commission_rate, seller_commission_rate, currency')
           .eq('seller_id', user.id)
           .in('order_id', orderIds)
-          .eq('currency', 'USDT');
+          .in('currency', ['USDT', 'BRL']);
         (commissions || []).forEach((c: any) => {
-          commissionMap[c.order_id] = c;
+          if (c.currency === 'USDT' || !commissionMap[c.order_id]) {
+            commissionMap[c.order_id] = c;
+          }
         });
       }
+
+      // Fetch customer profiles for nicknames and avatars
+      const userIds = [...new Set((data || []).map((o: any) => o.user_id).filter(Boolean)) as string[]];
+      const profileMap: Record<string, { username?: string | null; avatar_url?: string | null; full_name?: string | null }> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url, full_name')
+          .in('id', userIds);
+        (profiles || []).forEach((p: any) => {
+          profileMap[p.id] = { username: p.username, avatar_url: p.avatar_url, full_name: p.full_name };
+        });
+      }
+      setCustomerProfiles(profileMap);
 
       const mapped = (data || []).map((o: any) => {
         const accounts: { email: string; password: string; instructions?: string }[] = [];
@@ -165,6 +186,11 @@ export function SellerOrdersManager() {
         const purchaseDate = new Date(o.created_at);
         const testEnd = new Date(purchaseDate.getTime() + 3 * 24 * 60 * 60 * 1000);
         const daysLeft = Math.max(0, Math.ceil((testEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+        const custProfile = o.user_id ? profileMap[o.user_id] : null;
+        const customerDisplayName = custProfile?.username
+          || custProfile?.full_name
+          || o.customer_name
+          || 'Unknown';
         return {
           id: o.id,
           product_id: o.product_id,
@@ -175,7 +201,9 @@ export function SellerOrdersManager() {
           total_usdt: o.total_usdt || 0,
           total_brl: o.total_brl || 0,
           status: o.status,
-          customer_name: o.customer_name || '',
+          customer_name: customerDisplayName,
+          customer_user_id: o.user_id || null,
+          customer_avatar: custProfile?.avatar_url || null,
           delivered_at: o.delivered_at,
           test_days_left: daysLeft,
           delivered_accounts: accounts,
@@ -573,10 +601,17 @@ export function SellerOrdersManager() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                    <div className="flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-gray-400" />
-                      {order.customer_name}
-                    </div>
+                    <button
+                      onClick={() => order.customer_user_id && setViewingUserId(order.customer_user_id)}
+                      className={`flex items-center gap-1.5 text-left ${order.customer_user_id ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer' : 'cursor-default'}`}
+                    >
+                      {order.customer_avatar ? (
+                        <img src={order.customer_avatar} alt="" className="h-5 w-5 rounded-full object-cover" />
+                      ) : (
+                        <User className="h-3.5 w-3.5 text-gray-400" />
+                      )}
+                      <span className="truncate max-w-[140px]">{order.customer_name}</span>
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{order.quantity}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">{formatPrice(order.total_usdt)}</td>
@@ -636,10 +671,17 @@ export function SellerOrdersManager() {
                     {order.variation_name && (
                       <p className="text-xs text-purple-600 dark:text-purple-400 font-medium truncate">{order.variation_name}</p>
                     )}
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <User className="h-3 w-3 text-gray-400" />
+                    <button
+                      onClick={() => order.customer_user_id && setViewingUserId(order.customer_user_id)}
+                      className={`flex items-center gap-1 mt-0.5 text-left ${order.customer_user_id ? 'hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer' : 'cursor-default'}`}
+                    >
+                      {order.customer_avatar ? (
+                        <img src={order.customer_avatar} alt="" className="h-3.5 w-3.5 rounded-full object-cover" />
+                      ) : (
+                        <User className="h-3 w-3 text-gray-400" />
+                      )}
                       <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{order.customer_name}</span>
-                    </div>
+                    </button>
                   </div>
                 </div>
 
@@ -719,7 +761,21 @@ export function SellerOrdersManager() {
               {selectedOrder.variation_name && (
                 <DetailRow icon={Layers} label={lbl('Variação', 'Variation', 'Variación')} value={selectedOrder.variation_name} />
               )}
-              <DetailRow icon={User} label={lbl('Cliente', 'Customer', 'Cliente')} value={selectedOrder.customer_name} />
+              <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <User className="h-4 w-4 text-gray-400" />
+                  {lbl('Cliente', 'Customer', 'Cliente')}
+                </span>
+                <button
+                  onClick={() => selectedOrder.customer_user_id && setViewingUserId(selectedOrder.customer_user_id)}
+                  className={`flex items-center gap-2 text-sm font-medium ${selectedOrder.customer_user_id ? 'text-blue-600 dark:text-blue-400 hover:underline cursor-pointer' : 'text-gray-900 dark:text-white cursor-default'}`}
+                >
+                  {selectedOrder.customer_avatar && (
+                    <img src={selectedOrder.customer_avatar} alt="" className="h-5 w-5 rounded-full object-cover" />
+                  )}
+                  {selectedOrder.customer_name}
+                </button>
+              </div>
               <DetailRow icon={Calendar} label={lbl('Data', 'Date', 'Fecha')} value={formatDate(selectedOrder.created_at)} />
               <DetailRow icon={DollarSign} label={lbl('Valor Total', 'Total Amount', 'Valor Total')} value={formatPrice(selectedOrder.total_usdt)} />
 
@@ -872,6 +928,10 @@ export function SellerOrdersManager() {
             </div>
           </div>
         </div>
+      )}
+
+      {viewingUserId && (
+        <PublicUserProfileModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />
       )}
     </div>
   );

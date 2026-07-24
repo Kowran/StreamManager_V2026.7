@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Star, User, Calendar, MessageCircle, TrendingUp, Award } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
+import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface ProductRating {
   id: string;
@@ -13,6 +14,8 @@ interface ProductRating {
   profiles?: {
     full_name?: string;
     email: string;
+    username?: string | null;
+    avatar_url?: string | null;
   };
 }
 
@@ -38,6 +41,7 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
   const [summary, setSummary] = useState<RatingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAllRatings, setShowAllRatings] = useState(false);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (productId) {
@@ -61,7 +65,7 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
         const userIds = data.map(rating => rating.user_id);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, email')
+          .select('id, full_name, email, username, avatar_url')
           .in('id', userIds);
 
         if (profiles) {
@@ -135,6 +139,9 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
   }
 
   function getUserDisplayName(rating: ProductRating): string {
+    if (rating.profiles?.username) {
+      return rating.profiles.username;
+    }
     if (rating.profiles?.full_name) {
       return rating.profiles.full_name;
     }
@@ -335,13 +342,23 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
               <div key={rating.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-3">
-                    <div className="h-8 w-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-white" />
-                    </div>
+                    <button
+                      onClick={() => rating.user_id && setViewingUserId(rating.user_id)}
+                      className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 flex-shrink-0"
+                    >
+                      {rating.profiles?.avatar_url ? (
+                        <img src={rating.profiles.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-4 w-4 text-white" />
+                      )}
+                    </button>
                     <div>
-                      <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                      <button
+                        onClick={() => rating.user_id && setViewingUserId(rating.user_id)}
+                        className="text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer text-left"
+                      >
                         {getUserDisplayName(rating)}
-                      </h5>
+                      </button>
                       <div className="flex items-center space-x-2 mt-1">
                         {renderStars(rating.rating, 'sm')}
                         <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -383,6 +400,10 @@ export function ProductRatingsDisplay({ productId, showTitle = true, compact = f
             </div>
           )}
         </div>
+      )}
+
+      {viewingUserId && (
+        <PublicUserProfileModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />
       )}
     </div>
   );

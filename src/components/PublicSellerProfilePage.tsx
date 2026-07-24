@@ -14,6 +14,7 @@ import { SellerReputation } from './SellerReputation';
 import { OnlineBadge } from './OnlineBadge';
 import { ChatModal } from './ChatModal';
 import { LevelBadge } from './LevelBadge';
+import { PublicUserProfileModal } from './PublicUserProfileModal';
 
 interface PublicSellerProfilePageProps {
   sellerSlug: string;
@@ -75,6 +76,8 @@ interface ProductRating {
   comment: string;
   created_at: string;
   buyer_name: string;
+  buyer_user_id: string | null;
+  buyer_avatar: string | null;
   product_name: string;
 }
 
@@ -84,6 +87,8 @@ interface UserRating {
   comment: string;
   created_at: string;
   rater_name: string;
+  rater_id: string | null;
+  rater_avatar: string | null;
   rater_role: string;
 }
 
@@ -106,6 +111,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('products');
   const [productFilter, setProductFilter] = useState<string>('all');
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSellerData();
@@ -248,14 +254,16 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       if (ratingsWithDetails && ratingsWithDetails.length > 0) {
         const userIds = [...new Set(ratingsWithDetails.map((r: any) => r.user_id))] as string[];
         const profilesMap = await fetchSellerInfo(userIds);
-        const profileMap = new Map(Object.entries(profilesMap).map(([id, s]) => [id, s.full_name || 'Anonymous']));
+        const profileMap = new Map(Object.entries(profilesMap).map(([id, s]) => [id, s]));
 
         setRatings(ratingsWithDetails.map((r: any) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment || '',
           created_at: r.created_at,
-          buyer_name: profileMap.get(r.user_id) || 'Anonymous',
+          buyer_name: profileMap.get(r.user_id)?.username || profileMap.get(r.user_id)?.full_name || 'Anonymous',
+          buyer_user_id: r.user_id || null,
+          buyer_avatar: profileMap.get(r.user_id)?.avatar_url || null,
           product_name: r.store_products?.name || ''
         })));
       } else {
@@ -285,10 +293,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         .limit(20);
 
       const allRaterIds = [...new Set([...(sellerRatings || []), ...(customerRatings || [])].map(r => r.rater_id))] as string[];
-      let profileMap = new Map<string, string>();
+      let profileMap = new Map<string, any>();
       if (allRaterIds.length > 0) {
         const profilesMap = await fetchSellerInfo(allRaterIds);
-        profileMap = new Map(Object.entries(profilesMap).map(([id, s]) => [id, s.full_name || 'Anonymous']));
+        profileMap = new Map(Object.entries(profilesMap));
       }
 
       if (sellerRatings) {
@@ -297,7 +305,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           rating: r.rating,
           comment: r.comment || '',
           created_at: r.created_at,
-          rater_name: profileMap.get(r.rater_id) || 'Anonymous',
+          rater_name: profileMap.get(r.rater_id)?.username || profileMap.get(r.rater_id)?.full_name || 'Anonymous',
+          rater_id: r.rater_id || null,
+          rater_avatar: profileMap.get(r.rater_id)?.avatar_url || null,
           rater_role: r.rater_role,
         })));
       }
@@ -308,7 +318,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           rating: r.rating,
           comment: r.comment || '',
           created_at: r.created_at,
-          rater_name: profileMap.get(r.rater_id) || 'Anonymous',
+          rater_name: profileMap.get(r.rater_id)?.username || profileMap.get(r.rater_id)?.full_name || 'Anonymous',
+          rater_id: r.rater_id || null,
+          rater_avatar: profileMap.get(r.rater_id)?.avatar_url || null,
           rater_role: r.rater_role,
         })));
       }
@@ -793,11 +805,24 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                     <div key={rating.id} className="rounded-2xl p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full flex items-center justify-center text-white font-semibold text-sm" style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}>
-                            {rating.buyer_name?.charAt(0).toUpperCase() || 'U'}
-                          </div>
+                          <button
+                            onClick={() => rating.buyer_user_id && setViewingUserId(rating.buyer_user_id)}
+                            className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center text-white font-semibold text-sm flex-shrink-0"
+                            style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}
+                          >
+                            {rating.buyer_avatar ? (
+                              <img src={rating.buyer_avatar} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              rating.buyer_name?.charAt(0).toUpperCase() || 'U'
+                            )}
+                          </button>
                           <div>
-                            <div className="font-medium text-sm text-gray-900 dark:text-white">{rating.buyer_name}</div>
+                            <button
+                              onClick={() => rating.buyer_user_id && setViewingUserId(rating.buyer_user_id)}
+                              className={`font-medium text-sm text-gray-900 dark:text-white ${rating.buyer_user_id ? 'hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer' : 'cursor-default'}`}
+                            >
+                              {rating.buyer_name}
+                            </button>
                             <div className="text-xs text-gray-500 dark:text-gray-400">{rating.product_name}</div>
                           </div>
                         </div>
@@ -836,11 +861,23 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                     <div key={rating.id} className="rounded-2xl p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full flex items-center justify-center bg-blue-500 text-white font-semibold text-sm">
-                            {rating.rater_name?.charAt(0).toUpperCase() || 'U'}
-                          </div>
+                          <button
+                            onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                            className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center bg-blue-500 text-white font-semibold text-sm flex-shrink-0"
+                          >
+                            {rating.rater_avatar ? (
+                              <img src={rating.rater_avatar} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              rating.rater_name?.charAt(0).toUpperCase() || 'U'
+                            )}
+                          </button>
                           <div>
-                            <div className="font-medium text-sm text-gray-900 dark:text-white">{rating.rater_name}</div>
+                            <button
+                              onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                              className={`font-medium text-sm text-gray-900 dark:text-white ${rating.rater_id ? 'hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer' : 'cursor-default'}`}
+                            >
+                              {rating.rater_name}
+                            </button>
                             <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                               {t.language === 'pt' ? 'Cliente' : t.language === 'en' ? 'Customer' : 'Cliente'}
                             </span>
@@ -879,11 +916,23 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                     <div key={rating.id} className="rounded-2xl p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full flex items-center justify-center bg-green-500 text-white font-semibold text-sm">
-                            {rating.rater_name?.charAt(0).toUpperCase() || 'U'}
-                          </div>
+                          <button
+                            onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                            className="h-9 w-9 rounded-full overflow-hidden flex items-center justify-center bg-green-500 text-white font-semibold text-sm flex-shrink-0"
+                          >
+                            {rating.rater_avatar ? (
+                              <img src={rating.rater_avatar} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              rating.rater_name?.charAt(0).toUpperCase() || 'U'
+                            )}
+                          </button>
                           <div>
-                            <div className="font-medium text-sm text-gray-900 dark:text-white">{rating.rater_name}</div>
+                            <button
+                              onClick={() => rating.rater_id && setViewingUserId(rating.rater_id)}
+                              className={`font-medium text-sm text-gray-900 dark:text-white ${rating.rater_id ? 'hover:text-blue-600 dark:hover:text-blue-400 hover:underline cursor-pointer' : 'cursor-default'}`}
+                            >
+                              {rating.rater_name}
+                            </button>
                             <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                               {t.language === 'pt' ? 'Vendedor' : t.language === 'en' ? 'Seller' : 'Vendedor'}
                             </span>
@@ -915,6 +964,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
       {chatOpen && (
         <ChatModal otherUserId={profile.id} onClose={() => setChatOpen(false)} />
+      )}
+
+      {viewingUserId && (
+        <PublicUserProfileModal userId={viewingUserId} onClose={() => setViewingUserId(null)} />
       )}
     </div>
   );
