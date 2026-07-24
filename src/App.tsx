@@ -344,6 +344,9 @@ function AppContent() {
   }, [activeTab, user, loading]);
 
   // Dynamic browser tab title based on current page
+  const siteName = siteSettings?.site_name || storeConfig?.store_name || 'StreamManager';
+  const browserTitle = siteSettings?.browser_title || siteName;
+
   useEffect(() => {
     const lang = t.language;
     const tr = (pt: string, en: string, es: string) => lang === 'pt' ? pt : lang === 'en' ? en : es;
