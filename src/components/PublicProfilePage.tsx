@@ -255,18 +255,24 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         .limit(20);
 
       const allRaterIds = [...new Set([...(asSeller || []), ...(asCustomer || [])].map(r => r.rater_id))] as string[];
-      let profileMap: Record<string, string> = {};
+      let profileMap: Record<string, { full_name: string; username: string | null; avatar_url: string | null }> = {};
       if (allRaterIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, username, avatar_url')
           .in('id', allRaterIds);
-        (profiles || []).forEach(p => { profileMap[p.id] = p.full_name || 'Anonymous'; });
+        (profiles || []).forEach(p => {
+          profileMap[p.id] = {
+            full_name: p.full_name || 'Anonymous',
+            username: p.username || null,
+            avatar_url: p.avatar_url || null,
+          };
+        });
       }
 
       const enrich = (ratings: any[]) => (ratings || []).map(r => ({
         ...r,
-        profiles: { full_name: profileMap[r.rater_id] || 'Anonymous' }
+        profiles: profileMap[r.rater_id] || { full_name: 'Anonymous', username: null, avatar_url: null }
       }));
 
       setSellerReviews(enrich(asSeller));
@@ -1176,9 +1182,25 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                           {sellerReviews.map((r: any) => (
                             <div key={r.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
                               <div className="flex items-start justify-between mb-1">
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {r.profiles?.full_name || 'Anonymous'}
-                                </span>
+                                <button
+                                  onClick={() => {
+                                    const ident = r.profiles?.username || r.rater_id;
+                                    if (ident) {
+                                      window.history.pushState(null, '', `/user/${ident}`);
+                                      window.dispatchEvent(new PopStateEvent('popstate'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                >
+                                  {r.profiles?.avatar_url ? (
+                                    <img src={r.profiles.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                      <User className="h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
+                                    </div>
+                                  )}
+                                  {r.profiles?.username ? `@${r.profiles.username}` : (r.profiles?.full_name || 'Anonymous')}
+                                </button>
                                 <div className="flex items-center">
                                   {Array.from({ length: 5 }).map((_, i) => (
                                     <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />
@@ -1208,9 +1230,25 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                           {customerReviews.map((r: any) => (
                             <div key={r.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
                               <div className="flex items-start justify-between mb-1">
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {r.profiles?.full_name || 'Anonymous'}
-                                </span>
+                                <button
+                                  onClick={() => {
+                                    const ident = r.profiles?.username || r.rater_id;
+                                    if (ident) {
+                                      window.history.pushState(null, '', `/user/${ident}`);
+                                      window.dispatchEvent(new PopStateEvent('popstate'));
+                                    }
+                                  }}
+                                  className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                >
+                                  {r.profiles?.avatar_url ? (
+                                    <img src={r.profiles.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                                      <User className="h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
+                                    </div>
+                                  )}
+                                  {r.profiles?.username ? `@${r.profiles.username}` : (r.profiles?.full_name || 'Anonymous')}
+                                </button>
                                 <div className="flex items-center">
                                   {Array.from({ length: 5 }).map((_, i) => (
                                     <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300 dark:text-gray-600'}`} />

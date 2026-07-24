@@ -188,7 +188,6 @@ export function SellerOrdersManager() {
         const daysLeft = Math.max(0, Math.ceil((testEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
         const custProfile = o.user_id ? profileMap[o.user_id] : null;
         const customerDisplayName = custProfile?.username
-          || custProfile?.full_name
           || o.customer_name
           || 'Unknown';
         return {
@@ -780,31 +779,63 @@ export function SellerOrdersManager() {
               <DetailRow icon={DollarSign} label={lbl('Valor Total', 'Total Amount', 'Valor Total')} value={formatPrice(selectedOrder.total_usdt)} />
 
               {/* Commission Info */}
-              {selectedOrder.seller_amount != null && selectedOrder.admin_amount != null ? (
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                    <span className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
-                      <Wallet className="h-4 w-4" />
-                      {lbl('Seu Lucro', 'Your Profit', 'Tu Ganancia')} ({selectedOrder.seller_rate}%)
+              {(() => {
+                const hasCommission = selectedOrder.seller_amount != null && selectedOrder.admin_amount != null;
+                const isCompleted = selectedOrder.status === 'completed';
+                if (hasCommission) {
+                  return (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                        <span className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+                          <Wallet className="h-4 w-4" />
+                          {lbl('Seu Lucro', 'Your Profit', 'Tu Ganancia')} ({selectedOrder.seller_rate}%)
+                        </span>
+                        <span className="text-sm font-bold text-green-600 dark:text-green-400">{formatPrice(selectedOrder.seller_amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                        <span className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
+                          <ShieldAlert className="h-4 w-4" />
+                          {lbl('Taxa da Plataforma', 'Platform Fee', 'Comisión Plataforma')} ({selectedOrder.admin_rate}%)
+                        </span>
+                        <span className="text-sm font-bold text-red-500 dark:text-red-400">{formatPrice(selectedOrder.admin_amount)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                if (isCompleted) {
+                  const total = selectedOrder.total_usdt || 0;
+                  const estAdminRate = selectedOrder.admin_rate ?? 5;
+                  const estSellerRate = selectedOrder.seller_rate ?? 95;
+                  const estAdminAmount = +(total * estAdminRate / 100).toFixed(2);
+                  const estSellerAmount = +(total * estSellerRate / 100).toFixed(2);
+                  return (
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                        <span className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+                          <Wallet className="h-4 w-4" />
+                          {lbl('Seu Lucro', 'Your Profit', 'Tu Ganancia')} ({estSellerRate}%)
+                        </span>
+                        <span className="text-sm font-bold text-green-600 dark:text-green-400">{formatPrice(estSellerAmount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                        <span className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
+                          <ShieldAlert className="h-4 w-4" />
+                          {lbl('Taxa da Plataforma', 'Platform Fee', 'Comisión Plataforma')} ({estAdminRate}%)
+                        </span>
+                        <span className="text-sm font-bold text-red-500 dark:text-red-400">{formatPrice(estAdminAmount)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                    <span className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-400">
+                      <Clock className="h-4 w-4" />
+                      {lbl('Comissão será calculada ao concluir', 'Commission calculated on completion', 'Comisión calculada al completar')}
                     </span>
-                    <span className="text-sm font-bold text-green-600 dark:text-green-400">{formatPrice(selectedOrder.seller_amount)}</span>
                   </div>
-                  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                    <span className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-400">
-                      <ShieldAlert className="h-4 w-4" />
-                      {lbl('Taxa da Plataforma', 'Platform Fee', 'Comisión Plataforma')} ({selectedOrder.admin_rate}%)
-                    </span>
-                    <span className="text-sm font-bold text-red-500 dark:text-red-400">{formatPrice(selectedOrder.admin_amount)}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                  <span className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-400">
-                    <Clock className="h-4 w-4" />
-                    {lbl('Comissão será calculada ao concluir', 'Commission calculated on completion', 'Comisión calculada al completar')}
-                  </span>
-                </div>
-              )}
+                );
+              })()}
 
               <div className="flex items-center justify-between py-2 border-t border-gray-200 dark:border-gray-700">
                 <span className="text-sm text-gray-600 dark:text-gray-400">{lbl('Quantidade', 'Quantity', 'Cantidad')}</span>
