@@ -139,7 +139,7 @@ export function AsaasPaymentModal({ isOpen, onClose, amount, onSuccess }: AsaasP
       }
 
       if (!response.ok) {
-        throw new Error(result.error || result.details || 'Erro ao criar pagamento');
+        throw new Error(result.details || result.error || result.message || 'Erro ao criar pagamento');
       }
 
       setPaymentData(result.payment);

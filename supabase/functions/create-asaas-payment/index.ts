@@ -124,35 +124,65 @@ Deno.serve(async (req: Request) => {
 
     let asaasCustomerId: string;
 
-    const customerResponse = await fetch(`${apiBase}/customers`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: customerName,
-        email: customerEmail,
-        cpfCnpj: cpfCnpj,
-        externalReference: orderId,
-      }),
-    });
+    // Search for an existing customer by cpfCnpj to avoid duplicate errors
+    const searchResponse = await fetch(
+      `${apiBase}/customers?cpfCnpj=${cpfCnpj}&limit=1`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.access_token}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    const customerText = await customerResponse.text();
-    const customerResult = customerText ? JSON.parse(customerText) : {};
-
-    if (!customerResponse.ok) {
-      console.error('Asaas customer creation error:', customerResult, 'status:', customerResponse.status);
-      const errorDesc = customerResult.errors?.[0]?.description || customerResult.message || (customerResponse.status === 401 ? 'Token inválido ou sem permissão' : 'Unknown error');
-      return new Response(JSON.stringify({
-        error: 'Failed to create customer',
-        details: errorDesc
-      }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    if (searchResponse.ok) {
+      const searchText = await searchResponse.text();
+      const searchResult = searchText ? JSON.parse(searchText) : {};
+      const existing = searchResult.data?.[0];
+      if (existing?.id) {
+        asaasCustomerId = existing.id;
+      }
     }
 
-    asaasCustomerId = customerResult.id;
+    // If no existing customer was found, create a new one
+    if (!asaasCustomerId) {
+      const customerResponse = await fetch(`${apiBase}/customers`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: customerName,
+          email: customerEmail,
+          cpfCnpj: cpfCnpj,
+          externalReference: orderId,
+        }),
+      });
+
+      const customerText = await customerResponse.text();
+      let customerResult: any;
+      try { customerResult = customerText ? JSON.parse(customerText) : {}; }
+      catch { customerResult = { raw: customerText }; }
+
+      if (!customerResponse.ok) {
+        console.error('Asaas customer creation error:', customerResult, 'status:', customerResponse.status);
+        const errorDesc = customerResult.errors?.[0]?.description
+          || customerResult.message
+          || (customerResponse.status === 401 ? 'Token invalido ou sem permissao'
+            : customerResponse.status === 400 ? 'Dados do cliente invalidos'
+            : 'Unknown error');
+        return new Response(JSON.stringify({
+          error: 'Failed to create customer',
+          details: errorDesc
+        }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      asaasCustomerId = customerResult.id;
+    }
 
     const billingType = payment_method === 'pix' ? 'PIX' : 'BOLETO';
 
