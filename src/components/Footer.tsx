@@ -100,9 +100,9 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
     setShowCookieBanner(false);
   }
 
-  const siteName = siteSettings?.site_name || storeConfig?.store_name || 'StreamManager';
+  const siteName = siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz';
   const footerLogo = siteSettings?.footer_logo_url || siteSettings?.header_logo_url || storeConfig?.store_logo_url;
-  const contactEmail = siteSettings?.contact_email || 'support@streammanager.com.br';
+  const contactEmail = siteSettings?.contact_email || storeConfig?.contact_info?.email || 'support@rhoudz.com';
   const currentYear = new Date().getFullYear();
   const copyrightText = siteSettings?.copyright_text ||
     storeConfig?.copyright ||

@@ -34,7 +34,7 @@ export function TwoFactorSetupModal({ isOpen, onClose, onSuccess, siteName }: Tw
     setStep('setup');
     setCode('');
     setError('');
-    const url = buildOtpauthUrl(siteName, user?.email || 'user', newSecret);
+    const url = buildOtpauthUrl('Rhoudz', user?.email || 'user', newSecret);
     QRCode.toDataURL(url, { width: 220, margin: 1 })
       .then(setQrDataUrl)
       .catch(() => setError(tr('Erro ao gerar QR Code', 'Error generating QR Code', 'Error al generar código QR')));

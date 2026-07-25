@@ -368,7 +368,7 @@ function AppContent() {
   }, [activeTab, user, loading]);
 
   // Dynamic browser tab title based on current page
-  const siteName = siteSettings?.site_name || storeConfig?.store_name || 'StreamManager';
+  const siteName = siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz';
   const browserTitle = siteSettings?.browser_title || siteName;
 
   useEffect(() => {
@@ -991,7 +991,7 @@ function AppContent() {
                   </div>
                 )}
                 <span className="text-sm font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
+                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
 
@@ -1019,7 +1019,7 @@ function AppContent() {
                   <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
                 </div>
                 <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
+                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
 
@@ -1182,7 +1182,7 @@ function AppContent() {
                   <CreditCard className="h-5 w-5 text-white" />
                 </div>
                 <span className="ml-3 text-lg font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
+                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
               <button
