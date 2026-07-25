@@ -42,6 +42,7 @@ export function NotificationPreferencesModal({ isOpen, onClose }: NotificationPr
         accounts_access_expiry_enabled: true,
         email_notifications: false,
         push_notifications: false,
+        discord_notifications: true,
         created_at: '',
         updated_at: ''
       });
@@ -69,7 +70,8 @@ export function NotificationPreferencesModal({ isOpen, onClose }: NotificationPr
         admin_enabled: preferences.admin_enabled,
         accounts_access_expiry_enabled: preferences.accounts_access_expiry_enabled,
         email_notifications: preferences.email_notifications,
-        push_notifications: preferences.push_notifications
+        push_notifications: preferences.push_notifications,
+        discord_notifications: preferences.discord_notifications
       });
 
       if (success) {
@@ -322,12 +324,37 @@ export function NotificationPreferencesModal({ isOpen, onClose }: NotificationPr
               </div>
             </div>
 
-            {/* Delivery Methods (Future) */}
+            {/* Delivery Methods */}
             <div>
               <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Métodos de Entrega (Em Breve)
+                {language === 'pt' ? 'Métodos de Entrega' : language === 'en' ? 'Delivery Methods' : 'Métodos de Entrega'}
               </h4>
-              <div className="space-y-4 opacity-50">
+              <div className="space-y-4">
+                {/* Discord notifications — functional now */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <MessageCircle className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                        {language === 'pt' ? 'Notificações por Discord' : language === 'en' ? 'Discord Notifications' : 'Notificaciones por Discord'}
+                      </h5>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {language === 'pt' ? 'Receber notificações por mensagem direta no Discord (requer conta vinculada)' : language === 'en' ? 'Receive notifications via Discord DM (requires linked account)' : 'Recibir notificaciones por mensaje directo de Discord (requiere cuenta vinculada)'}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferences.discord_notifications}
+                      onChange={(e) => updatePreference('discord_notifications', e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                <div className="opacity-50">
                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <Bell className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -374,6 +401,7 @@ export function NotificationPreferencesModal({ isOpen, onClose }: NotificationPr
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-600 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                   </label>
+                </div>
                 </div>
               </div>
             </div>

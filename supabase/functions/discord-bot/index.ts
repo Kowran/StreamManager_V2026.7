@@ -11,7 +11,7 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 function createSupabaseClient() {
   return {
-    async from(table: string) {
+    from(table: string) {
       return {
         select: (columns?: string) => ({
           eq: (col: string, val: any) => ({

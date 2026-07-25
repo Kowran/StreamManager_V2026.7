@@ -27,6 +27,7 @@ export interface NotificationPreferences {
   accounts_access_expiry_enabled: boolean;
   email_notifications: boolean;
   push_notifications: boolean;
+  discord_notifications: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -116,6 +117,9 @@ export class NotificationAPI {
     data: any = {}
   ): Promise<void> {
     try {
+      const prefs = await NotificationAPI.getPreferences(userId);
+      if (prefs && prefs.discord_notifications === false) return;
+
       const typeToEvent: Record<string, string> = {
         delivery: 'order_completed',
         payment: 'system_notification',
