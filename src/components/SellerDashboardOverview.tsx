@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign, ShoppingCart, Package, TrendingUp, TrendingDown,
   Clock, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight,
-  Star, Users, AlertTriangle, Eye, Wallet, Lock, Snowflake, Download, X, Award, ShieldAlert
+  Star, Users, AlertTriangle, Eye, Wallet, Lock, Snowflake, Download, X, Award, ShieldAlert, AlertCircle
 } from 'lucide-react';
 import { verifyTOTP } from '../lib/totp';
 import { supabase } from '../lib/supabase';
@@ -66,6 +66,8 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
   const [has2FA, setHas2FA] = useState(false);
   const [totpSecret, setTotpSecret] = useState<string | null>(null);
   const [codeSending, setCodeSending] = useState(false);
+  const [withdrawError, setWithdrawError] = useState('');
+  const [withdrawSuccess, setWithdrawSuccess] = useState('');
   const [sellerLevelInfo, setSellerLevelInfo] = useState<any>(null);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -254,8 +256,10 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
 
   async function handleSendVerificationCode() {
     const amount = parseFloat(withdrawAmount);
+    setWithdrawError('');
+    setWithdrawSuccess('');
     if (!amount || amount <= 0) {
-      alert(lbl('Digite um valor válido', 'Enter a valid amount', 'Ingrese un monto válido'));
+      setWithdrawError(lbl('Digite um valor válido', 'Enter a valid amount', 'Ingrese un monto válido'));
       return;
     }
     setCodeSending(true);
@@ -294,10 +298,11 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
           },
         }),
       });
+      setWithdrawSuccess(lbl('Código enviado para seu e-mail! Verifique sua caixa de entrada.', 'Code sent to your email! Check your inbox.', 'Código enviado a tu correo. Revisa tu bandeja de entrada.'));
       setWithdrawStep('verify');
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      alert(lbl('Erro ao enviar código: ', 'Error sending code: ', 'Error al enviar código: ') + msg);
+      setWithdrawError(lbl('Erro ao enviar código: ', 'Error sending code: ', 'Error al enviar código: ') + msg);
     } finally {
       setCodeSending(false);
     }
@@ -305,18 +310,19 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
 
   async function handleRequestWithdrawal() {
     const amount = parseFloat(withdrawAmount);
+    setWithdrawError('');
     if (!amount || amount <= 0) {
-      alert(lbl('Digite um valor válido', 'Enter a valid amount', 'Ingrese un monto válido'));
+      setWithdrawError(lbl('Digite um valor válido', 'Enter a valid amount', 'Ingrese un monto válido'));
       return;
     }
     if (!verificationCode.trim()) {
-      alert(lbl('Digite o código de verificação', 'Enter the verification code', 'Ingrese el código de verificación'));
+      setWithdrawError(lbl('Digite o código de verificação', 'Enter the verification code', 'Ingrese el código de verificación'));
       return;
     }
     // If using 2FA TOTP, validate the code client-side before calling the RPC.
     if (verificationMethod === 'totp' && totpSecret) {
       if (!verifyTOTP(totpSecret, verificationCode.trim())) {
-        alert(lbl('Código 2FA inválido. Tente novamente.', 'Invalid 2FA code. Try again.', 'Código 2FA inválido. Inténtalo de nuevo.'));
+        setWithdrawError(lbl('Código 2FA inválido. Tente novamente.', 'Invalid 2FA code. Try again.', 'Código 2FA inválido. Inténtalo de nuevo.'));
         return;
       }
     }
@@ -331,15 +337,16 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
       });
       if (error) throw error;
       if (data && data.success === false) throw new Error(data.error || 'Unknown error');
-      alert(lbl('Pedido de saque criado! Aguardando aprovação do administrador.', 'Withdrawal request created! Awaiting admin approval.', '¡Solicitud de retiro creada! Esperando aprobación del administrador.'));
       setShowWithdrawModal(false);
       setWithdrawAmount('');
       setVerificationCode('');
       setWithdrawStep('amount');
+      setWithdrawError('');
+      setWithdrawSuccess('');
       loadDashboardData();
     } catch (error) {
       const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
-      alert(lbl('Erro: ', 'Error: ', 'Error: ') + msg);
+      setWithdrawError(lbl('Erro: ', 'Error: ', 'Error: ') + msg);
     } finally {
       setWithdrawLoading(false);
     }
@@ -501,7 +508,7 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{lbl('Solicitar Saque', 'Request Withdrawal', 'Solicitar Retiro')}</h3>
-              <button onClick={() => { setShowWithdrawModal(false); setWithdrawStep('amount'); setVerificationCode(''); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <button onClick={() => { setShowWithdrawModal(false); setWithdrawStep('amount'); setVerificationCode(''); setWithdrawError(''); setWithdrawSuccess(''); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -511,6 +518,19 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
                   {lbl('Disponível: ', 'Available: ', 'Disponible: ')}<strong>{formatPrice(withdrawableBalance)}</strong>
                 </p>
               </div>
+
+              {withdrawError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                  <span className="text-sm text-red-700 dark:text-red-400">{withdrawError}</span>
+                </div>
+              )}
+              {withdrawSuccess && (
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                  <span className="text-sm text-emerald-700 dark:text-emerald-400">{withdrawSuccess}</span>
+                </div>
+              )}
 
               {withdrawStep === 'amount' && (
                 <>
@@ -561,7 +581,7 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => { setShowWithdrawModal(false); setWithdrawStep('amount'); }}
+                      onClick={() => { setShowWithdrawModal(false); setWithdrawStep('amount'); setWithdrawError(''); setWithdrawSuccess(''); }}
                       className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       {lbl('Cancelar', 'Cancel', 'Cancelar')}
@@ -604,7 +624,7 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
                   </div>
                   <div className="flex gap-3">
                     <button
-                      onClick={() => { setWithdrawStep('amount'); setVerificationCode(''); }}
+                      onClick={() => { setWithdrawStep('amount'); setVerificationCode(''); setWithdrawError(''); }}
                       className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                     >
                       {lbl('Voltar', 'Back', 'Volver')}
