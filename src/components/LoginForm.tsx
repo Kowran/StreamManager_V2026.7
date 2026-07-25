@@ -124,7 +124,7 @@ export function LoginForm({ onBack }: LoginFormProps = {}) {
                          'Elige un apodo válido y disponible');
         }
         
-        await signUp(email, password, fullName.trim(), usernameInput.trim().toLowerCase());
+        await signUp(email, password, fullName.trim(), usernameInput.trim());
         
         // Show success message and switch to login
         alert(t.language === 'pt' ? 'Conta criada com sucesso! Faça login para continuar.' :

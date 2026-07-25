@@ -58,10 +58,10 @@ export function NicknameSetupModal({ userId, onComplete }: NicknameSetupModalPro
     try {
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ username: trimmed.toLowerCase() })
+        .update({ username: trimmed })
         .eq('id', userId);
       if (updateError) throw updateError;
-      onComplete(trimmed.toLowerCase());
+      onComplete(trimmed);
     } catch (err) {
       setError(tr('Erro ao salvar nickname. Tente novamente.', 'Error saving nickname. Please try again.', 'Error al guardar el apodo. Intenta de nuevo.'));
     } finally {

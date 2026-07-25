@@ -62,6 +62,7 @@ import { FlyingBalloon } from './components/FlyingBalloon';
 import { AdminNetflixAccounts } from './components/AdminNetflixAccounts';
 import { AdminNotificationsManager } from './components/AdminNotificationsManager';
 import { AdminEmailTemplatesManager } from './components/AdminEmailTemplatesManager';
+import { AdminDiscordManager } from './components/AdminDiscordManager';
 import AdminPopupManager from './components/AdminPopupManager';
 import AdminFlyingBalloonManager from './components/AdminFlyingBalloonManager';
 import { NotificationsPage } from './components/NotificationsPage';
@@ -88,7 +89,7 @@ import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'admin-discord' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
 
 interface StoreConfig {
   store_name?: string;
@@ -401,6 +402,7 @@ function AppContent() {
       'admin-flying-balloons': tr('Balões', 'Balloons', 'Globos'),
       'admin-netflix-accounts': tr('Contas Netflix', 'Netflix Accounts', 'Cuentas Netflix'),
       'admin-email-templates': tr('Modelos de Email', 'Email Templates', 'Plantillas de Email'),
+      'admin-discord': tr('Discord', 'Discord', 'Discord'),
       'admin-security': tr('Segurança', 'Security', 'Seguridad'),
       'admin-appeals': tr('Recursos', 'Appeals', 'Apelaciones'),
       'accounts-access': tr('Acesso a Contas', 'Accounts Access', 'Acceso a Cuentas'),
@@ -688,6 +690,12 @@ function AppContent() {
         return (
           <AdminGuard page="admin-email-templates">
             <AdminEmailTemplatesManager />
+          </AdminGuard>
+        );
+      case 'admin-discord':
+        return (
+          <AdminGuard page="admin-discord">
+            <AdminDiscordManager />
           </AdminGuard>
         );
       case 'admin-site-settings':

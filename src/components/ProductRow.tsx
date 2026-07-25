@@ -1,6 +1,6 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Package, Truck, Zap, Star, Store, ArrowRight, TrendingUp, BadgeCheck, Clock } from 'lucide-react';
-import { StoreProduct } from '../lib/supabase';
+import { supabase, StoreProduct } from '../lib/supabase';
 
 interface SellerInfo {
   business_name: string;

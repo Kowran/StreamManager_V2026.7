@@ -10,6 +10,7 @@ import { PasswordChangeModal } from './PasswordChangeModal';
 import { TwoFactorSetupModal } from './TwoFactorSetupModal';
 import { SellerSettings } from './SellerSettings';
 import { LevelBadge, LevelProgressBar } from './LevelBadge';
+import { DiscordIntegration } from './DiscordIntegration';
 
 interface UserProfileData {
   id: string;
@@ -1065,6 +1066,10 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                       style={!twoFactorEnabled ? { backgroundColor: themeColor } : {}}>
                       {disabling2FA ? '...' : twoFactorEnabled ? tr.disable : tr.enable}
                     </button>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                    <DiscordIntegration />
                   </div>
 
                   {hasStreamingAccess && (

@@ -96,10 +96,74 @@ export class NotificationAPI {
         .single();
 
       if (error) throw error;
+
+      // Fire-and-forget Discord notification
+      NotificationAPI.sendDiscordNotification(userId, type, title, message, data).catch(() => {});
+
       return newNotification;
     } catch (error) {
       console.error('Error creating notification:', error);
       return null;
+    }
+  }
+
+  // Send Discord DM notification (fire-and-forget, never blocks in-app notification)
+  static async sendDiscordNotification(
+    userId: string,
+    type: Notification['type'],
+    title: string,
+    message: string,
+    data: any = {}
+  ): Promise<void> {
+    try {
+      const typeToEvent: Record<string, string> = {
+        delivery: 'order_completed',
+        payment: 'system_notification',
+        support: 'support_ticket',
+        account_expiry: 'expiring_account',
+        system: 'system_notification',
+        order: 'sale_completed',
+        dispute: 'dispute_opened',
+        withdrawal: 'withdrawal_approved',
+      };
+      const eventType = typeToEvent[type] || 'system_notification';
+      const variables: Record<string, string> = {
+        message: message,
+        product_name: data.product_name || data.service_name || '',
+        amount: data.amount ? `${Number(data.amount).toFixed(2)}` : '',
+        customer_name: data.customer_name || '',
+        order_id: data.order_id || data.id || '',
+        reason: data.reason || '',
+        rating: data.rating ? String(data.rating) : '',
+        comment: data.comment || '',
+        days: data.days || (data.expiry_date ? String(Math.ceil((new Date(data.expiry_date).getTime() - Date.now()) / 86400000)) : ''),
+        ticket_id: data.ticket_number || data.ticket_id || '',
+        subject: data.subject || '',
+        decision: data.decision || '',
+      };
+
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/discord-bot`;
+      const { data: session } = await supabase.auth.getSession();
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          action: "send_notification",
+          user_id: userId,
+          event_type: eventType,
+          variables,
+        }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        console.warn("Discord notification failed:", json.error || res.status);
+      }
+    } catch (err) {
+      console.warn("Discord notification error:", err);
     }
   }
 

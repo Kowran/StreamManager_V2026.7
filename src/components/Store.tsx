@@ -236,6 +236,33 @@ export function Store({ onNavigate }: StoreProps = {}) {
         return result;
       }
 
+      // Batch-fetch per-product rating summaries
+      const productIds = (data || []).map(p => p.id);
+      let productRatingMap: Record<string, { average_rating: number; rating_count: number }> = {};
+      if (productIds.length > 0) {
+        const { data: allRatings } = await supabase
+          .from('product_ratings')
+          .select('product_id, rating, user_id')
+          .in('product_id', productIds);
+        if (allRatings) {
+          const grouped: Record<string, number[]> = {};
+          for (const r of allRatings) {
+            // Exclude self-ratings (seller rating own product)
+            const prod = (data || []).find(p => p.id === r.product_id);
+            if (prod && prod.seller_id && prod.seller_id === r.user_id) continue;
+            if (!grouped[r.product_id]) grouped[r.product_id] = [];
+            grouped[r.product_id].push(r.rating);
+          }
+          for (const pid of Object.keys(grouped)) {
+            const arr = grouped[pid];
+            productRatingMap[pid] = {
+              average_rating: arr.reduce((s, v) => s + v, 0) / arr.length,
+              rating_count: arr.length,
+            };
+          }
+        }
+      }
+
       const productsWithSellers = await Promise.all(
         (data || []).map(async (product) => {
           // Fetch per-product sales count
@@ -302,7 +329,11 @@ export function Store({ onNavigate }: StoreProps = {}) {
         })
       );
 
-      const sortedProducts = productsWithSellers.sort((a, b) => {
+      const sortedProducts = productsWithSellers.map(p => ({
+        ...p,
+        average_rating: productRatingMap[p.id]?.average_rating ?? 0,
+        rating_count: productRatingMap[p.id]?.rating_count ?? 0,
+      })).sort((a, b) => {
         const aAvailable = a.manual_delivery || a.stock_quantity > 0;
         const bAvailable = b.manual_delivery || b.stock_quantity > 0;
 
