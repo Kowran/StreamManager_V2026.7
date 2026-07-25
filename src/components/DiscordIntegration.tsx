@@ -23,6 +23,7 @@ export function DiscordIntegration() {
   const { language } = useLanguage();
   const [link, setLink] = useState<DiscordLink | null>(null);
   const [loading, setLoading] = useState(true);
+  const [enabled, setEnabled] = useState(false);
   const [discordId, setDiscordId] = useState('');
   const [sendingCode, setSendingCode] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -68,6 +69,9 @@ export function DiscordIntegration() {
   async function loadLink() {
     if (!user) return;
     try {
+      const { data: enabledResult, error: enabledError } = await supabase.rpc("is_discord_enabled");
+      if (!enabledError) setEnabled(!!enabledResult);
+
       const { data, error } = await supabase.from("discord_user_links").select("*").eq("user_id", user.id).maybeSingle();
       if (error && error.code !== "PGRST116") throw error;
       setLink(data as DiscordLink | null);
@@ -225,6 +229,19 @@ export function DiscordIntegration() {
         </div>
       )}
 
+      {/* Not configured banner */}
+      {!enabled && (
+        <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{tr.notConfigured}</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+              {language === 'pt' ? 'Volte mais tarde ou avise um administrador para ativar o bot do Discord.' : language === 'en' ? 'Check back later or ask an administrator to enable the Discord bot.' : 'Vuelve más tarde o avisa a un administrador para activar el bot de Discord.'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Status badge */}
       <div className="flex items-center gap-2">
         {link?.verified ? (
@@ -267,7 +284,7 @@ export function DiscordIntegration() {
       )}
 
       {/* Link form */}
-      {!link?.verified && (
+      {enabled && !link?.verified && (
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">{tr.idLabel}</label>
@@ -316,14 +333,14 @@ export function DiscordIntegration() {
       )}
 
       {/* Notification preferences */}
-      {link?.verified && (
+      {enabled && link?.verified && (
         <div className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-800">
           <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
             <Bell className="h-3.5 w-3.5" />{tr.prefsTitle}
           </h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {prefs.map((pref) => {
-              const enabled = link[pref.key] as boolean;
+              const prefEnabled = link[pref.key] as boolean;
               return (
                 <button
                   key={pref.key}
@@ -331,8 +348,8 @@ export function DiscordIntegration() {
                   className="flex items-center justify-between px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <span className="text-sm text-gray-700 dark:text-gray-300">{pref.label}</span>
-                  <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${enabled ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-600"}`}>
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${enabled ? "translate-x-5" : "translate-x-1"}`} />
+                  <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${prefEnabled ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-600"}`}>
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${prefEnabled ? "translate-x-5" : "translate-x-1"}`} />
                   </span>
                 </button>
               );
