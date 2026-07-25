@@ -730,15 +730,8 @@ function AppContent() {
             <AdminDisputeManager />
           </AdminGuard>
         );
-      case 'profile': {
-        const ident = user?.id;
-        if (ident) {
-          window.history.pushState(null, '', `/user/${ident}`);
-          window.dispatchEvent(new PopStateEvent('popstate'));
-          return null;
-        }
+      case 'profile':
         return <UserProfile onNavigate={navigateWithRecharge} />;
-      }
       case 'user-profile':
         if (!profileIdentifier) return <Store onNavigate={navigateWithRecharge} />;
         return (
