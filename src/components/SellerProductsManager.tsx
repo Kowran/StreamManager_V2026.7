@@ -3,7 +3,8 @@ import {
   Plus, Trash2, Package, Search, Save, X, DollarSign, List,
   Upload, Store as StoreIcon, ShoppingCart, Image as ImageIcon,
   ArrowLeft, Boxes, Zap, Hand, CheckCircle2, AlertCircle, Layers,
-  Eye, EyeOff, Copy, FileText, UserCheck, Smartphone, Gamepad2, Gift, Coins
+  Eye, EyeOff, Copy, FileText, UserCheck, Smartphone, Gamepad2, Gift, Coins,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES, ProductVariation } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -22,6 +23,7 @@ interface ProductFormData {
   renewable: boolean;
   delivery_type: 'automatic' | 'manual' | 'recharge';
   delivery_time: string;
+  warranty_days: number | null;
 }
 
 interface InventoryItem {
@@ -50,7 +52,7 @@ export function SellerProductsManager() {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '', description: '', price_usd: 0, category: 'streaming', primary_category: 'item',
     image_url: '', active: true, features: [], renewable: false, delivery_type: 'automatic',
-    delivery_time: '',
+    delivery_time: '', warranty_days: 15,
   });
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -74,12 +76,13 @@ export function SellerProductsManager() {
         renewable: editingProduct.renewable || false,
         delivery_type: editingProduct.account_recharge ? 'recharge' : editingProduct.manual_delivery ? 'manual' : 'automatic',
         delivery_time: editingProduct.delivery_time || '',
+        warranty_days: editingProduct.warranty_days ?? 15,
       });
     } else if (view === 'create') {
       setFormData({
         name: '', description: '', price_usd: 0, category: 'streaming',
         image_url: '', active: true, features: [], renewable: false, delivery_type: 'automatic',
-        delivery_time: '',
+        delivery_time: '', warranty_days: 15,
       });
     }
   }, [editingProduct, view]);
@@ -462,6 +465,7 @@ export function SellerProductsManager() {
         manual_delivery: formData.delivery_type === 'manual' || isRecharge,
         account_recharge: isRecharge,
         delivery_time: formData.delivery_time || null,
+        warranty_days: formData.warranty_days,
         seller_id: user?.id,
         updated_at: new Date().toISOString(),
       };
@@ -1033,6 +1037,39 @@ function ProductFormPage({
               </div>
             </label>
           </div>
+        </div>
+
+        {/* Warranty */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-green-600 dark:text-green-400" />
+            {lbl('Garantia', 'Warranty', 'Garantía')}
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {[15, 30].map((days) => (
+              <button
+                key={days}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, warranty_days: days }))}
+                className={`flex flex-col items-center gap-1.5 p-4 rounded-xl border-2 transition-all ${
+                  formData.warranty_days === days
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <ShieldCheck className={`h-5 w-5 ${formData.warranty_days === days ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
+                <span className="text-lg font-bold">{days}</span>
+                <span className="text-xs font-medium opacity-80">{lbl('dias', 'days', 'días')}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+            {lbl(
+              'O cliente tem garantia de troca ou reembolso durante o período selecionado.',
+              'The customer has a replacement or refund warranty during the selected period.',
+              'El cliente tiene garantía de reemplazo o reembolso durante el período seleccionado.'
+            )}
+          </p>
         </div>
 
         {/* Submit */}

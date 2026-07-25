@@ -118,6 +118,7 @@ export interface StoreProduct {
   rating_count?: number;
   account_recharge?: boolean;
   delivery_time?: string;
+  warranty_days?: number | null;
   created_at: string;
   updated_at: string;
 }

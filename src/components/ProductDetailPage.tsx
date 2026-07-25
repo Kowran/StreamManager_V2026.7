@@ -4,7 +4,7 @@ import {
   AlertCircle, Loader, UserCheck, CreditCard,
   Share2, CheckCircle2, Zap, Clock, ChevronDown, Minus, Plus,
   ShieldCheck, Award, Store, Tag, Layers, Heart, ThumbsUp,
-  MessageCircle, TrendingUp, BadgeCheck, Sparkles, Info, ChevronRight
+  MessageCircle, TrendingUp, BadgeCheck, Sparkles, Info, ChevronRight, Calendar
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -22,6 +22,7 @@ interface ProductWithSeller extends StoreProduct {
   seller_info?: {
     business_name: string;
     sales_count: number;
+    total_sales_count: number;
     seller_slug?: string;
     avatar_url?: string | null;
     seller_level?: number;
@@ -121,6 +122,10 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
     securePay: lang === 'pt' ? 'Pagamento Seguro' : lang === 'en' ? 'Secure Payment' : 'Pago Seguro',
     instantDelivery: lang === 'pt' ? 'Entrega Instantânea' : lang === 'en' ? 'Instant Delivery' : 'Entrega Instantánea',
     instantDeliveryDesc: lang === 'pt' ? 'Receba seu produto em segundos' : lang === 'en' ? 'Receive your product in seconds' : 'Recibe tu producto en segundos',
+    warranty: lang === 'pt' ? 'Garantia' : lang === 'en' ? 'Warranty' : 'Garantía',
+    warrantyDays: (d: number) => lang === 'pt' ? `${d} dias de garantia` : lang === 'en' ? `${d} days warranty` : `${d} días de garantía`,
+    publishedOn: lang === 'pt' ? 'Publicado em' : lang === 'en' ? 'Published on' : 'Publicado el',
+    productSales: lang === 'pt' ? 'Vendas deste produto' : lang === 'en' ? 'This product sales' : 'Ventas de este producto',
     favorite: lang === 'pt' ? 'Favoritar' : lang === 'en' ? 'Favorite' : 'Favorito',
     favoriteAdded: lang === 'pt' ? 'Adicionado aos favoritos' : lang === 'en' ? 'Added to favorites' : 'Añadido a favoritos',
     total: lang === 'pt' ? 'Total' : lang === 'en' ? 'Total' : 'Total',
@@ -177,9 +182,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         const sellerData = await fetchSingleSellerInfo(data.seller_id);
         const { data: levelInfo } = await supabase
           .rpc('get_seller_level_info', { p_seller_id: data.seller_id });
+        const { data: sellerTotalSales } = await supabase.rpc('get_seller_sales_count', { seller_uuid: data.seller_id });
+        const totalSalesCount = Number(sellerTotalSales) || 0;
         productData.seller_info = {
           business_name: sellerData?.full_name || sellerData?.username || sellerData?.seller_slug || 'Vendedor',
           sales_count: salesCount,
+          total_sales_count: totalSalesCount,
           seller_slug: sellerData?.seller_slug ?? null,
           avatar_url: sellerData?.avatar_url || null,
           seller_level: (levelInfo as any)?.seller_level || 1,
@@ -187,9 +195,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
         };
       } else {
         const adminProfile = await fetchAdminSellerInfo();
+        const { data: adminTotalSales } = await supabase.rpc('get_admin_sales_count');
+        const totalSalesCount = Number(adminTotalSales) || 0;
         productData.seller_info = {
           business_name: adminProfile?.full_name || 'Admin',
           sales_count: salesCount,
+          total_sales_count: totalSalesCount,
           seller_slug: adminProfile?.seller_slug ?? null,
           avatar_url: adminProfile?.avatar_url || null,
           seller_id: adminProfile?.id || null,
@@ -600,6 +611,25 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       <Clock className="h-3.5 w-3.5 mr-1" />{product.delivery_time}
                     </span>
                   )}
+                  {product.warranty_days && (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                      <ShieldCheck className="h-3.5 w-3.5 mr-1" />{tr.warrantyDays(product.warranty_days)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Product meta: publication date + product sales count */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-xs text-gray-500 dark:text-gray-400">
+                  {product.created_at && (
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {tr.publishedOn} {new Date(product.created_at).toLocaleDateString(lang === 'pt' ? 'pt-BR' : lang === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    {product.seller_info?.sales_count ?? 0} {tr.productSales}
+                  </span>
                 </div>
 
                 {/* Title */}
@@ -638,7 +668,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                         )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {product.seller_info.sales_count} {tr.sales}
+                        {product.seller_info.total_sales_count} {tr.sales}
                         {product.seller_info.seller_level && ` · Nível ${product.seller_info.seller_level}`}
                       </p>
                     </div>
@@ -872,6 +902,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       <SpecItem icon={Check} label={tr.renewable} value={product.renewable ? tr.yes : tr.no} />
                       <SpecItem icon={Zap} label="Auto Delivery" value={product.auto_delivery ? tr.yes : tr.no} />
                       <SpecItem icon={ShieldCheck} label={tr.guaranteed} value={tr.yes} />
+                      <SpecItem icon={ShieldCheck} label={tr.warranty} value={product.warranty_days ? tr.warrantyDays(product.warranty_days) : tr.no} />
                     </div>
                   </div>
 
@@ -950,7 +981,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                           </div>
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
                             <TrendingUp className="h-3.5 w-3.5" />
-                            {product.seller_info.sales_count} {tr.sales}
+                            {product.seller_info.total_sales_count} {tr.sales}
                             {product.seller_info.seller_level && (
                               <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                                 Nível {product.seller_info.seller_level}
