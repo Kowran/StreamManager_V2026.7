@@ -700,10 +700,10 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
             {/* Level Badges */}
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {profile.user_level != null && (
-                <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
+                <LevelBadge level={profile.user_level} type="user" size="sm" showLabel clickable language={t.language} />
               )}
               {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
-                <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel />
+                <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel clickable language={t.language} />
               )}
             </div>
 

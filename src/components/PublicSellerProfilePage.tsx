@@ -446,87 +446,34 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
         </div>
 
-        {/* Avatar + identity */}
-        <div className="px-5 sm:px-8 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between -mt-8 sm:-mt-10 gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-              {/* Avatar */}
-              <div className="relative group flex-shrink-0">
-                <div
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl border-4 border-white dark:border-gray-800 shadow-xl overflow-hidden"
-                  style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }}
-                >
-                  {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-3xl sm:text-4xl font-bold text-white">
-                        {profile.full_name?.charAt(0).toUpperCase() || <User className="h-10 w-10 text-white" />}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {/* Verified badge */}
-                <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1.5 border-2 border-white dark:border-gray-800 shadow-md">
-                  <CheckCircle className="w-4 h-4 text-white" />
-                </div>
+        {/* Avatar row — floats up to overlap the cover */}
+        <div className="px-5 sm:px-8 -mt-14 sm:-mt-16 relative z-10">
+          <div className="flex items-end justify-between">
+            {/* Avatar */}
+            <div className="relative group flex-shrink-0">
+              <div
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl border-4 border-white dark:border-gray-800 shadow-xl overflow-hidden"
+                style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }}
+              >
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-3xl sm:text-4xl font-bold text-white">
+                      {profile.full_name?.charAt(0).toUpperCase() || <User className="h-10 w-10 text-white" />}
+                    </span>
+                  </div>
+                )}
               </div>
-
-              {/* Name + badges */}
-              <div className="space-y-2 sm:pb-2 pt-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-                    {profile.full_name || 'Vendedor'}
-                  </h1>
-                  {profile.profile_badge && (
-                    <span
-                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full text-white shadow-sm"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      {profile.profile_badge}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                    <Store className="w-3 h-3" />
-                    {getRoleLabel(profile.role)}
-                  </span>
-                  {profile.user_level != null && (
-                    <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
-                  )}
-                  {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
-                    <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel />
-                  )}
-                  <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                    <BadgeCheck className="w-3 h-3" />
-                    {t.language === 'pt' ? 'Verificado' : t.language === 'en' ? 'Verified' : 'Verificado'}
-                  </span>
-                </div>
-                {/* Online + member since */}
-                <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-                  <OnlineBadge lastSeenAt={profile.last_seen_at} language={t.language} showLabel size="sm" />
-                  {stats && stats.member_since_days > 0 && (
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {t.language === 'pt' ? `Membro há ${stats.member_since_days} dias` :
-                       t.language === 'en' ? `Member for ${stats.member_since_days} days` :
-                       `Miembro por ${stats.member_since_days} días`}
-                    </span>
-                  )}
-                  {profile.username && (
-                    <span className="inline-flex items-center gap-1">
-                      <span className="opacity-60">@</span>{profile.username}
-                    </span>
-                  )}
-                </div>
+              {/* Verified badge */}
+              <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1.5 border-2 border-white dark:border-gray-800 shadow-md">
+                <CheckCircle className="w-4 h-4 text-white" />
               </div>
             </div>
 
-            {/* Action buttons */}
+            {/* Action buttons — aligned to bottom of avatar row */}
             {user && user.id !== profile.id && (
-              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+              <div className="flex items-center gap-2 flex-wrap justify-end pb-1">
                 <FollowButton targetUserId={profile.id} themeColor={themeColor} variant="compact" />
                 <button
                   onClick={() => setChatOpen(true)}
@@ -553,6 +500,60 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               </div>
             )}
           </div>
+
+          {/* Name + badges — now below the avatar, always on white/dark bg */}
+          <div className="mt-3 pb-4 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                {profile.full_name || 'Vendedor'}
+              </h1>
+              {profile.profile_badge && (
+                <span
+                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full text-white shadow-sm"
+                  style={{ backgroundColor: themeColor }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {profile.profile_badge}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                <Store className="w-3 h-3" />
+                {getRoleLabel(profile.role)}
+              </span>
+              {profile.user_level != null && (
+                <LevelBadge level={profile.user_level} type="user" size="sm" showLabel clickable language={t.language} />
+              )}
+              {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
+                <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel clickable language={t.language} />
+              )}
+              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                <BadgeCheck className="w-3 h-3" />
+                {t.language === 'pt' ? 'Verificado' : t.language === 'en' ? 'Verified' : 'Verificado'}
+              </span>
+            </div>
+            {/* Online + member since */}
+            <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+              <OnlineBadge lastSeenAt={profile.last_seen_at} language={t.language} showLabel size="sm" />
+              {stats && stats.member_since_days > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {t.language === 'pt' ? `Membro há ${stats.member_since_days} dias` :
+                   t.language === 'en' ? `Member for ${stats.member_since_days} days` :
+                   `Miembro por ${stats.member_since_days} días`}
+                </span>
+              )}
+              {profile.username && (
+                <span className="inline-flex items-center gap-1">
+                  <span className="opacity-60">@</span>{profile.username}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 sm:px-8 pb-6">
 
           {/* Followers stats */}
           <div className="mt-5 flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
