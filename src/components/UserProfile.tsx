@@ -552,11 +552,12 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
 
         {/* Profile header overlapping */}
         <div className="relative px-4 sm:px-10 lg:px-12 pb-6 sm:pb-8">
-          <div className="flex flex-col lg:flex-row items-start lg:items-end gap-4 sm:gap-6 -mt-14 sm:-mt-16 lg:-mt-20">
+          {/* Top row: avatar (overlaps cover) + action buttons (sit below cover) */}
+          <div className="flex items-start justify-between -mt-14 sm:-mt-16 lg:-mt-20 mb-3 sm:mb-4">
             {/* Avatar */}
             <div className="relative group flex-shrink-0">
               <div
-                className="w-20 h-20 sm:w-32 sm:h-32 lg:w-36 lg:h-36 rounded-3xl border-4 border-white dark:border-gray-900 shadow-2xl overflow-hidden mx-auto sm:mx-0"
+                className="w-20 h-20 sm:w-32 sm:h-32 lg:w-36 lg:h-36 rounded-3xl border-4 border-white dark:border-gray-900 shadow-2xl overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}
               >
                 {profile.avatar_url ? (
@@ -580,54 +581,8 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               )}
             </div>
 
-            {/* Name + meta */}
-            <div className="flex-1 min-w-0 pt-2 sm:pt-3 lg:pt-0 lg:pb-3 text-center sm:text-left">
-              {editing ? (
-                <input
-                  type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                  className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-dashed border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none w-full pb-1.5"
-                  placeholder="Seu nome"
-                />
-              ) : (
-                <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-start">
-                  <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
-                    {profile.full_name || 'Usuário'}
-                  </h1>
-                  {profile.profile_badge && (
-                    <span className="text-sm font-semibold px-3 py-1 rounded-full text-white shadow-sm" style={{ backgroundColor: themeColor }}>
-                      {profile.profile_badge}
-                    </span>
-                  )}
-                  <span className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full font-medium ${
-                    profile.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
-                    : profile.role === 'seller' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                  }`}>
-                    {profile.role === 'admin' && <Shield className="w-3.5 h-3.5" />}
-                    {profile.role === 'seller' && <BadgeCheck className="w-3.5 h-3.5" />}
-                    {getRoleLabel(profile.role)}
-                  </span>
-                </div>
-              )}
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-2 justify-center sm:justify-start">
-                <Mail className="h-4 w-4" />
-                {profile.email}
-              </p>
-              <div className="flex items-center gap-3 mt-2.5 justify-center sm:justify-start flex-wrap">
-                <OnlineBadge lastSeenAt={profile.last_seen_at} language={language} showLabel size="sm" />
-                {profile.user_level != null && (
-                  <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
-                )}
-                {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
-                  <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel />
-                )}
-              </div>
-            </div>
-
-            {/* Edit / Save buttons + View Public Profile */}
-            <div className="flex flex-col gap-2.5 flex-shrink-0 mt-12 sm:mt-0 pt-2 sm:pt-3 lg:pt-0 lg:pb-3 w-full lg:w-auto">
+            {/* Edit / Save buttons + View Public Profile — pushed down to sit below the cover */}
+            <div className="flex flex-col gap-2.5 flex-shrink-0 mt-14 sm:mt-16 lg:mt-20 pt-2">
               <button
                 onClick={() => {
                   window.history.pushState(null, '', `/user/${profile.id}`);
@@ -659,6 +614,52 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                     {saving ? tr.saving : tr.save}
                   </button>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Name + meta — fully below the cover */}
+          <div className="text-center sm:text-left">
+            {editing ? (
+              <input
+                type="text"
+                value={formData.full_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white bg-transparent border-b-2 border-dashed border-gray-300 dark:border-gray-600 focus:border-blue-500 outline-none w-full pb-1.5"
+                placeholder="Seu nome"
+              />
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-start">
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+                  {profile.full_name || 'Usuário'}
+                </h1>
+                {profile.profile_badge && (
+                  <span className="text-sm font-semibold px-3 py-1 rounded-full text-white shadow-sm" style={{ backgroundColor: themeColor }}>
+                    {profile.profile_badge}
+                  </span>
+                )}
+                <span className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full font-medium ${
+                  profile.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                  : profile.role === 'seller' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                }`}>
+                  {profile.role === 'admin' && <Shield className="w-3.5 h-3.5" />}
+                  {profile.role === 'seller' && <BadgeCheck className="w-3.5 h-3.5" />}
+                  {getRoleLabel(profile.role)}
+                </span>
+              </div>
+            )}
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-2 justify-center sm:justify-start">
+              <Mail className="h-4 w-4" />
+              {profile.email}
+            </p>
+            <div className="flex items-center gap-3 mt-2.5 justify-center sm:justify-start flex-wrap">
+              <OnlineBadge lastSeenAt={profile.last_seen_at} language={language} showLabel size="sm" />
+              {profile.user_level != null && (
+                <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
+              )}
+              {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
+                <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel />
               )}
             </div>
           </div>
