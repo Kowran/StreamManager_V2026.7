@@ -3,7 +3,7 @@ import {
   User, Save, X, Mail, Globe, Shield, Check, AlertCircle, Camera, Store,
   Bell, BellOff, CreditCard as Edit3, Palette, Sparkles, ImagePlus, Trash2,
   Star, ShoppingBag, MessageCircle, Ban, CheckCircle, Calendar, ArrowLeft,
-  Share2, Copy,
+  Share2, Copy, MoveVertical,
 } from 'lucide-react';
 import { supabase, hasAccountsAccess } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -24,6 +24,7 @@ interface ProfileData {
   language: string;
   avatar_url: string | null;
   cover_url: string | null;
+  cover_position?: number | null;
   bio: string | null;
   theme_color: string | null;
   profile_badge: string | null;
@@ -89,6 +90,8 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
   const [savingBalloonPref, setSavingBalloonPref] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverPosition, setCoverPosition] = useState(50);
+  const [savingCoverPosition, setSavingCoverPosition] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'appearance' | 'security' | 'reviews'>('info');
   const [sellerReviews, setSellerReviews] = useState<any[]>([]);
   const [customerReviews, setCustomerReviews] = useState<any[]>([]);
@@ -141,6 +144,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         profile_badge: profile.profile_badge || '',
       });
       setHideExpiringBalloon(profile.hide_expiring_balloon || false);
+      setCoverPosition(profile.cover_position != null ? profile.cover_position : 50);
     }
   }, [profile]);
 
@@ -334,15 +338,22 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
     if (!file || !user || !profile) return;
     const url = await uploadImage(file, 'covers', setUploadingCover);
     if (url) {
-      await supabase.from('profiles').update({ cover_url: url }).eq('id', user.id);
-      setProfile(prev => prev ? { ...prev, cover_url: url } : prev);
+      if (profile.cover_url) {
+        await supabase.from('profiles').update({ cover_url: url }).eq('id', user.id);
+        setProfile(prev => prev ? { ...prev, cover_url: url } : prev);
+      } else {
+        await supabase.from('profiles').update({ cover_url: url, cover_position: 50 }).eq('id', user.id);
+        setProfile(prev => prev ? { ...prev, cover_url: url, cover_position: 50 } : prev);
+        setCoverPosition(50);
+      }
     }
   }
 
   async function removeCover() {
     if (!user || !profile) return;
-    await supabase.from('profiles').update({ cover_url: null }).eq('id', user.id);
-    setProfile(prev => prev ? { ...prev, cover_url: null } : prev);
+    await supabase.from('profiles').update({ cover_url: null, cover_position: 50 }).eq('id', user.id);
+    setProfile(prev => prev ? { ...prev, cover_url: null, cover_position: 50 } : prev);
+    setCoverPosition(50);
   }
 
   async function removeAvatar() {
@@ -516,7 +527,12 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         {/* Cover image area */}
         <div className="relative h-48 sm:h-64 lg:h-72 group">
           {profile.cover_url ? (
-            <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
+            <img
+              src={profile.cover_url}
+              alt="Cover"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: `center ${coverPosition != null ? coverPosition : 50}%` }}
+            />
           ) : (
             <div
               className="w-full h-full"
@@ -1071,6 +1087,54 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                   <p className="text-xs text-gray-400 mt-2">
                     {lbl('JPG, PNG ou WebP. Máximo 2MB.', 'JPG, PNG, or WebP. Max 2MB.', 'JPG, PNG o WebP. Máx 2MB.')}
                   </p>
+
+                  {/* Cover position slider */}
+                  {profile.cover_url && (
+                    <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl border border-gray-100 dark:border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                          <MoveVertical className="h-3.5 w-3.5" />
+                          {lbl('Posição da capa', 'Cover position', 'Posición de portada')}
+                        </label>
+                        <span className="text-xs text-gray-400 tabular-nums">{Math.round(coverPosition)}%</span>
+                      </div>
+                      <div className="relative h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 mb-2">
+                        <img
+                          src={profile.cover_url}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                          style={{ objectPosition: `center ${coverPosition}%` }}
+                        />
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={coverPosition}
+                        onChange={(e) => setCoverPosition(Number(e.target.value))}
+                        className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-[10px] text-gray-400">{lbl('Topo', 'Top', 'Arriba')}</span>
+                        <button
+                          onClick={async () => {
+                            if (!user) return;
+                            setSavingCoverPosition(true);
+                            await supabase.from('profiles').update({ cover_position: coverPosition }).eq('id', user.id);
+                            setSavingCoverPosition(false);
+                          }}
+                          disabled={savingCoverPosition}
+                          className="text-xs font-medium px-3 py-1 rounded-lg text-white transition-colors disabled:opacity-60"
+                          style={{ backgroundColor: formData.theme_color }}
+                        >
+                          {savingCoverPosition
+                            ? lbl('Salvando...', 'Saving...', 'Guardando...')
+                            : lbl('Salvar posição', 'Save position', 'Guardar posición')}
+                        </button>
+                        <span className="text-[10px] text-gray-400">{lbl('Base', 'Bottom', 'Abajo')}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button

@@ -29,6 +29,7 @@ interface SellerProfile {
   email: string;
   avatar_url?: string;
   cover_url?: string;
+  cover_position?: number | null;
   bio?: string;
   theme_color?: string;
   profile_badge?: string;
@@ -425,7 +426,12 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         {/* Cover */}
         <div className="relative h-44 sm:h-56 md:h-64">
           {profile.cover_url ? (
-            <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
+            <img
+              src={profile.cover_url}
+              alt="Cover"
+              className="w-full h-full object-cover"
+              style={{ objectPosition: `center ${profile.cover_position != null ? profile.cover_position : 50}%` }}
+            />
           ) : (
             <div
               className="w-full h-full relative"
