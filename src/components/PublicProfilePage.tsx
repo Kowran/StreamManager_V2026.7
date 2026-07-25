@@ -15,6 +15,7 @@ import { PasswordChangeModal } from './PasswordChangeModal';
 import { SellerRequestForm } from './SellerRequestForm';
 import { ChatModal } from './ChatModal';
 import { FollowButton, FollowersModal, FollowersStats, ReportButton } from './ProfileSocialActions';
+import { UserProfile } from './UserProfile';
 
 interface ProfileData {
   id: string;
@@ -495,12 +496,13 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
     );
   }
 
-  const tabs = isSelf ? [
-    { id: 'info' as const, label: lbl('Informações', 'Information', 'Información'), icon: User },
-    { id: 'appearance' as const, label: lbl('Aparência', 'Appearance', 'Apariencia'), icon: Palette },
-    { id: 'security' as const, label: lbl('Segurança', 'Security', 'Seguridad'), icon: Shield },
-    { id: 'reviews' as const, label: lbl('Avaliações', 'Reviews', 'Reseñas'), icon: Star },
-  ] : [];
+  // When viewing their own profile, render the full editor experience
+  // (2FA, Discord, cover zoom/drag, seller settings, overview stats, etc.)
+  if (isSelf) {
+    return <UserProfile onNavigate={onNavigate} />;
+  }
+
+  const tabs: { id: 'info' | 'appearance' | 'security' | 'reviews'; label: string; icon: any }[] = [];
 
   return (
     <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 space-y-0">
