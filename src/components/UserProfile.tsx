@@ -459,7 +459,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
   ];
 
   return (
-    <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6 lg:space-y-8">
+    <div className="w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8">
       {/* Hidden file inputs */}
       <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
       <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleCoverUpload} />
@@ -551,12 +551,12 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
         </div>
 
         {/* Profile header overlapping */}
-        <div className="px-6 sm:px-10 lg:px-12 pb-8">
-          <div className="flex flex-col lg:flex-row items-start lg:items-end gap-6 -mt-16 lg:-mt-20">
+        <div className="px-4 sm:px-10 lg:px-12 pb-6 sm:pb-8">
+          <div className="flex flex-col lg:flex-row items-start lg:items-end gap-4 sm:gap-6 -mt-14 sm:-mt-16 lg:-mt-20">
             {/* Avatar */}
             <div className="relative group flex-shrink-0">
               <div
-                className="w-28 h-28 sm:w-32 sm:h-32 lg:w-36 lg:h-36 rounded-3xl border-4 border-white dark:border-gray-900 shadow-2xl overflow-hidden"
+                className="w-20 h-20 sm:w-32 sm:h-32 lg:w-36 lg:h-36 rounded-3xl border-4 border-white dark:border-gray-900 shadow-2xl overflow-hidden mx-auto sm:mx-0"
                 style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}
               >
                 {profile.avatar_url ? (
@@ -581,7 +581,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
             </div>
 
             {/* Name + meta */}
-            <div className="flex-1 min-w-0 pt-3 lg:pt-0 lg:pb-3">
+            <div className="flex-1 min-w-0 pt-2 sm:pt-3 lg:pt-0 lg:pb-3 text-center sm:text-left">
               {editing ? (
                 <input
                   type="text"
@@ -591,8 +591,8 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                   placeholder="Seu nome"
                 />
               ) : (
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+                <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-start">
+                  <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
                     {profile.full_name || 'Usuário'}
                   </h1>
                   {profile.profile_badge && (
@@ -611,11 +611,11 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                   </span>
                 </div>
               )}
-              <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-2">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-2 justify-center sm:justify-start">
                 <Mail className="h-4 w-4" />
                 {profile.email}
               </p>
-              <div className="flex items-center gap-3 mt-2.5">
+              <div className="flex items-center gap-3 mt-2.5 justify-center sm:justify-start flex-wrap">
                 <OnlineBadge lastSeenAt={profile.last_seen_at} language={language} showLabel size="sm" />
                 {profile.user_level != null && (
                   <LevelBadge level={profile.user_level} type="user" size="sm" showLabel />
@@ -627,7 +627,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
             </div>
 
             {/* Edit / Save buttons + View Public Profile */}
-            <div className="flex flex-col gap-2.5 flex-shrink-0 pt-3 lg:pt-0 lg:pb-3 w-full lg:w-auto">
+            <div className="flex flex-col gap-2.5 flex-shrink-0 pt-2 sm:pt-3 lg:pt-0 lg:pb-3 w-full lg:w-auto">
               <button
                 onClick={() => {
                   window.history.pushState(null, '', `/user/${profile.id}`);
@@ -786,7 +786,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
         <section className="lg:col-span-8 xl:col-span-9">
           <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-800 overflow-hidden">
             {/* Tab bar */}
-            <div className="flex overflow-x-auto border-b border-gray-200 dark:border-gray-800 scrollbar-hide">
+            <div className="flex overflow-x-auto border-b border-gray-200 dark:border-gray-800 scrollbar-hide -mx-3 sm:mx-0 px-3 sm:px-0">
               {tabs.map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.key;
@@ -808,18 +808,18 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               })}
             </div>
 
-            <div className="p-6 sm:p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
               {/* ─── OVERVIEW TAB ─────────────────────────────── */}
               {activeTab === 'overview' && (
                 <div className="space-y-8">
                   {/* Welcome banner */}
-                  <div className="rounded-3xl p-6 sm:p-8 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${themeColor}12, ${themeColor}28)` }}>
+                  <div className="rounded-3xl p-4 sm:p-6 lg:p-8 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${themeColor}12, ${themeColor}28)` }}>
                     <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-10 -mr-12 -mt-12" style={{ backgroundColor: themeColor }} />
                     <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full opacity-5 -ml-10 -mb-10" style={{ backgroundColor: themeColor }} />
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 relative">
+                    <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-2 relative">
                       {language === 'pt' ? `Olá, ${profile.full_name || 'Usuário'}! 👋` : `Hello, ${profile.full_name || 'User'}! 👋`}
                     </h2>
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 relative max-w-xl">
+                    <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400 relative max-w-xl">
                       {language === 'pt' ? 'Bem-vindo de volta ao seu painel pessoal. Aqui você pode gerenciar suas informações, aparência, segurança e muito mais.' : 'Welcome back to your personal dashboard. Here you can manage your information, appearance, security and more.'}
                     </p>
                   </div>
@@ -830,7 +830,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                       <BarChart3 className="h-4 w-4 text-gray-400" />
                       {language === 'pt' ? 'Estatísticas' : 'Statistics'}
                     </h3>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                       <BigStat icon={ShoppingBag} label={tr.myPurchases} value={stats.purchases} color="from-blue-500 to-blue-600" onClick={() => onNavigate?.('purchases')} />
                       <BigStat icon={Wallet} label={tr.myCredits} value={stats.credits} color="from-emerald-500 to-emerald-600" onClick={() => onNavigate?.('credits')} />
                       <BigStat icon={MessageSquare} label={tr.support} value={stats.tickets} color="from-amber-500 to-amber-600" onClick={() => onNavigate?.('support')} />
@@ -862,7 +862,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                       <User className="h-4 w-4 text-gray-400" />
                       {language === 'pt' ? 'Informações da Conta' : 'Account Information'}
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <InfoCard icon={Mail} label="Email" value={profile.email} />
                       <InfoCard icon={CalendarDays} label={tr.memberSince} value={formatDate(profile.created_at)} />
                       <InfoCard icon={Clock} label={tr.lastLogin} value={profile.last_login_at ? formatDate(profile.last_login_at) : '—'} />
@@ -875,7 +875,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                       <Zap className="h-4 w-4 text-amber-500" />{tr.quickActions}
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {onNavigate && (
                         <>
                           <ActionRow icon={ShoppingBag} label={tr.myPurchases} onClick={() => onNavigate('purchases')} themeColor={themeColor} />

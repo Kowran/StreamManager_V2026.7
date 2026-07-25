@@ -21,7 +21,11 @@ interface LevelBenefit {
 }
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Sprout, Award, Medal, Crown, Gem, Diamond: Gem,
+  Sprout: Sprout,
+  Award: Award,
+  Medal: Medal,
+  Crown: Crown,
+  Gem: Gem,
 };
 
 export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () => void; onBecomeSeller: () => void }) {
