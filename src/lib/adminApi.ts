@@ -155,6 +155,22 @@ export class AdminAPI {
     });
   }
 
+  static async suspendStore(userId: string, reason?: string) {
+    return this.performUserAction({
+      action: 'suspend_store',
+      user_id: userId,
+      data: { reason }
+    });
+  }
+
+  static async unsuspendStore(userId: string, reason?: string) {
+    return this.performUserAction({
+      action: 'unsuspend_store',
+      user_id: userId,
+      data: { reason }
+    });
+  }
+
   static async getUserAnalytics(dateRange?: { start: string; end: string }, userId?: string) {
     try {
       const headers = await this.getAuthHeaders();

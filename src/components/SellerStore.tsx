@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard, Package, ShoppingCart, MessageCircle,
-  Store, AlertTriangle, Loader2, Wallet, HelpCircle
+  Store, AlertTriangle, Loader2, Wallet, HelpCircle, Ban
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -20,6 +20,7 @@ export function SellerStore() {
   const { language } = useLanguage();
   const [activeTab, setActiveTab] = useState<SellerTab>('dashboard');
   const [isSeller, setIsSeller] = useState(false);
+  const [storeSuspended, setStoreSuspended] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const sellerNavigate = (tab: SellerTab) => {
@@ -50,10 +51,12 @@ export function SellerStore() {
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, store_suspended')
         .eq('id', user.id)
         .maybeSingle();
-      setIsSeller(profile?.role === 'seller' || profile?.role === 'admin');
+      const isSellerRole = profile?.role === 'seller' || profile?.role === 'admin';
+      setIsSeller(isSellerRole);
+      setStoreSuspended(!!profile?.store_suspended && profile?.role === 'seller');
     } catch (error) {
       console.error('Error checking seller status:', error);
       setIsSeller(false);
@@ -131,6 +134,22 @@ export function SellerStore() {
         </h3>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
           {lbl('Apenas vendedores aprovados podem gerenciar sua loja.', 'Only approved sellers can manage their store.', 'Solo vendedores aprobados pueden gestionar su tienda.')}
+        </p>
+      </div>
+    );
+  }
+
+  if (storeSuspended) {
+    return (
+      <div className="text-center py-16">
+        <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-4 w-16 h-16 mx-auto mb-4">
+          <Ban className="h-8 w-8 text-red-500 dark:text-red-400" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+          {lbl('Loja Suspensa', 'Store Suspended', 'Tienda Suspendida')}
+        </h3>
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+          {lbl('Sua loja foi suspensa pela administração. Você não pode criar, editar ou vender produtos no momento, mas pode continuar comprando de outros vendedores. Entre em contato com o suporte para mais informações.', 'Your store has been suspended by administration. You cannot create, edit, or sell products at the moment, but you can still buy from other sellers. Contact support for more information.', 'Tu tienda ha sido suspendida por la administración. No puedes crear, editar ni vender productos en este momento, pero puedes seguir comprando a otros vendedores. Contacta con soporte para más información.')}
         </p>
       </div>
     );

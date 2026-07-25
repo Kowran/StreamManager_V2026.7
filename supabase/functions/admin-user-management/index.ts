@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface AdminUserRequest {
-  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions' | 'freeze_balance' | 'unfreeze_balance' | 'update_name' | 'cancel_order' | 'review_appeal';
+  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions' | 'freeze_balance' | 'unfreeze_balance' | 'update_name' | 'cancel_order' | 'review_appeal' | 'suspend_store' | 'unsuspend_store';
   user_id: string;
   data?: any;
 }
@@ -542,6 +542,45 @@ Deno.serve(async (req: Request) => {
 
         return new Response(
           JSON.stringify({ success: true, message: `Appeal ${decision} successfully` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'suspend_store': {
+        const reason = data?.reason || 'No reason provided';
+        const { error: suspendError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            store_suspended: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user_id);
+
+        if (suspendError) throw suspendError;
+
+        await logAdminAction(supabaseAdmin, user.id, user_id, 'suspend_store', { reason });
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Store suspended successfully' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'unsuspend_store': {
+        const { error: unsuspendError } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            store_suspended: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user_id);
+
+        if (unsuspendError) throw unsuspendError;
+
+        await logAdminAction(supabaseAdmin, user.id, user_id, 'unsuspend_store', { reason: data?.reason || 'No reason provided' });
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Store reactivated successfully' }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
