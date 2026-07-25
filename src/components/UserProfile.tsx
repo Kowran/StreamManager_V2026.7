@@ -551,7 +551,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
         </div>
 
         {/* Profile header overlapping */}
-        <div className="px-4 sm:px-10 lg:px-12 pb-6 sm:pb-8">
+        <div className="relative px-4 sm:px-10 lg:px-12 pb-6 sm:pb-8">
           <div className="flex flex-col lg:flex-row items-start lg:items-end gap-4 sm:gap-6 -mt-14 sm:-mt-16 lg:-mt-20">
             {/* Avatar */}
             <div className="relative group flex-shrink-0">
@@ -627,7 +627,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
             </div>
 
             {/* Edit / Save buttons + View Public Profile */}
-            <div className="flex flex-col gap-2.5 flex-shrink-0 pt-2 sm:pt-3 lg:pt-0 lg:pb-3 w-full lg:w-auto">
+            <div className="flex flex-col gap-2.5 flex-shrink-0 mt-12 sm:mt-0 pt-2 sm:pt-3 lg:pt-0 lg:pb-3 w-full lg:w-auto">
               <button
                 onClick={() => {
                   window.history.pushState(null, '', `/user/${profile.id}`);
