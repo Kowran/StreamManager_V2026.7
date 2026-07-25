@@ -48,6 +48,38 @@ async function sendEmailViaEdgeFunction(
   }
 }
 
+async function sendDiscordNotificationViaEdgeFunction(
+  recipientId: string,
+  eventType: string,
+  variables: Record<string, string>
+): Promise<void> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/discord-bot`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify({
+        action: 'send_notification',
+        user_id: recipientId,
+        event_type: eventType,
+        variables,
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`discord-bot send_notification failed for ${eventType}: ${errText}`);
+    } else {
+      console.log(`Discord notification sent: ${eventType} to user ${recipientId}`);
+    }
+  } catch (err) {
+    console.error(`Failed to send ${eventType} Discord notification (non-fatal):`, err);
+  }
+}
+
 
 interface PurchaseRequest {
   product_id: string;
@@ -879,6 +911,14 @@ Deno.serve(async (req: Request) => {
         quantity: String(quantity),
         total_price: totalPrice.toFixed(2),
         buyer_name: buyerDisplayName,
+        order_id: order.id,
+      });
+
+      // Send Discord DM notification to the seller (non-fatal)
+      await sendDiscordNotificationViaEdgeFunction(product.seller_id, 'sale_completed', {
+        product_name: productName,
+        amount: totalPrice.toFixed(2),
+        customer_name: buyerDisplayName,
         order_id: order.id,
       });
     }

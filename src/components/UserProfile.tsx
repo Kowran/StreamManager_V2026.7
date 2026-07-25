@@ -69,7 +69,7 @@ const BADGES = [
   { label: '🎯 Pro', value: '🎯 Pro' },
 ];
 
-type TabKey = 'overview' | 'info' | 'appearance' | 'security' | 'reviews' | 'store';
+type TabKey = 'overview' | 'info' | 'appearance' | 'security' | 'reviews';
 
 export function UserProfile({ onNavigate }: UserProfileProps = {}) {
   const { user } = useAuth();
@@ -455,7 +455,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     { key: 'appearance', label: tr.appearance, icon: Palette },
     { key: 'security', label: tr.security, icon: Shield },
     { key: 'reviews', label: tr.reviews, icon: Star },
-    ...((profile.role === 'seller' || profile.role === 'admin') ? [{ key: 'store' as TabKey, label: tr.storeTab, icon: Store }] : []),
   ];
 
   return (
@@ -581,17 +580,8 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               )}
             </div>
 
-            {/* Edit / Save buttons + View Public Profile — pushed down to sit below the cover */}
+            {/* Edit / Save buttons — pushed down to sit below the cover */}
             <div className="flex flex-col gap-2.5 flex-shrink-0 mt-14 sm:mt-16 lg:mt-20 pt-2">
-              <button
-                onClick={() => {
-                  window.history.pushState(null, '', `/user/${profile.id}`);
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-medium rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                <Globe className="h-4 w-4" />{tr.viewPublicProfile}
-              </button>
               {!editing ? (
                 <button
                   onClick={() => setEditing(true)}
@@ -1182,22 +1172,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
           </div>
         </section>
       </div>
-
-      {activeTab === 'store' && (profile.role === 'seller' || profile.role === 'admin') && (
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setActiveTab('overview')}>
-          <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-5 flex items-center justify-between z-10">
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{tr.storeTab}</h2>
-              <button onClick={() => setActiveTab('overview')} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-5">
-              <SellerSettings />
-            </div>
-          </div>
-        </div>
-      )}
 
       <PasswordChangeModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
 

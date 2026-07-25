@@ -4,6 +4,7 @@ import {
   Clock, CheckCircle, XCircle, ArrowUpRight, ArrowDownRight,
   Star, Users, AlertTriangle, Eye, Wallet, Lock, Snowflake, Download, X, Award, ShieldAlert
 } from 'lucide-react';
+import { verifyTOTP } from '../lib/totp';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -59,6 +60,12 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawStep, setWithdrawStep] = useState<'amount' | 'verify'>('amount');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationMethod, setVerificationMethod] = useState<'email' | 'totp'>('email');
+  const [has2FA, setHas2FA] = useState(false);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [codeSending, setCodeSending] = useState(false);
   const [sellerLevelInfo, setSellerLevelInfo] = useState<any>(null);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -196,6 +203,20 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
         if (levelData) setSellerLevelInfo(levelData);
       } catch (e) { /* non-critical */ }
 
+      // Load seller 2FA status for withdrawal verification
+      try {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('two_factor_enabled, two_factor_secret')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (prof) {
+          setHas2FA(!!prof.two_factor_enabled);
+          setTotpSecret(prof.two_factor_secret || null);
+          if (prof.two_factor_enabled) setVerificationMethod('totp');
+        }
+      } catch (e) { /* non-critical */ }
+
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
@@ -231,11 +252,73 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
     );
   }
 
+  async function handleSendVerificationCode() {
+    const amount = parseFloat(withdrawAmount);
+    if (!amount || amount <= 0) {
+      alert(lbl('Digite um valor válido', 'Enter a valid amount', 'Ingrese un monto válido'));
+      return;
+    }
+    setCodeSending(true);
+    try {
+      // If 2FA is enabled, seller uses their authenticator app; no email needed.
+      if (has2FA && verificationMethod === 'totp') {
+        setWithdrawStep('verify');
+        return;
+      }
+      // Otherwise generate + email a 6-digit code via the DB function.
+      const { data, error } = await supabase.rpc('create_withdrawal_verification_code', {
+        p_amount: amount,
+        p_currency: 'USDT',
+      });
+      if (error) throw error;
+      if (data && data.success === false) throw new Error(data.error || 'Unknown error');
+      // Email the code to the seller through the send-email edge function.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          template_type: 'withdrawal_verification',
+          recipient_id: user?.id,
+          variables: {
+            code: data.code,
+            amount: amount.toFixed(2),
+            currency: 'USDT',
+            full_name: data.full_name || '',
+          },
+        }),
+      });
+      setWithdrawStep('verify');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      alert(lbl('Erro ao enviar código: ', 'Error sending code: ', 'Error al enviar código: ') + msg);
+    } finally {
+      setCodeSending(false);
+    }
+  }
+
   async function handleRequestWithdrawal() {
     const amount = parseFloat(withdrawAmount);
     if (!amount || amount <= 0) {
       alert(lbl('Digite um valor válido', 'Enter a valid amount', 'Ingrese un monto válido'));
       return;
+    }
+    if (!verificationCode.trim()) {
+      alert(lbl('Digite o código de verificação', 'Enter the verification code', 'Ingrese el código de verificación'));
+      return;
+    }
+    // If using 2FA TOTP, validate the code client-side before calling the RPC.
+    if (verificationMethod === 'totp' && totpSecret) {
+      if (!verifyTOTP(totpSecret, verificationCode.trim())) {
+        alert(lbl('Código 2FA inválido. Tente novamente.', 'Invalid 2FA code. Try again.', 'Código 2FA inválido. Inténtalo de nuevo.'));
+        return;
+      }
     }
     setWithdrawLoading(true);
     try {
@@ -243,12 +326,16 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
         p_amount: amount,
         p_currency: 'USDT',
         p_payment_method: {} as any,
+        p_verification_method: verificationMethod,
+        p_verification_code: verificationCode.trim(),
       });
       if (error) throw error;
       if (data && data.success === false) throw new Error(data.error || 'Unknown error');
       alert(lbl('Pedido de saque criado! Aguardando aprovação do administrador.', 'Withdrawal request created! Awaiting admin approval.', '¡Solicitud de retiro creada! Esperando aprobación del administrador.'));
       setShowWithdrawModal(false);
       setWithdrawAmount('');
+      setVerificationCode('');
+      setWithdrawStep('amount');
       loadDashboardData();
     } catch (error) {
       const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
@@ -414,7 +501,7 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{lbl('Solicitar Saque', 'Request Withdrawal', 'Solicitar Retiro')}</h3>
-              <button onClick={() => setShowWithdrawModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <button onClick={() => { setShowWithdrawModal(false); setWithdrawStep('amount'); setVerificationCode(''); }} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -424,43 +511,114 @@ export function SellerDashboardOverview({ onNavigate }: { onNavigate?: (tab: str
                   {lbl('Disponível: ', 'Available: ', 'Disponible: ')}<strong>{formatPrice(withdrawableBalance)}</strong>
                 </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {lbl('Valor do Saque', 'Withdrawal Amount', 'Monto del Retiro')}
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="10"
-                  value={withdrawAmount}
-                  onChange={e => setWithdrawAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {lbl('Valor mínimo: 10 USDT', 'Minimum amount: 10 USDT', 'Monto mínimo: 10 USDT')}
-                </p>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                <p className="text-xs text-blue-700 dark:text-blue-400">
-                  {lbl('Após solicitar, o administrador irá aprovar e processar o pagamento.', 'After requesting, the admin will approve and process the payment.', 'Después de solicitar, el administrador aprobará y procesará el pago.')}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowWithdrawModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  {lbl('Cancelar', 'Cancel', 'Cancelar')}
-                </button>
-                <button
-                  onClick={handleRequestWithdrawal}
-                  disabled={withdrawLoading}
-                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md disabled:opacity-50 transition-colors"
-                >
-                  {withdrawLoading ? lbl('Processando...', 'Processing...', 'Procesando...') : lbl('Confirmar Saque', 'Confirm Withdrawal', 'Confirmar Retiro')}
-                </button>
-              </div>
+
+              {withdrawStep === 'amount' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      {lbl('Valor do Saque', 'Withdrawal Amount', 'Monto del Retiro')}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="10"
+                      value={withdrawAmount}
+                      onChange={e => setWithdrawAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {lbl('Valor mínimo: 10 USDT', 'Minimum amount: 10 USDT', 'Monto mínimo: 10 USDT')}
+                    </p>
+                  </div>
+
+                  {has2FA && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {lbl('Método de verificação', 'Verification method', 'Método de verificación')}
+                      </label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setVerificationMethod('totp')}
+                          className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${verificationMethod === 'totp' ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}
+                        >
+                          {lbl('App Autenticador (2FA)', 'Authenticator App (2FA)', 'App Autenticador (2FA)')}
+                        </button>
+                        <button
+                          onClick={() => setVerificationMethod('email')}
+                          className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${verificationMethod === 'email' ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400'}`}
+                        >
+                          {lbl('E-mail', 'Email', 'Correo')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <p className="text-xs text-blue-700 dark:text-blue-400">
+                      {lbl('Você receberá um código de verificação para confirmar o saque.', 'You will receive a verification code to confirm the withdrawal.', 'Recibirás un código de verificación para confirmar el retiro.')}
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setShowWithdrawModal(false); setWithdrawStep('amount'); }}
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {lbl('Cancelar', 'Cancel', 'Cancelar')}
+                    </button>
+                    <button
+                      onClick={handleSendVerificationCode}
+                      disabled={codeSending}
+                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md disabled:opacity-50 transition-colors"
+                    >
+                      {codeSending ? lbl('Enviando...', 'Sending...', 'Enviando...') : lbl('Enviar Código', 'Send Code', 'Enviar Código')}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {withdrawStep === 'verify' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      {verificationMethod === 'totp'
+                        ? lbl('Código do app autenticador', 'Authenticator app code', 'Código de la app autenticadora')
+                        : lbl('Código de verificação (enviado por e-mail)', 'Verification code (sent by email)', 'Código de verificación (enviado por correo)')}
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={e => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      placeholder="000000"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent text-center text-2xl tracking-widest font-mono"
+                    />
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      {verificationMethod === 'totp'
+                        ? lbl('Abra seu app autenticador e digite o código atual.', 'Open your authenticator app and enter the current code.', 'Abre tu app autenticadora e ingresa el código actual.')
+                        : lbl('O código expira em 10 minutos. Verifique sua caixa de entrada.', 'The code expires in 10 minutes. Check your inbox.', 'El código expira en 10 minutos. Revisa tu bandeja de entrada.')}
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setWithdrawStep('amount'); setVerificationCode(''); }}
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {lbl('Voltar', 'Back', 'Volver')}
+                    </button>
+                    <button
+                      onClick={handleRequestWithdrawal}
+                      disabled={withdrawLoading || verificationCode.length !== 6}
+                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md disabled:opacity-50 transition-colors"
+                    >
+                      {withdrawLoading ? lbl('Processando...', 'Processing...', 'Procesando...') : lbl('Confirmar Saque', 'Confirm Withdrawal', 'Confirmar Retiro')}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

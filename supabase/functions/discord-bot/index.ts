@@ -220,6 +220,14 @@ Deno.serve(async (req: Request) => {
 
       const { data: existing } = await sb.from("discord_user_links").select("*").eq("user_id", user_id).maybeSingle();
 
+      // Prevent linking the same Discord account to multiple platform accounts
+      const { data: conflict } = await sb.from("discord_user_links").select("user_id").eq("discord_user_id", discord_user_id).maybeSingle();
+      if (conflict && conflict.user_id !== user_id) {
+        return new Response(JSON.stringify({ error: "Esta conta do Discord já está vinculada a outro usuário. Cada conta do Discord só pode ser usada por um usuário." }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       if (existing) {
         await sb.from("discord_user_links").update({
           discord_user_id,
