@@ -15,6 +15,7 @@ import { OnlineBadge } from './OnlineBadge';
 import { ChatModal } from './ChatModal';
 import { LevelBadge } from './LevelBadge';
 import { navigateToUserProfile } from '../lib/userProfile';
+import { FollowButton, FollowersModal, FollowersStats, ReportButton } from './ProfileSocialActions';
 
 interface PublicSellerProfilePageProps {
   sellerSlug: string;
@@ -111,6 +112,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('products');
   const [productFilter, setProductFilter] = useState<string>('all');
+  const [followersModal, setFollowersModal] = useState<'followers' | 'following' | null>(null);
 
 
   useEffect(() => {
@@ -524,7 +526,8 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
             {/* Action buttons */}
             {user && user.id !== profile.id && (
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                <FollowButton targetUserId={profile.id} themeColor={themeColor} variant="compact" />
                 <button
                   onClick={() => setChatOpen(true)}
                   disabled={isBlocked}
@@ -546,8 +549,18 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                 >
                   <Ban className="h-4 w-4" />
                 </button>
+                <ReportButton targetUserId={profile.id} targetUserName={profile.username || profile.full_name || profile.id} />
               </div>
             )}
+          </div>
+
+          {/* Followers stats */}
+          <div className="mt-5 flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
+            <FollowersStats
+              targetUserId={profile.id}
+              themeColor={themeColor}
+              onOpen={(mode) => setFollowersModal(mode)}
+            />
           </div>
 
           {/* Bio */}
@@ -964,6 +977,16 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
       {chatOpen && (
         <ChatModal otherUserId={profile.id} onClose={() => setChatOpen(false)} />
+      )}
+
+      {followersModal && (
+        <FollowersModal
+          isOpen={!!followersModal}
+          onClose={() => setFollowersModal(null)}
+          targetUserId={profile.id}
+          mode={followersModal}
+          themeColor={themeColor}
+        />
       )}
 
     </div>

@@ -14,6 +14,7 @@ import { LevelBadge, LevelProgressBar } from './LevelBadge';
 import { PasswordChangeModal } from './PasswordChangeModal';
 import { SellerRequestForm } from './SellerRequestForm';
 import { ChatModal } from './ChatModal';
+import { FollowButton, FollowersModal, FollowersStats, ReportButton } from './ProfileSocialActions';
 
 interface ProfileData {
   id: string;
@@ -98,6 +99,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
   const [blockLoading, setBlockLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [followersModal, setFollowersModal] = useState<'followers' | 'following' | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -508,11 +510,11 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         {lbl('Voltar', 'Back', 'Volver')}
       </button>
 
-      {/* Profile Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Profile Card - full width, edge-to-edge */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8">
 
         {/* Cover image area */}
-        <div className="relative h-36 sm:h-48 group">
+        <div className="relative h-48 sm:h-64 lg:h-72 group">
           {profile.cover_url ? (
             <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
           ) : (
@@ -725,7 +727,15 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         </div>
 
         {/* Stats strip */}
-        <div className="px-6 pb-5 grid grid-cols-3 gap-3">
+        <div className="px-6 pb-5">
+          <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 mb-4">
+            <FollowersStats
+              targetUserId={profile.id}
+              themeColor={themeColor}
+              onOpen={(mode) => setFollowersModal(mode)}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center">
             <div className="text-lg font-bold text-gray-900 dark:text-white">{profile.login_count || 0}</div>
             <div className="text-xs text-gray-500 dark:text-gray-400">{lbl('Logins', 'Logins', 'Logins')}</div>
@@ -741,6 +751,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
               {profile.last_login_at ? formatDate(profile.last_login_at) : '-'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">{lbl('Último acesso', 'Last login', 'Último acceso')}</div>
+          </div>
           </div>
         </div>
 
@@ -766,7 +777,8 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         {/* Public actions (not self) */}
         {!isSelf && user && (
           <div className="px-6 pb-5">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <FollowButton targetUserId={profile.id} themeColor={themeColor} />
               <button
                 onClick={() => setChatOpen(true)}
                 disabled={isBlocked}
@@ -791,6 +803,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                   <><Ban className="h-4 w-4" /> {lbl('Bloquear', 'Block', 'Bloquear')}</>
                 )}
               </button>
+              <ReportButton targetUserId={profile.id} targetUserName={profile.username || profile.full_name || profile.id} variant="full" />
             </div>
             {isBlocked && (
               <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 text-center">
@@ -1294,6 +1307,17 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         <ChatModal
           otherUserId={profile.id}
           onClose={() => setChatOpen(false)}
+        />
+      )}
+
+      {/* Followers/Following modal */}
+      {followersModal && profile && (
+        <FollowersModal
+          isOpen={!!followersModal}
+          onClose={() => setFollowersModal(null)}
+          targetUserId={profile.id}
+          mode={followersModal}
+          themeColor={themeColor}
         />
       )}
     </div>
