@@ -9,6 +9,7 @@ import {
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useAuth } from './AuthProvider';
+import { useCart } from './CartProvider';
 import { supabase, StoreProduct, ProductVariation } from '../lib/supabase';
 import { fetchSingleSellerInfo, fetchAdminSellerInfo, fetchSellerInfo } from '../lib/sellerInfo';
 import { LoginModal } from './LoginModal';
@@ -60,6 +61,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
   const { user } = useAuth();
+  const { addItem, setIsOpen: setCartOpen } = useCart();
   const [storeConfig, setStoreConfig] = useState<{ store_name?: string; store_logo_url?: string; store_description?: string } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [relatedProducts, setRelatedProducts] = useState<ProductWithSeller[]>([]);
@@ -359,6 +361,30 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
       if (hasPending) { setShowRatingModal(true); return; }
       setShowConfirmModal(true);
     });
+  }
+
+  function handleAddToCart() {
+    if (!user) { setShowLoginModal(true); return; }
+    if (!product) return;
+    if (product.seller_id && product.seller_id === user.id) {
+      alert(lang === 'pt' ? 'Você não pode comprar seu próprio produto' : lang === 'en' ? 'You cannot buy your own product' : 'No puedes comprar tu propio producto');
+      return;
+    }
+    addItem({
+      productId: product.id,
+      name: product.name,
+      price: selectedVariation ? (selectedVariation.price_usd || product.price_usd) : (product.promotion_active && product.promotional_price_usd ? product.promotional_price_usd : product.price_usd),
+      image_url: product.image_url,
+      quantity: detailQuantity || 1,
+      variationId: selectedVariation?.id,
+      variationName: selectedVariation?.name,
+      seller_id: product.seller_id,
+      seller_name: product.seller_info?.business_name,
+      account_recharge: (product as any).account_recharge,
+      manual_delivery: product.manual_delivery,
+      auto_delivery: product.auto_delivery,
+    });
+    setCartOpen(true);
   }
 
   async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, _quantity?: number, variationId?: string | null) {
@@ -805,30 +831,41 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   </div>
                 )}
 
-                {/* Buy button */}
-                <button
-                  onClick={handleBuyNow}
-                  disabled={!isAvailable || purchasing}
-                  className={`w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-bold text-base transition-all ${
-                    !isAvailable
-                      ? 'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-500 cursor-not-allowed'
-                      : purchasing
-                      ? 'bg-gray-400 text-white cursor-wait'
-                      : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-xl shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98]'
-                  }`}
-                >
-                  {purchasing ? (
-                    <Loader className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <ShoppingCart className="h-5 w-5" />
+                {/* Buy + Cart buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleBuyNow}
+                    disabled={!isAvailable || purchasing}
+                    className={`flex-1 flex items-center justify-center gap-2 px-6 py-4 rounded-2xl font-bold text-base transition-all ${
+                      !isAvailable
+                        ? 'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-500 cursor-not-allowed'
+                        : purchasing
+                        ? 'bg-gray-400 text-white cursor-wait'
+                        : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-xl shadow-blue-500/30 hover:scale-[1.02] active:scale-[0.98]'
+                    }`}
+                  >
+                    {purchasing ? (
+                      <Loader className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ShoppingCart className="h-5 w-5" />
+                    )}
+                    <span>
+                      {!isAvailable ? tr.soldOut
+                        : user ? tr.buyNow
+                        : tr.signInToBuy}
+                    </span>
+                    {isAvailable && !purchasing && <ArrowRight className="h-4 w-4" />}
+                  </button>
+                  {isAvailable && user && (
+                    <button
+                      onClick={handleAddToCart}
+                      title={lang === 'pt' ? 'Adicionar ao carrinho' : lang === 'en' ? 'Add to cart' : 'Añadir al carrito'}
+                      className="flex items-center justify-center gap-2 px-4 py-4 rounded-2xl font-bold text-base bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
                   )}
-                  <span>
-                    {!isAvailable ? tr.soldOut
-                      : user ? tr.buyNow
-                      : tr.signInToBuy}
-                  </span>
-                  {isAvailable && !purchasing && <ArrowRight className="h-4 w-4" />}
-                </button>
+                </div>
                 <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">
                   {user ? tr.balance(userCredit?.balance || 0) : tr.signInOrRegister}
                 </p>
@@ -1008,6 +1045,60 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   )}
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Trust & Guarantee Section */}
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Guarantee */}
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+              <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-3">
+                <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="font-bold text-gray-900 dark:text-white mb-1.5">
+                {lang === 'pt' ? 'Garantia de Proteção' : lang === 'en' ? 'Protection Guarantee' : 'Garantía de Protección'}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                {lang === 'pt'
+                  ? `Este produto possui garantia de ${product.warranty_days || 15} dias. Se houver qualquer problema com sua compra durante o período de garantia, você tem direito a troca ou reembolso. Nós garantimos que receberá exatamente o que foi descrito no anúncio.`
+                  : lang === 'en'
+                  ? `This product has a ${product.warranty_days || 15}-day warranty. If there is any problem with your purchase during the warranty period, you are entitled to a replacement or refund. We guarantee you will receive exactly what was described in the listing.`
+                  : `Este producto tiene una garantía de ${product.warranty_days || 15} días. Si hay algún problema con su compra durante el período de garantía, tiene derecho a un reemplazo o reembolso. Garantizamos que recibirá exactamente lo descrito en el anuncio.`}
+              </p>
+            </div>
+
+            {/* Our role */}
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-3">
+                <BadgeCheck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <h3 className="font-bold text-gray-900 dark:text-white mb-1.5">
+                {lang === 'pt' ? 'Nossa Função na Venda' : lang === 'en' ? 'Our Role in the Sale' : 'Nuestra Función en la Venta'}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                {lang === 'pt'
+                  ? 'Somos a plataforma intermediadora da compra. Processamos o pagamento com segurança, garantimos a entrega do produto e cuidamos para que tanto comprador quanto vendedor cumpram suas obrigações. O pagamento ao vendedor só é liberado após a confirmação da entrega.'
+                  : lang === 'en'
+                  ? 'We are the intermediary platform for the purchase. We process the payment securely, ensure product delivery, and make sure both buyer and seller fulfill their obligations. Payment to the seller is only released after delivery confirmation.'
+                  : 'Somos la plataforma intermediadora de la compra. Procesamos el pago de forma segura, garantizamos la entrega del producto y nos aseguramos de que tanto el comprador como el vendedor cumplan sus obligaciones. El pago al vendedor solo se libera después de la confirmación de la entrega.'}
+              </p>
+            </div>
+
+            {/* Help & Support */}
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
+                <MessageCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 className="font-bold text-gray-900 dark:text-white mb-1.5">
+                {lang === 'pt' ? 'Precisa de Ajuda?' : lang === 'en' ? 'Need Help?' : '¿Necesitas Ayuda?'}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                {lang === 'pt'
+                  ? 'Se tiver qualquer problema com sua compra, abra um chamado no Suporte. Nossa equipe está disponível para mediar conversas com o vendedor, resolver disputas e garantir que você receba o que pagou. Acesse a aba "Suporte" no menu.'
+                  : lang === 'en'
+                  ? 'If you have any problem with your purchase, open a ticket in Support. Our team is available to mediate conversations with the seller, resolve disputes, and ensure you receive what you paid for. Access the "Support" tab in the menu.'
+                  : 'Si tienes algún problema con tu compra, abre un ticket en Soporte. Nuestro equipo está disponible para mediar conversaciones con el vendedor, resolver disputas y garantizar que recibas lo que pagaste. Accede a la pestaña "Soporte" en el menú.'}
+              </p>
             </div>
           </div>
 

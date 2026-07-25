@@ -32,7 +32,7 @@ import AdminSiteSettingsManager from './components/AdminSiteSettingsManager';
 import { AdminSecurityCenter } from './components/AdminSecurityCenter';
 
 import { AccountsAccessManager } from './components/AccountsAccessManager';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, ShoppingCart } from 'lucide-react';
 import { SupportSystem } from './components/SupportSystem';
 import { AdminSupportManager } from './components/AdminSupportManager';
 import { AdminDisputeManager } from './components/AdminDisputeManager';
@@ -76,6 +76,9 @@ import { AdminBannerManager } from './components/AdminBannerManager';
 import { AdminCouponsManager } from './components/AdminCouponsManager';
 import { NicknameSetupModal } from './components/NicknameSetupModal';
 import { ChatInbox } from './components/ChatInbox';
+import { CartPage } from './components/CartPage';
+import { CartDrawer } from './components/CartDrawer';
+import { useCart } from './components/CartProvider';
 
 import { AdminProductCategoriesManager } from './components/AdminProductCategoriesManager';
 import { CategorySearchPage } from './components/CategorySearchPage';
@@ -85,11 +88,29 @@ import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
 
 interface StoreConfig {
   store_name?: string;
   store_logo_url?: string;
+}
+
+function CartIconButton() {
+  const { items, totalItems, setIsOpen } = useCart();
+  return (
+    <button
+      onClick={() => setIsOpen(true)}
+      className="relative p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      title="Carrinho"
+    >
+      <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
+      {totalItems > 0 && (
+        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full text-[10px] font-bold bg-blue-600 text-white">
+          {totalItems}
+        </span>
+      )}
+    </button>
+  );
 }
 
 function AppContent() {
@@ -297,6 +318,8 @@ function AppContent() {
         }
         setCheckoutData(parsed || { productId, variationId: '', quantity: 1 });
         setActiveTab('checkout');
+      } else if (path.startsWith('cart')) {
+        setActiveTab('cart');
       } else if (path.startsWith('category/')) {
         const catSlug = path.replace('category/', '');
         setCategorySlug(catSlug);
@@ -335,7 +358,7 @@ function AppContent() {
 
   // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
-    if (!loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'category-search' && activeTab !== 'search-results') {
+    if (!loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'cart' && activeTab !== 'category-search' && activeTab !== 'search-results') {
       const currentPath = window.location.pathname.slice(1);
       if (currentPath !== activeTab) {
         window.history.pushState(null, '', `/${activeTab}`);
@@ -1073,6 +1096,8 @@ function AppContent() {
                   <span className="text-sm font-bold">${creditBalance.toFixed(2)}</span>
                 </button>
               )}
+              {/* Cart Button */}
+              <CartIconButton />
               {/* Chat Button - only for authenticated users */}
               {user && (
                 <button
@@ -1276,6 +1301,17 @@ function AppContent() {
               window.history.pushState(null, '', '/purchases');
             }}
           />
+        ) : activeTab === 'cart' ? (
+          <CartPage
+            onBack={() => {
+              setActiveTab('store');
+              window.history.pushState(null, '', '/store');
+            }}
+            onSuccess={() => {
+              setActiveTab('purchases');
+              window.history.pushState(null, '', '/purchases');
+            }}
+          />
         ) : (
         <div className="min-w-0">
           {/* Main Content - full width, no sidebar */}
@@ -1306,6 +1342,15 @@ function AppContent() {
 
       {/* Admin Popups */}
       <PopupDisplay />
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        onCheckout={() => {
+          setActiveTab('cart');
+          window.history.pushState(null, '', '/cart');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
 
       {showLoginModal && (
         <LoginModal

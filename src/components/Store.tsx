@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, Info, Wallet, Quote, type LucideIcon } from 'lucide-react';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, Info, Wallet, Quote, Plus, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
+import { useCart } from './CartProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
 import { useNotificationContext } from './NotificationProvider';
@@ -57,6 +58,7 @@ interface StoreProps {
 
 export function Store({ onNavigate }: StoreProps = {}) {
   const { user } = useAuth();
+  const { addItem, setIsOpen: setCartOpen } = useCart();
   const { t, language } = useLanguage();
   const { addNotification } = useNotificationContext();
   const { formatPrice } = useCurrency();
@@ -515,6 +517,24 @@ export function Store({ onNavigate }: StoreProps = {}) {
       setSelectedVariation(null);
       setShowConfirmModal(true);
     });
+  }
+
+  function handleAddToCart(product: ProductWithSeller) {
+    if (!user) { setShowLoginModal(true); return; }
+    if (product.seller_id && product.seller_id === user.id) return;
+    addItem({
+      productId: product.id,
+      name: product.name,
+      price: (product as any).promotion_active && (product as any).promotional_price_usd ? (product as any).promotional_price_usd : product.price_usd,
+      image_url: product.image_url,
+      quantity: 1,
+      seller_id: product.seller_id,
+      seller_name: product.seller_info?.business_name,
+      account_recharge: (product as any).account_recharge,
+      manual_delivery: product.manual_delivery,
+      auto_delivery: product.auto_delivery,
+    });
+    setCartOpen(true);
   }
 
   async function handleConfirmPurchase(couponCode?: string, rechargeData?: { email: string; password: string; extra_data: string }, useCashback?: boolean, quantity?: number, variationId?: string | null) {
@@ -1159,6 +1179,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             product={product}
             userCredit={userCredit}
             onPurchase={handlePurchase}
+            onAddToCart={handleAddToCart}
             onCardClick={() => {
               window.history.pushState(null, '', `/product/${product.id}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -1506,6 +1527,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             setSelectedProduct(null);
           }}
           onPurchase={handlePurchase}
+            onAddToCart={handleAddToCart}
           purchasing={purchasing}
           onViewSellerProfile={(sellerId) => {
             setSelectedSellerId(sellerId);
@@ -1774,13 +1796,14 @@ interface ProductCardProps {
   product: ProductWithSeller;
   userCredit: UserCredit | null;
   onPurchase: (product: ProductWithSeller) => void;
+  onAddToCart: (product: ProductWithSeller) => void;
   onCardClick: (product: ProductWithSeller) => void;
   purchasing: boolean;
   onViewSellerProfile: (sellerId: string | null, sellerSlug?: string) => void;
   currentUserId?: string;
 }
 
-function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing, onViewSellerProfile, currentUserId }: ProductCardProps) {
+function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick, purchasing, onViewSellerProfile, currentUserId }: ProductCardProps) {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
   const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
@@ -1923,32 +1946,46 @@ function ProductCard({ product, userCredit, onPurchase, onCardClick, purchasing,
         </div>
 
         {/* Actions */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPurchase(product);
-          }}
-          disabled={isOwnProduct || !isAvailable || purchasing}
-          className={`w-full px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
-            !isOwnProduct && isAvailable && !purchasing
-              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {purchasing ? (
-            <Loader className="h-4 w-4 animate-spin" />
-          ) : (
-            <ShoppingCart className="h-4 w-4" />
+        <div className="flex gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onPurchase(product);
+            }}
+            disabled={isOwnProduct || !isAvailable || purchasing}
+            className={`flex-1 px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
+              !isOwnProduct && isAvailable && !purchasing
+                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {purchasing ? (
+              <Loader className="h-4 w-4 animate-spin" />
+            ) : (
+              <ShoppingCart className="h-4 w-4" />
+            )}
+            <span>
+              {isOwnProduct ?
+                (t.language === 'pt' ? 'Seu Produto' : t.language === 'en' ? 'Your Product' : 'Tu Producto') :
+                !isAvailable ?
+                (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado') :
+                (t.language === 'pt' ? 'Comprar' : t.language === 'en' ? 'Buy' : 'Comprar')
+              }
+            </span>
+          </button>
+          {isAvailable && !isOwnProduct && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToCart(product);
+              }}
+              title={t.language === 'pt' ? 'Adicionar ao carrinho' : t.language === 'en' ? 'Add to cart' : 'Añadir al carrito'}
+              className="px-2.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all flex items-center justify-center"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           )}
-          <span>
-            {isOwnProduct ?
-              (t.language === 'pt' ? 'Seu Produto' : t.language === 'en' ? 'Your Product' : 'Tu Producto') :
-              !isAvailable ?
-              (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado') :
-              (t.language === 'pt' ? 'Comprar' : t.language === 'en' ? 'Buy' : 'Comprar')
-            }
-          </span>
-        </button>
+        </div>
       </div>
     </div>
   );
