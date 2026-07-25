@@ -128,7 +128,7 @@ async function createDMChannel(botToken: string, userId: string): Promise<string
   }
 }
 
-async function sendDiscordEmbed(botToken: string, channelId: string, embed: any): Promise<boolean> {
+async function sendDiscordEmbed(botToken: string, channelId: string, embed: any): Promise<{ ok: boolean; error: string | null }> {
   try {
     const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
       method: "POST",
@@ -138,9 +138,13 @@ async function sendDiscordEmbed(botToken: string, channelId: string, embed: any)
       },
       body: JSON.stringify({ embeds: [embed] }),
     });
-    return res.ok;
-  } catch {
-    return false;
+    if (!res.ok) {
+      const errBody = await res.text();
+      return { ok: false, error: `Discord API ${res.status}: ${errBody}` };
+    }
+    return { ok: true, error: null };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
@@ -238,12 +242,18 @@ Deno.serve(async (req: Request) => {
         }).select("*").single();
       }
 
-      await sendDiscordEmbed(botToken, dmChannel, {
+      const dmResult = await sendDiscordEmbed(botToken, dmChannel, {
         title: "🔐 Verificação de Conta",
         description: `Seu código de verificação é:\n\n# **${code}**\n\nEste código expira em 10 minutos. Digite-o no site para vincular sua conta Discord.`,
         color: 5814783,
         footer: { text: "Se você não solicitou isso, ignore esta mensagem." },
       });
+
+      if (!dmResult.ok) {
+        return new Response(JSON.stringify({ error: `Não foi possível enviar a mensagem no Discord. Verifique se o bot compartilha um servidor com você e se suas DMs estão abertas. (${dmResult.error})` }), {
+          status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       return new Response(JSON.stringify({ success: true, message: "Verification code sent to Discord DM" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -301,6 +311,7 @@ Deno.serve(async (req: Request) => {
             color: 3066993,
           });
         }
+        // confirmation DM is best-effort; verification already succeeded
       }
 
       return new Response(JSON.stringify({ success: true, message: "Discord account verified" }), {
@@ -378,7 +389,7 @@ Deno.serve(async (req: Request) => {
         footer: { text: "Notificações da Plataforma" },
       });
 
-      return new Response(JSON.stringify({ success: sent, message: sent ? "Notification sent" : "Failed to send" }), {
+      return new Response(JSON.stringify({ success: sent.ok, message: sent.ok ? "Notification sent" : `Failed to send: ${sent.error}` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
