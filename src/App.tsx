@@ -57,6 +57,7 @@ import { AdminSMMOrders } from './components/AdminSMMOrders';
 import AdminCommunityManager from './components/AdminCommunityManager';
 import Blog from './components/Blog';
 import { AdminSellersStoresManager } from './components/AdminSellersStoresManager';
+import { AdminSellerRequests } from './components/AdminSellerRequests';
 import { ExpiringItemsChat } from './components/ExpiringItemsChat';
 import { FlyingBalloon } from './components/FlyingBalloon';
 import { AdminNetflixAccounts } from './components/AdminNetflixAccounts';
