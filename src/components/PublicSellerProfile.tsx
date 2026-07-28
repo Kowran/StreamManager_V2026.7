@@ -317,11 +317,17 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                     {profile?.full_name || 'Usuário'}
                   </h2>
-                  <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                    profile?.role === 'admin'
-                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                      : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                  }`}>
+                  <span
+                    className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium cursor-help ${
+                      profile?.role === 'admin'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                    }`}
+                    title={profile?.role === 'admin'
+                      ? lbl('Administrador: este usuario e um administrador da plataforma com acesso total ao sistema.', 'Administrator: this user is a platform administrator with full system access.', 'Administrador: este usuario es un administrador de la plataforma con acceso total al sistema.')
+                      : lbl('Vendedor: este usuario e um vendedor autorizado na plataforma.', 'Seller: this user is an authorized seller on the platform.', 'Vendedor: este usuario es un vendedor autorizado en la plataforma.')
+                    }
+                  >
                     {profile?.role === 'admin'
                       ? <><Shield className="w-3 h-3" /> Admin</>
                       : <><Award className="w-3 h-3" /> {lbl('Vendedor', 'Seller', 'Vendedor')}</>

@@ -471,7 +471,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                 )}
               </div>
               {/* Verified badge */}
-              <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1.5 border-2 border-white dark:border-gray-800 shadow-md">
+              <div
+                className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1.5 border-2 border-white dark:border-gray-800 shadow-md cursor-help"
+                title={t.language === 'pt' ? 'Vendedor verificado: este vendedor passou por uma verificacao de identidade e e confiavel.' : t.language === 'en' ? 'Verified seller: this seller has passed identity verification and is trustworthy.' : 'Vendedor verificado: este vendedor ha pasado una verificacion de identidad y es confiable.'}
+              >
                 <CheckCircle className="w-4 h-4 text-white" />
               </div>
             </div>
@@ -514,7 +517,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               </h1>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+              <span
+                className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-help"
+                title={t.language === 'pt' ? `Vendedor: este usuario e um vendedor autorizado na plataforma.` : t.language === 'en' ? `Seller: this user is an authorized seller on the platform.` : `Vendedor: este usuario es un vendedor autorizado en la plataforma.`}
+              >
                 <Store className="w-3 h-3" />
                 {getRoleLabel(profile.role)}
               </span>
@@ -524,7 +530,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
                 <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel clickable language={t.language} />
               )}
-              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+              <span
+                className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 cursor-help"
+                title={t.language === 'pt' ? 'Verificado: a identidade deste vendedor foi confirmada pela nossa equipe. E um sinal de confianca e seguranca.' : t.language === 'en' ? 'Verified: this seller identity has been confirmed by our team. It is a sign of trust and security.' : 'Verificado: la identidad de este vendedor ha sido confirmada por nuestro equipo. Es una senal de confianza y seguridad.'}
+              >
                 <BadgeCheck className="w-3 h-3" />
                 {t.language === 'pt' ? 'Verificado' : t.language === 'en' ? 'Verified' : 'Verificado'}
               </span>

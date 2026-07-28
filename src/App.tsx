@@ -8,6 +8,7 @@ import { LanguageProvider, useLanguage } from './components/LanguageProvider';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { LanguageSelector } from './components/LanguageSelector';
 import { LoginModal } from './components/LoginModal';
+import { LoginPage } from './components/LoginPage';
 import { CurrencySelector } from './components/CurrencySelector';
 import { CurrencyProvider } from './components/CurrencyProvider';
 import { UserMenu } from './components/UserMenu';
@@ -124,6 +125,7 @@ function AppContent() {
   const [productDetailId, setProductDetailId] = useState<string | null>(null);
   const [checkoutData, setCheckoutData] = useState<{ productId: string; variationId: string; quantity: number } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showLoginPage, setShowLoginPage] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
@@ -177,7 +179,7 @@ function AppContent() {
       setActiveTab('seller-recruitment');
       window.history.pushState(null, '', '/seller-recruitment');
     } else {
-      setShowLoginModal(true);
+      setShowLoginPage(true);
       return;
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1150,7 +1152,7 @@ function AppContent() {
                     {theme === 'dark' ? <Sun className="h-4 w-4 sm:h-5 sm:w-5" /> : <Moon className="h-4 w-4 sm:h-5 sm:w-5" />}
                   </button>
                   <button
-                    onClick={() => setShowLoginModal(true)}
+                    onClick={() => setShowLoginPage(true)}
                     className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                   >
                     <LogIn className="h-4 w-4 mr-1.5" />
@@ -1308,7 +1310,7 @@ function AppContent() {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onGetStarted={() => {
-              setShowLoginModal(true);
+              setShowLoginPage(true);
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -1383,6 +1385,12 @@ function AppContent() {
         }}
       />
 
+              {showLoginPage && (
+        <LoginPage
+          onLoginSuccess={() => setShowLoginPage(false)}
+          onBack={() => setShowLoginPage(false)}
+        />
+      )}
       {showLoginModal && (
         <LoginModal
           isOpen={showLoginModal}

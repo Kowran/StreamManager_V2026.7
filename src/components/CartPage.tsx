@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Minus, Plus, ShoppingCart, ArrowLeft, Loader, CheckCircle2, AlertCircle, ShieldCheck, Headphones as HeadphonesIcon, Lock } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingCart, ArrowLeft, Loader, CheckCircle2, AlertCircle, ShieldCheck, Headphones as HeadphonesIcon, Lock, Mail, Zap, FileText, X } from 'lucide-react';
 import { useCart } from './CartProvider';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -21,6 +21,10 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [creditBalance, setCreditBalance] = useState(0);
+  const [showRechargeForm, setShowRechargeForm] = useState(false);
+  const [rechargeItems, setRechargeItems] = useState<typeof items>([]);
+  const [rechargeDataMap, setRechargeDataMap] = useState<Record<string, { email: string; password: string; extra_data: string }>>({});
+  const [rechargeError, setRechargeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -31,8 +35,29 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
   }, [user]);
 
   const shortfall = Math.max(0, totalPrice - creditBalance);
+  const hasRechargeItems = items.some(item => item.account_recharge);
 
   const handleCheckout = async () => {
+    if (!user) return;
+
+    if (hasRechargeItems) {
+      const rItems = items.filter(item => item.account_recharge);
+      setRechargeItems(rItems);
+      const initialMap: Record<string, { email: string; password: string; extra_data: string }> = {};
+      rItems.forEach(item => {
+        const key = `${item.productId}-${item.variationId || ''}`;
+        initialMap[key] = { email: '', password: '', extra_data: '' };
+      });
+      setRechargeDataMap(initialMap);
+      setRechargeError(null);
+      setShowRechargeForm(true);
+      return;
+    }
+
+    processCheckout();
+  };
+
+  const processCheckout = async () => {
     if (!user) return;
     setProcessing(true);
     setError(null);
@@ -45,6 +70,9 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
       let lastError: string | null = null;
 
       for (const item of items) {
+        const key = `${item.productId}-${item.variationId || ''}`;
+        const rechargeData = item.account_recharge ? rechargeDataMap[key] : undefined;
+
         const res = await fetch(`${supabaseUrl}/functions/v1/process-store-purchase`, {
           method: 'POST',
           headers: {
@@ -56,6 +84,7 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
             product_id: item.productId,
             quantity: item.quantity,
             variation_id: item.variationId || undefined,
+            recharge_data: rechargeData,
           }),
         });
         if (res.ok) {
@@ -81,6 +110,26 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
     }
   };
 
+  const confirmRechargeAndCheckout = () => {
+    for (const item of rechargeItems) {
+      const key = `${item.productId}-${item.variationId || ''}`;
+      const data = rechargeDataMap[key];
+      if (!data || !data.email.trim() || !data.password.trim()) {
+        setRechargeError(
+          tr(
+            `Preencha email e senha para "${item.name}"`,
+            `Fill in email and password for "${item.name}"`,
+            `Completa email y contraseña para "${item.name}"`
+          )
+        );
+        return;
+      }
+    }
+    setRechargeError(null);
+    setShowRechargeForm(false);
+    processCheckout();
+  };
+
   if (success) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -100,6 +149,150 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
           >
             {tr('Ver Minhas Compras', 'View My Purchases', 'Ver Mis Compras')}
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showRechargeForm) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+                  <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {tr('Dados para Recarga', 'Recharge Data', 'Datos para Recarga')}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowRechargeForm(false)}
+                disabled={processing}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-amber-700 dark:text-amber-400 mb-4">
+              {tr(
+                'Alguns itens são produtos de recarga. Forneça os dados da conta que será recarregada.',
+                'Some items are recharge products. Provide the account credentials to be recharged.',
+                'Algunos artículos son productos de recarga. Proporciona los datos de la cuenta que será recargada.'
+              )}
+            </p>
+
+            <div className="space-y-4">
+              {rechargeItems.map((item) => {
+                const key = `${item.productId}-${item.variationId || ''}`;
+                const data = rechargeDataMap[key] || { email: '', password: '', extra_data: '' };
+                return (
+                  <div key={key} className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ShoppingCart className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {tr('Email da conta *', 'Account email *', 'Email de la cuenta *')}
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="email"
+                          value={data.email}
+                          onChange={(e) => {
+                            setRechargeDataMap(prev => ({ ...prev, [key]: { ...prev[key], email: e.target.value } }));
+                            setRechargeError(null);
+                          }}
+                          placeholder="email@exemplo.com"
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {tr('Senha da conta *', 'Account password *', 'Contraseña de la cuenta *')}
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={data.password}
+                          onChange={(e) => {
+                            setRechargeDataMap(prev => ({ ...prev, [key]: { ...prev[key], password: e.target.value } }));
+                            setRechargeError(null);
+                          }}
+                          placeholder="********"
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {tr('Dados extras (opcional)', 'Extra data (optional)', 'Datos extras (opcional)')}
+                      </label>
+                      <div className="relative">
+                        <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <textarea
+                          value={data.extra_data}
+                          onChange={(e) => setRechargeDataMap(prev => ({ ...prev, [key]: { ...prev[key], extra_data: e.target.value } }))}
+                          placeholder={tr('Perfil, PIN, observações...', 'Profile, PIN, notes...', 'Perfil, PIN, observaciones...')}
+                          rows={2}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm resize-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {rechargeError && (
+              <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 mt-3">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <p className="text-xs">{rechargeError}</p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+              <button
+                onClick={() => setShowRechargeForm(false)}
+                disabled={processing}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {tr('Cancelar', 'Cancel', 'Cancelar')}
+              </button>
+              <button
+                onClick={confirmRechargeAndCheckout}
+                disabled={processing}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {processing ? (
+                  <>
+                    <Loader className="h-4 w-4 animate-spin" />
+                    {tr('Processando...', 'Processing...', 'Procesando...')}
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    {tr('Confirmar e Finalizar', 'Confirm & Checkout', 'Confirmar y Finalizar')}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -143,9 +336,9 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
                 key={`${item.productId}-${item.variationId || ''}`}
                 className="flex gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
               >
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                   {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                    <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <ShoppingCart className="h-8 w-8 text-gray-400" />
@@ -154,6 +347,12 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>
+                  {item.account_recharge && (
+                    <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      <Zap className="h-2.5 w-2.5" />
+                      {tr('Recarga', 'Recharge', 'Recarga')}
+                    </span>
+                  )}
                   {item.variationName && (
                     <p className="text-sm text-gray-500 dark:text-gray-400">{item.variationName}</p>
                   )}

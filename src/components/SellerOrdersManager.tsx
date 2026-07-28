@@ -584,7 +584,7 @@ export function SellerOrdersManager() {
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
                       {order.product_image ? (
-                        <img src={order.product_image} alt={order.product_name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0 border border-gray-200 dark:border-gray-600" />
+                        <img src={order.product_image} alt={order.product_name} className="w-9 h-9 rounded-lg object-contain flex-shrink-0 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50" />
                       ) : (
                         <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                           <Package className="h-4 w-4 text-blue-500 dark:text-blue-400" />
@@ -658,7 +658,7 @@ export function SellerOrdersManager() {
               <div className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
                   {order.product_image ? (
-                    <img src={order.product_image} alt={order.product_name} className="w-11 h-11 rounded-lg object-cover flex-shrink-0 border border-gray-200 dark:border-gray-600" />
+                    <img src={order.product_image} alt={order.product_name} className="w-11 h-11 rounded-lg object-contain flex-shrink-0 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50" />
                   ) : (
                     <div className="w-11 h-11 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                       <Package className="h-5 w-5 text-blue-500 dark:text-blue-400" />
@@ -746,7 +746,7 @@ export function SellerOrdersManager() {
 
               {selectedOrder.product_image && (
                 <div className="flex items-center gap-3 py-2">
-                  <img src={selectedOrder.product_image} alt={selectedOrder.product_name} className="w-14 h-14 rounded-xl object-cover border border-gray-200 dark:border-gray-600" />
+                  <img src={selectedOrder.product_image} alt={selectedOrder.product_name} className="w-14 h-14 rounded-xl object-contain border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50" />
                   <div>
                     <span className="text-sm text-gray-500 dark:text-gray-400">{lbl('Produto', 'Product', 'Producto')}</span>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedOrder.product_name}</p>

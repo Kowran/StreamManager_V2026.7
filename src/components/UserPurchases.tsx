@@ -491,14 +491,15 @@ export function UserPurchases() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center space-x-3 sm:space-x-4">
                   <div className="flex-shrink-0">
-                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center">
                       {purchase.store_products?.image_url ? (
                         <img
                           src={purchase.store_products.image_url}
                           alt={purchase.product_name}
-                          className={`w-full h-full object-contain transition-all ${
+                          className={`max-w-full max-h-full object-contain transition-all ${
                             isCancelled(purchase) || isExpired(purchase.purchase_date) ? 'grayscale opacity-60' : ''
-                          }`}
+                          }`
+                          }
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
@@ -838,12 +839,12 @@ export function UserPurchases() {
                 <div className="flex items-start space-x-4 mb-4">
                   {/* Product Image */}
                   <div className="flex-shrink-0">
-                    <div className="h-20 w-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                    <div className="h-20 w-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-center">
                       {selectedPurchase.store_products?.image_url ? (
                         <img
                           src={selectedPurchase.store_products.image_url}
                           alt={selectedPurchase.product_name}
-                          className={`w-full h-full object-contain ${
+                          className={`max-w-full max-h-full object-contain ${
                             isCancelled(selectedPurchase) || isExpired(selectedPurchase.purchase_date) ? 'grayscale opacity-60' : ''
                           }`}
                           onError={(e) => {

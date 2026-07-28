@@ -289,9 +289,9 @@ export function SellerProductsManager() {
               >
                 {/* Product info with image */}
                 <div className="col-span-4 flex items-center gap-4">
-                  <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
+                  <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600 flex items-center justify-center">
                     {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="w-full h-full object-contain" />
+                      <img src={product.image_url} alt={product.name} className="max-w-full max-h-full object-contain" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <ImageIcon className="h-5 w-5 text-gray-400" />
@@ -402,9 +402,9 @@ export function SellerProductsManager() {
         {filteredProducts.map((product) => (
           <div key={product.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-start gap-3">
-              <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
+              <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600 flex items-center justify-center">
                 {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-contain" />
+                  <img src={product.image_url} alt={product.name} className="max-w-full max-h-full object-contain" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon className="h-6 w-6 text-gray-400" />
@@ -621,7 +621,7 @@ function ProductFormPage({
           >
             {imagePreview ? (
               <div className="relative w-full h-[280px] group">
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
+                <img src={imagePreview} alt="Preview" className="max-w-full max-h-full object-contain" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                   <div className="flex items-center gap-2">
                     <button
@@ -1170,7 +1170,19 @@ function InventoryPage({
   }
 
   function updateNewItem(index: number, field: keyof InventoryItem, value: string) {
-    setNewItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+    setNewItems(prev => {
+      const next = prev.map((item, i) => i === index ? { ...item, [field]: value } : item);
+      const isLast = index === prev.length - 1;
+      const currentItem = next[index];
+      const hasContent = currentItem.email.trim() && currentItem.password.trim();
+      if (isLast && hasContent && (field === 'email' || field === 'password')) {
+        next.push({
+          email: '', password: '',
+          instructions: lbl('Use estas credenciais para acessar sua conta.', 'Use these credentials to access your account.', 'Use estas credenciales para acceder a tu cuenta.')
+        });
+      }
+      return next;
+    });
   }
 
   function removeNewItem(index: number) {
@@ -1323,7 +1335,13 @@ function InventoryPage({
               </h3>
               <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
                 <button
-                  onClick={() => { setBulkMode(false); setNewItems([]); }}
+                  onClick={() => {
+                    setBulkMode(false);
+                    setNewItems(prev => prev.length > 0 && prev.some(i => i.email.trim() || i.password.trim()) ? prev : [{
+                      email: '', password: '',
+                      instructions: lbl('Use estas credenciais para acessar sua conta.', 'Use these credentials to access your account.', 'Use estas credenciales para acceder a tu cuenta.')
+                    }]);
+                  }}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${!bulkMode ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500'}`}
                 >
                   {lbl('Individual', 'Individual', 'Individual')}
@@ -1391,7 +1409,7 @@ function InventoryPage({
                   <div className="text-center py-6 bg-gray-50 dark:bg-gray-700/30 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
                     <Boxes className="h-8 w-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
                     <p className="text-sm text-gray-400">
-                      {lbl('Nenhuma nova conta adicionada', 'No new accounts added', 'Sin cuentas nuevas')}
+                      {lbl('Clique em "Adicionar Conta" para comecar', 'Click "Add Account" to start', 'Haga clic en "Añadir Cuenta" para empezar')}
                     </p>
                   </div>
                 )}
