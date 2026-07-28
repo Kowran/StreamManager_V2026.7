@@ -1,9 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  Wallet, RefreshCw, Plus, Calendar, CheckCircle, ChevronLeft, ChevronRight,
-  TrendingUp, Eye, AlertCircle, ArrowUpRight, ArrowDownRight, Gift, Sparkles,
-  CreditCard, Zap, Clock, History,
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { DollarSign, CreditCard, RefreshCw, Plus, Calendar, Clock, CheckCircle, ChevronLeft, ChevronRight, Wallet, TrendingUp, Eye, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -57,22 +53,6 @@ const PAYMENT_METHOD_META: Record<string, { icon: string; description: string; f
   infinitepay: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, Cartão (Brasil)', fees: 'Taxa zero no PIX', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
 };
 
-const TX_META: Record<string, { icon: typeof Plus; color: string; bg: string; label: string }> = {
-  recharge: { icon: Plus, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30', label: 'Recarga' },
-  purchase: { icon: ArrowUpRight, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/30', label: 'Compra' },
-  refund: { icon: RefreshCw, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/30', label: 'Reembolso' },
-  bonus: { icon: Gift, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30', label: 'Bônus' },
-  admin_adjustment: { icon: Eye, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/30', label: 'Ajuste Admin' },
-};
-
-function getTxMeta(type: string) {
-  return TX_META[type] || { icon: Wallet, color: 'text-gray-600 dark:text-gray-400', bg: 'bg-gray-50 dark:bg-gray-700', label: type };
-}
-
-function tr(pt: string, en: string, es: string, lang: string) {
-  return lang === 'pt' ? pt : lang === 'en' ? en : es;
-}
-
 export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { presetRechargeAmount?: number; onRechargeComplete?: () => void } = {}) {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -85,10 +65,10 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
   const [rechargeAmount, setRechargeAmount] = useState<number>(presetRechargeAmount || 10);
   const [customAmount, setCustomAmount] = useState<string>(presetRechargeAmount ? String(presetRechargeAmount) : '');
   const [currentPage, setCurrentPage] = useState(1);
+  const transactionsPerPage = 10;
   const [cashbackBalance, setCashbackBalance] = useState<number>(0);
   const [activeMethods, setActiveMethods] = useState<PaymentMethodConfig[]>([]);
-  const paymentMethodsRef = useRef<HTMLDivElement>(null);
-  const transactionsPerPage = 8;
+  const paymentMethodsRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user) {
@@ -111,10 +91,25 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
 
   async function loadUserCredit() {
     if (!user) return;
+
     try {
-      const { data, error } = await supabase.from('user_credits').select('*').eq('user_id', user.id).single();
-      if (error && error.code !== 'PGRST116') throw error;
-      setUserCredit(data || { balance: 0, total_recharged: 0, total_spent: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+      const { data, error } = await supabase
+        .from('user_credits')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      setUserCredit(data || {
+        balance: 0,
+        total_recharged: 0,
+        total_spent: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
     } catch (error) {
       console.error('Error loading user credit:', error);
     }
@@ -122,8 +117,15 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
 
   async function loadTransactions() {
     if (!user) return;
+
     try {
-      const { data, error } = await supabase.from('credit_transactions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(100);
+      const { data, error } = await supabase
+        .from('credit_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
       if (error) throw error;
       setTransactions(data || []);
     } catch (error) {
@@ -135,8 +137,14 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
 
   async function loadCashbackBalance() {
     if (!user) return;
+
     try {
-      const { data, error } = await supabase.from('user_sm_credits').select('balance').eq('user_id', user.id).maybeSingle();
+      const { data, error } = await supabase
+        .from('user_sm_credits')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
       if (error && error.code !== 'PGRST116') throw error;
       setCashbackBalance(data?.balance || 0);
     } catch (error) {
@@ -144,9 +152,15 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
     }
   }
 
+  const quickAmounts = [5, 10, 20, 50, 100];
+
   async function fetchActiveMethods() {
     try {
-      const { data, error } = await supabase.from('payment_methods_config').select('method_id, name, is_active, status, display_order').eq('status', 'active').order('display_order', { ascending: true });
+      const { data, error } = await supabase
+        .from('payment_methods_config')
+        .select('method_id, name, is_active, status, display_order')
+        .eq('status', 'active')
+        .order('display_order', { ascending: true });
       if (error) throw error;
       setActiveMethods(data || []);
     } catch (error) {
@@ -154,13 +168,20 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
     }
   }
 
-  const quickAmounts = [5, 10, 20, 50, 100];
-
   function handlePaymentMethodSelect(methodId: string, amount: number) {
     const method = PAYMENT_METHOD_META[methodId];
     if (!method) return;
-    if (amount < (method.min_amount || 1)) { alert(`Valor mínimo: ${method.min_amount || 1}`); return; }
-    if (amount > (method.max_amount || 1000)) { alert(`Valor máximo: ${method.max_amount || 1000}`); return; }
+
+    if (amount < (method.min_amount || 1)) {
+      alert(`Valor mínimo: ${method.min_amount || 1}`);
+      return;
+    }
+
+    if (amount > (method.max_amount || 1000)) {
+      alert(`Valor máximo: ${method.max_amount || 1000}`);
+      return;
+    }
+
     setSelectedPaymentMethod(methodId);
     setShowPaymentModal(true);
   }
@@ -173,140 +194,160 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
     setSelectedPaymentMethod('');
   }
 
+  function getTransactionIcon(type: string) {
+    switch (type) {
+      case 'recharge':
+        return <Plus className="h-4 w-4 text-green-600" />;
+      case 'purchase':
+        return <DollarSign className="h-4 w-4 text-red-600" />;
+      case 'refund':
+        return <RefreshCw className="h-4 w-4 text-blue-600" />;
+      case 'bonus':
+        return <TrendingUp className="h-4 w-4 text-purple-600" />;
+      case 'admin_adjustment':
+        return <Eye className="h-4 w-4 text-orange-600" />;
+      default:
+        return <DollarSign className="h-4 w-4 text-gray-600" />;
+    }
+  }
+
+  function getTransactionColor(type: string) {
+    switch (type) {
+      case 'recharge':
+      case 'refund':
+      case 'bonus':
+        return 'text-green-600 dark:text-green-400';
+      case 'purchase':
+        return 'text-red-600 dark:text-red-400';
+      case 'admin_adjustment':
+        return 'text-orange-600 dark:text-orange-400';
+      default:
+        return 'text-gray-600 dark:text-gray-400';
+    }
+  }
+
+  function getTransactionLabel(type: string) {
+    switch (type) {
+      case 'recharge': return 'Recarga';
+      case 'purchase': return 'Compra';
+      case 'refund': return 'Reembolso';
+      case 'bonus': return 'Bônus';
+      case 'admin_adjustment': return 'Ajuste Admin';
+      default: return type;
+    }
+  }
+
+  // Pagination logic
   const totalPages = Math.ceil(transactions.length / transactionsPerPage);
   const startIndex = (currentPage - 1) * transactionsPerPage;
   const endIndex = startIndex + transactionsPerPage;
   const currentTransactions = transactions.slice(startIndex, endIndex);
 
-  useEffect(() => { setCurrentPage(1); }, [transactions.length]);
-
-  const balance = userCredit?.balance || 0;
-  const totalRecharged = userCredit?.total_recharged || 0;
-  const totalSpent = userCredit?.total_spent || 0;
+  // Reset to first page when transactions change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [transactions.length]);
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-500 border-t-transparent" />
-        <p className="text-sm text-gray-500 dark:text-gray-400">{tr('Carregando...', 'Loading...', 'Cargando...', t.language)}</p>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
-      {/* Hero Balance Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-10 shadow-xl">
-        {/* Decorative blobs */}
-        <div className="absolute -top-12 -right-12 w-48 h-48 bg-blue-500/15 rounded-full blur-3xl" />
-        <div className="absolute -bottom-16 -left-8 w-56 h-56 bg-emerald-500/10 rounded-full blur-3xl" />
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t.myCredits}</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          {t.language === 'pt' ? 'Gerencie seus créditos e histórico de transações' :
+           t.language === 'en' ? 'Manage your credits and transaction history' :
+           'Gestiona tus créditos e historial de transacciones'}
+        </p>
+      </div>
 
-        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+      {/* Balance Card */}
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-lg">
+        <div className="flex items-center justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center backdrop-blur-sm">
-                <Wallet className="h-4 w-4 text-blue-300" />
-              </div>
-              <span className="text-sm font-medium text-slate-400">
-                {tr('Saldo Disponível', 'Available Balance', 'Saldo Disponible', t.language)}
-              </span>
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="h-4 w-4 text-slate-400" />
+              <h3 className="text-sm font-medium text-slate-400">
+                {t.language === 'pt' ? 'Saldo Disponível' : t.language === 'en' ? 'Available Balance' : 'Saldo Disponible'}
+              </h3>
             </div>
-            <div className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white">
-              {formatPrice(balance)}
+            <div className="text-4xl sm:text-5xl font-bold tracking-tight">
+              {formatPrice(userCredit?.balance || 0)}
             </div>
             {cashbackBalance > 0 && (
-              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30">
-                <Gift className="h-3.5 w-3.5 text-amber-300" />
-                <span className="text-xs sm:text-sm font-medium text-amber-200">
-                  {tr('Cashback', 'Cashback', 'Cashback', t.language)}: {formatPrice(cashbackBalance)}
-                </span>
-              </div>
+              <p className="text-slate-400 text-xs sm:text-sm mt-3 flex items-center gap-1.5">
+                <CheckCircle className="h-3.5 w-3.5 text-yellow-500" />
+                {t.language === 'pt' ? `Cashback disponível: ${formatPrice(cashbackBalance)}` : t.language === 'en' ? `Cashback available: ${formatPrice(cashbackBalance)}` : `Cashback disponible: ${formatPrice(cashbackBalance)}`}
+              </p>
             )}
           </div>
-
-          {/* Stats column */}
-          <div className="flex sm:flex-col gap-3 sm:gap-3">
-            <div className="flex-1 sm:flex-none rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">{tr('Total Recarregado', 'Total Recharged', 'Total Recargado', t.language)}</span>
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-white">{formatPrice(totalRecharged)}</p>
-            </div>
-            <div className="flex-1 sm:flex-none rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <ArrowUpRight className="h-3.5 w-3.5 text-rose-400" />
-                <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">{tr('Total Gasto', 'Total Spent', 'Total Gastado', t.language)}</span>
-              </div>
-              <p className="text-lg sm:text-xl font-bold text-white">{formatPrice(totalSpent)}</p>
+          <div className="text-right">
+            <div className="bg-white bg-opacity-10 p-3 rounded-xl">
+              <DollarSign className="h-7 w-7 sm:h-9 sm:w-9" />
             </div>
           </div>
         </div>
       </div>
 
+
       {/* Recharge Section */}
-      <div ref={paymentMethodsRef} className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 p-5 sm:p-8 scroll-mt-20">
-        <div className="flex items-center gap-3 mb-5 sm:mb-7">
-          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-            <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-              {tr('Recarregar Créditos', 'Recharge Credits', 'Recargar Créditos', t.language)}
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {tr('Escolha um valor e método de pagamento', 'Choose an amount and payment method', 'Elige un monto y método de pago', t.language)}
-            </p>
-          </div>
-        </div>
+      <div ref={paymentMethodsRef} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6 scroll-mt-20">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4 sm:mb-6">
+          {t.language === 'pt' ? 'Recarregar Créditos' : t.language === 'en' ? 'Recharge Credits' : 'Recargar Créditos'}
+        </h3>
 
         {presetRechargeAmount && presetRechargeAmount > 0 && (
-          <div className="mb-5 sm:mb-6 p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-center gap-2.5">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-2">
             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <p className="text-sm text-amber-800 dark:text-amber-300">
-              {tr(
-                `Saldo insuficiente para sua compra. Recarregue pelo menos ${formatPrice(presetRechargeAmount)} e escolha o método de pagamento abaixo.`,
-                `Insufficient balance for your purchase. Recharge at least ${formatPrice(presetRechargeAmount)} and choose a payment method below.`,
-                `Saldo insuficiente para su compra. Recarga al menos ${formatPrice(presetRechargeAmount)} y elige un método de pago abajo.`,
-                t.language
-              )}
+              {t.language === 'pt'
+                ? `Saldo insuficiente para sua compra. Recarregue pelo menos ${formatPrice(presetRechargeAmount)} e escolha o método de pagamento abaixo.`
+                : t.language === 'en'
+                ? `Insufficient balance for your purchase. Recharge at least ${formatPrice(presetRechargeAmount)} and choose a payment method below.`
+                : `Saldo insuficiente para su compra. Recarga al menos ${formatPrice(presetRechargeAmount)} y elige un método de pago abajo.`}
             </p>
           </div>
         )}
 
         {/* Quick Amount Selection */}
-        <div className="mb-5 sm:mb-6">
-          <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2.5">
-            {tr('Valores Rápidos', 'Quick Amounts', 'Montos Rápidos', t.language)}
+        <div className="mb-4 sm:mb-6">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">
+            {t.language === 'pt' ? 'Valores Rápidos' : t.language === 'en' ? 'Quick Amounts' : 'Montos Rápidos'}
           </label>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {quickAmounts.map((amount) => (
               <button
                 key={amount}
-                onClick={() => { setRechargeAmount(amount); setCustomAmount(String(amount)); }}
-                className={`relative py-3 sm:py-3.5 rounded-xl text-center font-bold transition-all duration-200 ${
+                onClick={() => setRechargeAmount(amount)}
+                className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-colors ${
                   rechargeAmount === amount
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25 scale-105'
-                    : 'bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
                 }`}
               >
-                <span className="text-base sm:text-lg">${amount}</span>
-                {amount === 20 && (
-                  <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500 text-white shadow">★</span>
-                )}
+                <div className="text-base sm:text-lg font-bold">${amount}</div>
               </button>
             ))}
           </div>
         </div>
 
         {/* Custom Amount */}
-        <div className="mb-5 sm:mb-7">
+        <div className="mb-4 sm:mb-6">
           <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            {tr('Valor Personalizado', 'Custom Amount', 'Monto Personalizado', t.language)}
+            {t.language === 'pt' ? 'Valor Personalizado' : t.language === 'en' ? 'Custom Amount' : 'Monto Personalizado'}
           </label>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <div className="relative flex-1 sm:max-w-xs">
-              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 font-semibold">$</span>
+          <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+            <div className="relative flex-1 max-w-full sm:max-w-xs">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <DollarSign className="h-4 w-4 text-gray-400" />
+              </div>
               <input
                 type="number"
                 step="0.01"
@@ -316,55 +357,56 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
                 onChange={(e) => {
                   setCustomAmount(e.target.value);
                   const value = parseFloat(e.target.value);
-                  if (value && value >= 1) setRechargeAmount(value);
+                  if (value && value >= 1) {
+                    setRechargeAmount(value);
+                  }
                 }}
-                className="pl-8 pr-4 py-2.5 w-full border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 text-base font-medium"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 placeholder="1.00"
               />
             </div>
-            <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              {tr('Mín: $1 • Máx: $10,000', 'Min: $1 • Max: $10,000', 'Mín: $1 • Máx: $10,000', t.language)}
+            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              {t.language === 'pt' ? 'Mín: $1 • Máx: $10,000' : t.language === 'en' ? 'Min: $1 • Max: $10,000' : 'Mín: $1 • Máx: $10,000'}
             </span>
           </div>
         </div>
 
         {/* Payment Methods */}
         <div>
-          <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            {tr('Escolha o Método de Pagamento', 'Choose Payment Method', 'Elige el Método de Pago', t.language)}
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 sm:mb-4">
+            {t.language === 'pt' ? 'Escolha o Método de Pagamento' : t.language === 'en' ? 'Choose Payment Method' : 'Elige el Método de Pago'}
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {activeMethods.map((activeMethod) => {
               const method = PAYMENT_METHOD_META[activeMethod.method_id];
               if (!method) return null;
-              const disabled = rechargeAmount < (method.min_amount || 1) || rechargeAmount > (method.max_amount || 1000);
               return (
-                <button
-                  key={activeMethod.method_id}
-                  onClick={() => handlePaymentMethodSelect(activeMethod.method_id, rechargeAmount)}
-                  disabled={disabled}
-                  className="group p-4 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed text-left"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-11 h-11 bg-gray-50 dark:bg-gray-700 rounded-xl flex items-center justify-center p-1.5 flex-shrink-0 group-hover:scale-105 transition-transform">
-                      <img src={method.icon} alt={activeMethod.name} className="w-full h-full object-contain rounded-md" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-sm text-gray-900 dark:text-white truncate">{activeMethod.name}</h4>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{method.description}</p>
-                    </div>
+              <button
+                key={activeMethod.method_id}
+                onClick={() => handlePaymentMethodSelect(activeMethod.method_id, rechargeAmount)}
+                disabled={rechargeAmount < (method.min_amount || 1) || rechargeAmount > (method.max_amount || 1000)}
+                className="p-3 sm:p-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
+              >
+                <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center p-1 flex-shrink-0">
+                    <img src={method.icon} alt={activeMethod.name} className="w-full h-full object-contain rounded-md" />
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <span className="font-medium opacity-70">{tr('Taxa', 'Fees', 'Tarifa', t.language)}:</span>
-                      <span>{method.fees}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 opacity-60" />
-                      <span>{method.processing_time}</span>
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base text-gray-900 dark:text-white truncate">{activeMethod.name}</h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{method.description}</p>
                   </div>
-                </button>
+                </div>
+                <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex justify-between gap-2">
+                    <span className="flex-shrink-0">Taxa:</span>
+                    <span className="text-right truncate">{method.fees}</span>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <span className="flex-shrink-0">Tempo:</span>
+                    <span className="text-right truncate">{method.processing_time}</span>
+                  </div>
+                </div>
+              </button>
               );
             })}
           </div>
@@ -372,120 +414,210 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
       </div>
 
       {/* Transaction History */}
-      <div className="rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="px-5 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-              <History className="h-4.5 w-4.5 text-gray-600 dark:text-gray-300" />
-            </div>
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-              {tr('Histórico de Transações', 'Transaction History', 'Historial de Transacciones', t.language)}
-            </h3>
-          </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+            {t.language === 'pt' ? 'Histórico de Transações' : t.language === 'en' ? 'Transaction History' : 'Historial de Transacciones'}
+          </h3>
           <button
             onClick={loadTransactions}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            title={tr('Atualizar', 'Refresh', 'Actualizar', t.language)}
+            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+            title="Atualizar"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4" />
           </button>
         </div>
 
         {transactions.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
-              <Calendar className="h-7 w-7 text-gray-400" />
-            </div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-              {tr('Nenhuma transação encontrada', 'No transactions found', 'No se encontraron transacciones', t.language)}
+          <div className="text-center py-12">
+            <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+            <h4 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+              {t.language === 'pt' ? 'Nenhuma transação encontrada' : t.language === 'en' ? 'No transactions found' : 'No se encontraron transacciones'}
             </h4>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {tr('Suas transações aparecerão aqui', 'Your transactions will appear here', 'Tus transacciones aparecerán aquí', t.language)}
+              {t.language === 'pt' ? 'Suas transações aparecerão aqui' : t.language === 'en' ? 'Your transactions will appear here' : 'Tus transacciones aparecerán aquí'}
             </p>
           </div>
         ) : (
           <>
-            {/* Transaction list */}
-            <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
-              {currentTransactions.map((tx) => {
-                const meta = getTxMeta(tx.type);
-                const Icon = meta.icon;
-                const isPositive = tx.amount >= 0;
-                return (
-                  <div key={tx.id} className="px-5 sm:px-6 py-4 hover:bg-gray-50/60 dark:hover:bg-gray-700/30 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${meta.bg}`}>
-                        <Icon className={`h-5 w-5 ${meta.color}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white">{meta.label}</span>
-                          {tx.reference_type && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium">
-                              {tx.reference_type}
+            {/* Desktop Table View */}
+            <div className="hidden lg:block">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Descrição
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Valor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Saldo Após
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Data
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {currentTransactions.map((transaction) => (
+                      <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            {getTransactionIcon(transaction.type)}
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {getTransactionLabel(transaction.type)}
                             </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 dark:text-white">
+                            {transaction.description}
+                          </div>
+                          {transaction.reference_type && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              Ref: {transaction.reference_type}
+                            </div>
                           )}
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{tx.description || '-'}</p>
-                        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                          {new Date(tx.created_at).toLocaleDateString(t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES')} · {new Date(tx.created_at).toLocaleTimeString(t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-bold ${getTransactionColor(transaction.type)}`}>
+                            {transaction.amount >= 0 ? '+' : ''}{formatPrice(transaction.amount)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {formatPrice(transaction.balance_after)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center space-x-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>
+                              {new Date(transaction.created_at).toLocaleDateString(
+                                t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES'
+                              )}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-400 dark:text-gray-500">
+                            {new Date(transaction.created_at).toLocaleTimeString(
+                              t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES'
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="lg:hidden divide-y divide-gray-200 dark:divide-gray-700">
+              {currentTransactions.map((transaction) => (
+                <div key={transaction.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center space-x-3">
+                      {getTransactionIcon(transaction.type)}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                          {getTransactionLabel(transaction.type)}
+                        </h4>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {transaction.description}
                         </p>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className={`text-sm font-bold ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                          {isPositive ? '+' : ''}{formatPrice(tx.amount)}
-                        </div>
-                        <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
-                          {tr('Saldo', 'Balance', 'Saldo', t.language)}: {formatPrice(tx.balance_after)}
-                        </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={`text-sm font-bold ${getTransactionColor(transaction.type)}`}>
+                        {transaction.amount >= 0 ? '+' : ''}${transaction.amount.toFixed(2)}
+                      </span>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Saldo: {formatPrice(transaction.balance_after)}
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                  <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {new Date(transaction.created_at).toLocaleDateString(
+                          t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES'
+                        )} {new Date(transaction.created_at).toLocaleTimeString(
+                          t.language === 'pt' ? 'pt-BR' : t.language === 'en' ? 'en-US' : 'es-ES'
+                        )}
+                      </span>
+                    </div>
+                    {transaction.reference_type && (
+                      <span>Ref: {transaction.reference_type}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="px-5 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-3">
-                <span className="text-xs text-gray-500 dark:text-gray-400 order-2 sm:order-1">
-                  {tr('Página', 'Page', 'Página', t.language)} {currentPage} {tr('de', 'of', 'de', t.language)} {totalPages} · {startIndex + 1}-{Math.min(endIndex, transactions.length)} {tr('de', 'of', 'de', t.language)} {transactions.length}
-                </span>
-                <div className="flex items-center gap-1.5 order-1 sm:order-2">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) pageNum = i + 1;
-                    else if (currentPage <= 3) pageNum = i + 1;
-                    else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
-                    else pageNum = currentPage - 2 + i;
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                          currentPage === pageNum
-                            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
+              <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                      {t.language === 'pt' ? 'Página' : t.language === 'en' ? 'Page' : 'Página'} {currentPage} {t.language === 'pt' ? 'de' : t.language === 'en' ? 'of' : 'de'} {totalPages}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-500">
+                      ({startIndex + 1}-{Math.min(endIndex, transactions.length)} {t.language === 'pt' ? 'de' : t.language === 'en' ? 'of' : 'de'} {transactions.length})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-1 sm:space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="p-1.5 sm:p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+
+                    {/* Page numbers */}
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="p-1.5 sm:p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -494,15 +626,68 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
       </div>
 
       {/* Payment Modals */}
-      <StripePaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'stripe'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <PayPalPaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'paypal'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <MercadoPagoPaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'mercadopago'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <WhatsAppPaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'whatsapp'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <CryptomusPaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'cryptomus'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <BinancePaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'binance'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <TripleAPaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'triplea'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <AsaasPaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'asaas'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
-      <InfinitePayPaymentModal isOpen={showPaymentModal && selectedPaymentMethod === 'infinitepay'} onClose={() => setShowPaymentModal(false)} amount={rechargeAmount} onSuccess={handlePaymentSuccess} />
+      <StripePaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'stripe'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <PayPalPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'paypal'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <MercadoPagoPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'mercadopago'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <WhatsAppPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'whatsapp'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <CryptomusPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'cryptomus'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <BinancePaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'binance'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <TripleAPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'triplea'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <AsaasPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'asaas'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <InfinitePayPaymentModal
+        isOpen={showPaymentModal && selectedPaymentMethod === 'infinitepay'}
+        onClose={() => setShowPaymentModal(false)}
+        amount={rechargeAmount}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 }

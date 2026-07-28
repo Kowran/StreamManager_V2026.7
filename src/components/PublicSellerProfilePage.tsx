@@ -514,15 +514,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               </h1>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="relative inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-help group">
+              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                 <Store className="w-3 h-3" />
                 {getRoleLabel(profile.role)}
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-normal whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-20 shadow-lg">
-                  {profile.role === 'admin'
-                    ? (t.language === 'pt' ? 'Administrador oficial da plataforma' : t.language === 'en' ? 'Official platform administrator' : 'Administrador oficial de la plataforma')
-                    : (t.language === 'pt' ? 'Vendedor autorizado na plataforma' : t.language === 'en' ? 'Authorized seller on the platform' : 'Vendedor autorizado en la plataforma')}
-                  <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
-                </span>
               </span>
               {profile.user_level != null && (
                 <LevelBadge level={profile.user_level} type="user" size="sm" showLabel clickable language={t.language} />
@@ -530,13 +524,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               {(profile.role === 'seller' || profile.role === 'admin') && profile.seller_level != null && (
                 <LevelBadge level={profile.seller_level} type="seller" size="sm" showLabel clickable language={t.language} />
               )}
-              <span className="relative inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 cursor-help group">
+              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                 <BadgeCheck className="w-3 h-3" />
                 {t.language === 'pt' ? 'Verificado' : t.language === 'en' ? 'Verified' : 'Verificado'}
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-normal whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-20 shadow-lg">
-                  {t.language === 'pt' ? 'Identidade verificada pela administração' : t.language === 'en' ? 'Identity verified by administration' : 'Identidad verificada por la administración'}
-                  <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
-                </span>
               </span>
             </div>
             {/* Online + member since */}

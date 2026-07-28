@@ -48,6 +48,7 @@ import { AdminEmailVerifier } from './components/AdminEmailVerifier';
 import { FeesPage } from './components/FeesPage';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
+import { FeesPage } from './components/FeesPage';
 import { WorkWithUsPage } from './components/WorkWithUsPage';
 import { SMMPanel } from './components/SMMPanel';
 import { AdminSMMManager } from './components/AdminSMMManager';
@@ -89,7 +90,7 @@ import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'admin-discord' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us' | 'login';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'admin-discord' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
 
 interface StoreConfig {
   store_name?: string;
@@ -175,17 +176,9 @@ function AppContent() {
       setActiveTab('seller-recruitment');
       window.history.pushState(null, '', '/seller-recruitment');
     } else {
-      setActiveTab('login');
-      window.history.pushState(null, '', '/login');
+      setShowLoginModal(true);
     }
   };
-
-  useEffect(() => {
-    if (user && activeTab === 'login') {
-      setActiveTab('store');
-      window.history.pushState(null, '', '/');
-    }
-  }, [user, activeTab]);
 
   useOnlineHeartbeat(user?.id);
 
@@ -351,8 +344,6 @@ function AppContent() {
         const sq = decodeURIComponent(path.replace('search/', ''));
         setSearchQuery(sq);
         setActiveTab('search-results');
-      } else if (path.startsWith('login')) {
-        setActiveTab('login');
       } else if (path.startsWith('fees-page') || path.startsWith('fees')) {
         setActiveTab('fees-page');
       } else if (path.startsWith('work-with-us') || path.startsWith('careers')) {
@@ -379,7 +370,7 @@ function AppContent() {
 
   // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
-    if (!loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'cart' && activeTab !== 'category-search' && activeTab !== 'search-results' && activeTab !== 'login') {
+    if (!loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'cart' && activeTab !== 'category-search' && activeTab !== 'search-results') {
       const targetPath = activeTab === 'store' ? '' : activeTab;
       const currentPath = window.location.pathname.slice(1);
       if (currentPath !== targetPath) {
@@ -684,8 +675,6 @@ function AppContent() {
             onNavigate={navigateWithRecharge}
           />
         );
-      case 'login':
-        return <LoginForm onBack={() => { setActiveTab('store'); window.history.pushState(null, '', '/'); }} />;
       case 'credits':
         return <CreditsManager presetRechargeAmount={presetRechargeAmount} onRechargeComplete={() => setPresetRechargeAmount(undefined)} />;
       case 'purchases':
@@ -953,11 +942,6 @@ function AppContent() {
     return <BannedScreen banReason={banReason} />;
   }
 
-  // Full-page login screen — no header, no nav
-  if (!user && activeTab === 'login') {
-    return <LoginForm onBack={() => { setActiveTab('store'); window.history.pushState(null, '', '/'); }} />;
-  }
-
   // Search results page for logged-out users
   // Product detail page for logged-out users: render with app-style header
   return (
@@ -1007,18 +991,18 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-7 w-7 object-cover rounded-lg mr-1.5"
+                    className="h-10 w-10 object-cover rounded-lg mr-2"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg mr-1.5">
-                    <CreditCard className="h-4 w-4 text-white" />
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg mr-2">
+                    <CreditCard className="h-5 w-5 text-white" />
                   </div>
                 )}
-                <span className="text-base font-bold text-gray-900 dark:text-white">
+                <span className="text-lg font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1035,7 +1019,7 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-8 w-8 sm:h-9 sm:w-9 object-cover rounded-lg"
+                    className="h-12 w-12 sm:h-14 sm:w-14 object-cover rounded-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -1043,10 +1027,10 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 sm:p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
                 </div>
-                <span className="ml-2 text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                <span className="ml-3 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1155,7 +1139,7 @@ function AppContent() {
                     {theme === 'dark' ? <Sun className="h-4 w-4 sm:h-5 sm:w-5" /> : <Moon className="h-4 w-4 sm:h-5 sm:w-5" />}
                   </button>
                   <button
-                    onClick={() => { setActiveTab('login'); window.history.pushState(null, '', '/login'); }}
+                    onClick={() => setShowLoginModal(true)}
                     className="inline-flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                   >
                     <LogIn className="h-4 w-4 mr-1.5" />
@@ -1198,7 +1182,7 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-8 w-8 object-cover rounded-lg"
+                    className="h-10 w-10 object-cover rounded-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -1206,10 +1190,10 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                  <CreditCard className="h-5 w-5 text-white" />
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-6 w-6 text-white" />
                 </div>
-                <span className="ml-2 text-lg font-bold text-gray-900 dark:text-white">
+                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1310,8 +1294,7 @@ function AppContent() {
               window.history.pushState(null, '', '/');
             }}
             onGetStarted={() => {
-              setActiveTab('login');
-              window.history.pushState(null, '', '/login');
+              setShowLoginModal(true);
             }}
             onNavigate={navigateWithRecharge}
           />
