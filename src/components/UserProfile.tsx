@@ -28,7 +28,6 @@ interface UserProfileData {
   cover_url: string | null;
   bio: string | null;
   theme_color: string | null;
-  profile_badge: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -57,16 +56,6 @@ const THEME_COLORS = [
   { label: 'Ciano', value: '#06b6d4' },
   { label: 'Laranja', value: '#f97316' },
   { label: 'Cinza', value: '#6b7280' },
-];
-
-const BADGES = [
-  { label: 'Nenhum', value: '' },
-  { label: '⭐ VIP', value: '⭐ VIP' },
-  { label: '🔥 Ativo', value: '🔥 Ativo' },
-  { label: '💎 Premium', value: '💎 Premium' },
-  { label: '🚀 Early Bird', value: '🚀 Early Bird' },
-  { label: '🌟 Top Fan', value: '🌟 Top Fan' },
-  { label: '🎯 Pro', value: '🎯 Pro' },
 ];
 
 type TabKey = 'overview' | 'info' | 'appearance' | 'security' | 'reviews';
@@ -114,7 +103,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     language: 'pt',
     bio: '',
     theme_color: '#3b82f6',
-    profile_badge: '',
   });
 
   useEffect(() => {
@@ -138,7 +126,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
         language: profile.language || 'pt',
         bio: profile.bio || '',
         theme_color: profile.theme_color || '#3b82f6',
-        profile_badge: profile.profile_badge || '',
       });
       setHideExpiringBalloon(profile.hide_expiring_balloon || false);
       setTwoFactorEnabled((profile as any).two_factor_enabled || false);
@@ -310,7 +297,7 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
       const { error: profileError } = await supabase.from('profiles').update({
         full_name: formData.full_name.trim(), language: formData.language,
         bio: formData.bio.trim() || null, theme_color: formData.theme_color,
-        profile_badge: formData.profile_badge || null, updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }).eq('id', user.id);
       if (profileError) throw profileError;
       if (formData.language !== language) setLanguage(formData.language as any);
@@ -357,7 +344,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
       setFormData({
         full_name: profile.full_name || '', language: profile.language || 'pt',
         bio: profile.bio || '', theme_color: profile.theme_color || '#3b82f6',
-        profile_badge: profile.profile_badge || '',
       });
     }
   }
@@ -398,7 +384,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
     myStore: language === 'pt' ? 'Minha Loja' : 'My Store',
     pendingRequest: language === 'pt' ? 'Solicitação pendente de aprovação' : 'Request pending approval',
     themeColor: language === 'pt' ? 'Cor do tema' : 'Theme color',
-    profileBadge: language === 'pt' ? 'Badge do perfil' : 'Profile badge',
     coverImage: language === 'pt' ? 'Imagem de capa' : 'Cover image',
     upload: language === 'pt' ? 'Fazer upload' : 'Upload',
     removeCover: language === 'pt' ? 'Remover capa' : 'Remove cover',
@@ -623,11 +608,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                 <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
                   {profile.full_name || 'Usuário'}
                 </h1>
-                {profile.profile_badge && (
-                  <span className="text-sm font-semibold px-3 py-1 rounded-full text-white shadow-sm" style={{ backgroundColor: themeColor }}>
-                    {profile.profile_badge}
-                  </span>
-                )}
                 <span className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full font-medium ${
                   profile.role === 'admin' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
                   : profile.role === 'seller' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
@@ -1001,29 +981,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                         <div className="h-2 w-20 rounded-full mt-2" style={{ backgroundColor: `${formData.theme_color}66` }} />
                       </div>
                       <span className="text-xs text-gray-400 ml-auto">{language === 'pt' ? 'Pré-visualização' : 'Preview'}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4">
-                      {tr.profileBadge}
-                      <span className="ml-2 text-xs normal-case font-normal text-gray-400">
-                        {language === 'pt' ? '(visível para todos)' : '(visible to everyone)'}
-                      </span>
-                    </label>
-                    <div className="flex flex-wrap gap-2.5">
-                      {BADGES.map(badge => (
-                        <button key={badge.value}
-                          onClick={() => setFormData(prev => ({ ...prev, profile_badge: badge.value }))}
-                          className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                            formData.profile_badge === badge.value
-                              ? 'border-transparent text-white shadow-sm'
-                              : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800/50'
-                          }`}
-                          style={formData.profile_badge === badge.value ? { backgroundColor: formData.theme_color } : {}}>
-                          {badge.label || (language === 'pt' ? 'Nenhum' : 'None')}
-                        </button>
-                      ))}
                     </div>
                   </div>
 

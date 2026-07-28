@@ -9,7 +9,7 @@ import { fetchSellerInfo } from '../lib/sellerInfo';
 import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
 import { ProductRow } from './ProductRow';
-import { Shuffle, TrendingUp, FolderTree, Eye } from 'lucide-react';
+import { Shuffle, TrendingUp, Eye } from 'lucide-react';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 
 interface LandingPageProps {
@@ -207,19 +207,6 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled.slice(0, 20);
-  }, [products]);
-
-  // Products grouped by category for the "by category" rows
-  const productsByCategory = useMemo(() => {
-    const groups: Record<string, StoreProduct[]> = {};
-    products.forEach(p => {
-      const cat = p.category || 'other';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(p);
-    });
-    return Object.entries(groups)
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([cat, items]) => ({ category: cat, products: items.slice(0, 20) }));
   }, [products]);
 
   const recentlyViewedProducts = useMemo(() => {
@@ -897,18 +884,6 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                     icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
                   />
                 )}
-
-                {/* Row 3+: By Category */}
-                {productsByCategory.map(({ category, products: catProducts }) => (
-                  <ProductRow
-                    key={category}
-                    title={category.charAt(0).toUpperCase() + category.slice(1)}
-                    products={catProducts}
-                    onProductClick={handleProductClick}
-                    onViewAll={() => navigateToSearch(category)}
-                    icon={<FolderTree className="w-5 h-5 text-amber-500" />}
-                  />
-                ))}
 
                 {/* Row 4: Recently Viewed */}
                 {recentlyViewedProducts.length > 0 && (
