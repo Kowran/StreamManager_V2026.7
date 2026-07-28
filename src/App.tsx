@@ -33,7 +33,7 @@ import { AdminSecurityCenter } from './components/AdminSecurityCenter';
 
 import { AccountsAccessManager } from './components/AccountsAccessManager';
 import { MessageCircle, ShoppingCart } from 'lucide-react';
-import { HelpCenter } from './components/HelpCenter';
+import { SupportSystem } from './components/SupportSystem';
 import { AdminSupportManager } from './components/AdminSupportManager';
 import { AdminDisputeManager } from './components/AdminDisputeManager';
 import { UserProfile } from './components/UserProfile';
@@ -120,14 +120,7 @@ function AppContent() {
   const { t } = useLanguage();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>('store');
-  const [presetRechargeAmount, setPresetRechargeAmount] = useState<number | undefined>(() => {
-    const saved = sessionStorage.getItem('preset_recharge_amount');
-    if (saved) {
-      sessionStorage.removeItem('preset_recharge_amount');
-      return Number(saved);
-    }
-    return undefined;
-  });
+  const [presetRechargeAmount, setPresetRechargeAmount] = useState<number | undefined>(undefined);
   const [productDetailId, setProductDetailId] = useState<string | null>(null);
   const [checkoutData, setCheckoutData] = useState<{ productId: string; variationId: string; quantity: number } | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -138,7 +131,6 @@ function AppContent() {
 
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [siteSettings, setSiteSettings] = useState<{ site_name?: string; header_logo_url?: string; browser_title?: string; favicon_url?: string } | null>(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [sellerSlug, setSellerSlug] = useState<string | null>(null);
   const [profileIdentifier, setProfileIdentifier] = useState<string | null>(null);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
@@ -169,15 +161,20 @@ function AppContent() {
 
   const navigateToSearch = (q: string) => {
     const query = q.trim();
+    setSearchQuery(query);
+    setSearchInput(query);
     const path = `/search/${encodeURIComponent(query)}`;
-    window.location.href = path;
+    window.history.pushState(null, '', path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
   const handleCreateOffer = () => {
     if (isSeller) {
-      window.location.href = '/seller-store';
+      setActiveTab('seller-store');
+      window.history.pushState(null, '', '/seller-store');
     } else if (user) {
-      window.location.href = '/seller-recruitment';
+      setActiveTab('seller-recruitment');
+      window.history.pushState(null, '', '/seller-recruitment');
     } else {
       setShowLoginModal(true);
     }
@@ -187,9 +184,13 @@ function AppContent() {
 
   const navigateWithRecharge = (tab: string, opts?: { presetAmount?: number }) => {
     if (tab === 'credits' && opts?.presetAmount) {
-      sessionStorage.setItem('preset_recharge_amount', String(opts.presetAmount));
+      setPresetRechargeAmount(opts.presetAmount);
     }
-    window.location.href = tab === 'store' ? '/' : `/${tab}`;
+    setActiveTab(tab as ActiveTab);
+    const dynamicRoutes = ['product-detail', 'user-profile', 'seller-profile', 'checkout', 'category-search', 'search-results'];
+    if (!dynamicRoutes.includes(tab)) {
+      window.history.pushState(null, '', `/${tab}`);
+    }
   };
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -367,21 +368,16 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePathChange);
   }, []);
 
-  // Sync URL bar when tab changes (replaceState only — navigation itself uses full page reloads)
+  // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
     if (!loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'cart' && activeTab !== 'category-search' && activeTab !== 'search-results') {
       const targetPath = activeTab === 'store' ? '' : activeTab;
       const currentPath = window.location.pathname.slice(1);
       if (currentPath !== targetPath) {
-        window.history.replaceState(null, '', targetPath ? `/${targetPath}` : '/');
+        window.history.pushState(null, '', targetPath ? `/${targetPath}` : '/');
       }
     }
   }, [activeTab, user, loading]);
-
-  // Scroll to top whenever the active tab changes
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [activeTab]);
 
   // Dynamic browser tab title based on current page
   const siteName = siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz';
@@ -443,7 +439,6 @@ function AppContent() {
     };
 
     const setStaticTitle = () => {
-      if (!settingsLoaded) return;
       if (activeTab in staticTitles) {
         document.title = `${staticTitles[activeTab]} | ${siteName}`;
       } else if (activeTab === 'store' || !activeTab) {
@@ -508,7 +503,7 @@ function AppContent() {
     } else {
       setStaticTitle();
     }
-  }, [activeTab, productDetailId, sellerSlug, profileIdentifier, categorySlug, searchQuery, siteName, browserTitle, t.language, settingsLoaded]);
+  }, [activeTab, productDetailId, sellerSlug, profileIdentifier, categorySlug, searchQuery, siteName, browserTitle, t.language]);
 
   async function loadStoreConfig() {
     try {
@@ -530,7 +525,6 @@ function AppContent() {
         .eq('key', 'site_settings')
         .maybeSingle();
       setSiteSettings(siteData?.value || null);
-      setSettingsLoaded(true);
     } catch (error) {
       console.error('Error loading store config:', error);
     }
@@ -652,10 +646,14 @@ function AppContent() {
           <CategorySearchPage
             slug={categorySlug}
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              setCategorySlug(null);
+              window.history.pushState(null, '', '/');
             }}
             onProductClick={(product: any) => {
-              window.location.href = `/product/${product.id}`;
+              setProductDetailId(product.id);
+              setActiveTab('product-detail');
+              window.history.pushState(null, '', `/product/${product.id}`);
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -665,10 +663,14 @@ function AppContent() {
           <SearchResultsPage
             query={searchQuery}
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              setSearchQuery('');
+              window.history.pushState(null, '', '/');
             }}
             onProductClick={(product: any) => {
-              window.location.href = `/product/${product.id}`;
+              setProductDetailId(product.id);
+              setActiveTab('product-detail');
+              window.history.pushState(null, '', `/product/${product.id}`);
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -727,7 +729,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'support':
-        return <HelpCenter />;
+        return <SupportSystem />;
       case 'admin-support':
         return (
           <AdminGuard page="admin-support">
@@ -748,7 +750,9 @@ function AppContent() {
           <PublicProfilePage
             identifier={profileIdentifier}
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              setProfileIdentifier(null);
+              window.history.pushState(null, '', '/');
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -791,10 +795,13 @@ function AppContent() {
         return (
           <GameCategoriesPage
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              window.history.pushState(null, '', '/');
             }}
             onCategoryClick={(slug) => {
-              window.location.href = `/category/${slug}`;
+              setCategorySlug(slug);
+              setActiveTab('category-search');
+              window.history.pushState(null, '', `/category/${slug}`);
             }}
           />
         );
@@ -802,10 +809,12 @@ function AppContent() {
         return (
           <SellerRecruitmentPage
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              window.history.pushState(null, '', '/');
             }}
             onBecomeSeller={() => {
-              window.location.href = '/seller-requests';
+              setActiveTab('seller-requests');
+              window.history.pushState(null, '', '/seller-requests');
             }}
           />
         );
@@ -867,7 +876,8 @@ function AppContent() {
         return (
           <FeesPage
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              window.history.pushState(null, '', '/');
             }}
           />
         );
@@ -875,7 +885,8 @@ function AppContent() {
         return (
           <WorkWithUsPage
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              window.history.pushState(null, '', '/');
             }}
           />
         );
@@ -885,10 +896,14 @@ function AppContent() {
           <PublicSellerProfilePage
             sellerSlug={sellerSlug}
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              setSellerSlug(null);
+              window.history.pushState(null, '', '/');
             }}
             onProductClick={(product: any) => {
-              window.location.href = `/product/${product.id}`;
+              setProductDetailId(product.id);
+              setActiveTab('product-detail');
+              window.history.pushState(null, '', `/product/${product.id}`);
             }}
           />
         );
@@ -967,11 +982,12 @@ function AppContent() {
               {/* Mobile Logo/Text */}
               <button
                 onClick={() => {
-                  window.location.href = '/';
+                  setActiveTab('store');
+                  window.history.pushState(null, '', '/');
                 }}
                 className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
               >
-                {settingsLoaded && (siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
+                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
@@ -981,26 +997,25 @@ function AppContent() {
                       target.style.display = 'none';
                     }}
                   />
-                ) : settingsLoaded ? (
+                ) : (
                   <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg mr-2">
                     <CreditCard className="h-5 w-5 text-white" />
                   </div>
-                ) : null}
-                {settingsLoaded && (
-                  <span className="text-lg font-bold text-gray-900 dark:text-white">
-                    {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
-                  </span>
                 )}
+                <span className="text-lg font-bold text-gray-900 dark:text-white">
+                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                </span>
               </button>
 
               {/* Desktop Logo */}
               <button
                 onClick={() => {
-                  window.location.href = '/';
+                  setActiveTab('store');
+                  window.history.pushState(null, '', '/');
                 }}
                 className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
               >
-                {settingsLoaded && (siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
+                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
@@ -1012,16 +1027,12 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                {settingsLoaded && !(siteSettings?.header_logo_url || storeConfig?.store_logo_url) && (
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg">
-                    <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
-                  </div>
-                )}
-                {settingsLoaded && (
-                  <span className="ml-3 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                    {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
-                  </span>
-                )}
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
+                </div>
+                <span className="ml-3 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                </span>
               </button>
 
               {/* Desktop Navigation Buttons */}
@@ -1033,7 +1044,8 @@ function AppContent() {
                     <button
                       key={item.id}
                       onClick={() => {
-                        window.location.href = item.id === 'store' ? '/' : `/${item.id}`;
+                        setActiveTab(item.id as ActiveTab);
+                        window.history.pushState(null, '', `/${item.id}`);
                       }}
                       className={`relative flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                         isActive
@@ -1102,7 +1114,7 @@ function AppContent() {
               {/* Chat Button - only for authenticated users */}
               {user && (
                 <button
-                  onClick={() => { window.location.href = '/messages'; }}
+                  onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '/messages'); }}
                   className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                   title={t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes'}
                 >
@@ -1160,12 +1172,13 @@ function AppContent() {
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => {
-                  window.location.href = '/';
+                  setActiveTab('store');
+                  window.history.pushState(null, '', '/');
                   setIsMobileMenuOpen(false);
                 }}
                 className="flex items-center hover:opacity-80 transition-opacity"
               >
-                {settingsLoaded && (siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
+                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
@@ -1177,16 +1190,12 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                {settingsLoaded && !(siteSettings?.header_logo_url || storeConfig?.store_logo_url) && (
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg">
-                    <CreditCard className="h-6 w-6 text-white" />
-                  </div>
-                )}
-                {settingsLoaded && (
-                  <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                    {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
-                  </span>
-                )}
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-6 w-6 text-white" />
+                </div>
+                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                </span>
               </button>
               <button
                 onClick={(e) => {
@@ -1248,7 +1257,8 @@ function AppContent() {
                 {/* Messages */}
                 <button
                   onClick={() => {
-                    window.location.href = '/messages';
+                    setActiveTab('messages');
+                    window.history.pushState(null, '', '/messages');
                     setIsMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
@@ -1279,7 +1289,9 @@ function AppContent() {
           <ProductDetailPage
             productId={productDetailId}
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              setProductDetailId(null);
+              window.history.pushState(null, '', '/');
             }}
             onGetStarted={() => {
               setShowLoginModal(true);
@@ -1292,19 +1304,25 @@ function AppContent() {
             variationId={checkoutData.variationId || undefined}
             quantity={checkoutData.quantity}
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              setCheckoutData(null);
+              window.history.pushState(null, '', '/');
             }}
             onSuccess={() => {
-              window.location.href = '/purchases';
+              setActiveTab('purchases');
+              setCheckoutData(null);
+              window.history.pushState(null, '', '/purchases');
             }}
           />
         ) : activeTab === 'cart' ? (
           <CartPage
             onBack={() => {
-              window.location.href = '/';
+              setActiveTab('store');
+              window.history.pushState(null, '', '/');
             }}
             onSuccess={() => {
-              window.location.href = '/purchases';
+              setActiveTab('purchases');
+              window.history.pushState(null, '', '/purchases');
             }}
           />
         ) : (
@@ -1323,7 +1341,9 @@ function AppContent() {
       <Footer
         navigationLinks={footerNavigation}
         onNavigate={(id) => {
-          window.location.href = id === 'store' ? '/' : `/${id}`;
+          setActiveTab(id as ActiveTab);
+          window.history.pushState(null, '', `/${id}`);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
 
@@ -1339,7 +1359,9 @@ function AppContent() {
       {/* Cart Drawer */}
       <CartDrawer
         onCheckout={() => {
-          window.location.href = '/cart';
+          setActiveTab('cart');
+          window.history.pushState(null, '', '/cart');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
 

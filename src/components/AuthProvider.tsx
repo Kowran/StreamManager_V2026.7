@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const banReasonRef = useRef<string | null>(null);
-  const userRef = useRef<User | null>(null);
 
   // Check banned status whenever user changes
   useEffect(() => {
@@ -65,11 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [user]);
-
-  // Keep userRef in sync so onAuthStateChange can detect session-recovery events
-  useEffect(() => {
-    userRef.current = user;
   }, [user]);
 
   useEffect(() => {
@@ -110,19 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Ignore token refresh and session-recovery events — these fire when the tab
-      // regains focus/visibility and would cause unnecessary re-renders / data refetches.
-      // The session remains valid; only genuine sign-in/sign-out should trigger updates.
+      // Ignore token refresh events — these fire on window focus/visibility and
+      // would cause unnecessary re-renders / data refetches. The session remains valid.
       if (event === 'TOKEN_REFRESHED') {
-        if (!session) {
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-        }
-        return;
-      }
-
-      if (event === 'SIGNED_IN' && userRef.current && session?.user?.id === userRef.current.id) {
         return;
       }
 
@@ -134,11 +118,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-
+      
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        // Handle failed token refresh
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-
+      
       // Reset password recovery state when user is signed in normally
       if (session && event === 'SIGNED_IN') {
         setIsPasswordRecovery(false);
@@ -310,7 +302,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       clearLocalSession();
-      window.location.href = '/';
     }
   };
 

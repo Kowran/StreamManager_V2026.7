@@ -50,7 +50,6 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [openDoc, setOpenDoc] = useState<LegalDoc | null>(null);
   const [openFaqItem, setOpenFaqItem] = useState<number | null>(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [showCookieBanner, setShowCookieBanner] = useState(false);
 
   const lang = language;
@@ -87,7 +86,6 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
 
       setSiteSettings(siteData?.value || null);
       setStoreConfig(storeData?.value || null);
-      setSettingsLoaded(true);
     } catch (error) {
       console.error('Error loading footer settings:', error);
     }
@@ -104,7 +102,6 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
 
   const siteName = siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz';
   const footerLogo = siteSettings?.footer_logo_url || siteSettings?.header_logo_url || storeConfig?.store_logo_url;
-  const displaySiteName = settingsLoaded ? siteName : '';
   const contactEmail = siteSettings?.contact_email || storeConfig?.contact_info?.email || 'support@rhoudz.com';
   const currentYear = new Date().getFullYear();
   const copyrightText = siteSettings?.copyright_text ||
@@ -397,7 +394,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
             {/* Brand column */}
             <div className="md:col-span-1">
               <div className="flex items-center space-x-2 mb-3">
-                {settingsLoaded && footerLogo ? (
+                {footerLogo ? (
                   <img
                     src={footerLogo}
                     alt="Logo"
@@ -409,12 +406,10 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     }}
                   />
                 ) : null}
-                {settingsLoaded && !footerLogo && (
-                  <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded">
-                    <Globe className="h-4 w-4 text-white" />
-                  </div>
-                )}
-                <span className="font-bold text-base">{displaySiteName}</span>
+                <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded ${footerLogo ? 'hidden' : ''}`}>
+                  <Globe className="h-4 w-4 text-white" />
+                </div>
+                <span className="font-bold text-base">{siteName}</span>
               </div>
               <p className="text-xs text-gray-400 leading-relaxed mb-4">
                 {tr(
@@ -469,7 +464,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     <li>
                       <a
                         href="/community"
-                        onClick={(e) => { e.preventDefault(); window.location.href = '/community'; }}
+                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/community'); window.dispatchEvent(new PopStateEvent('popstate')); }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -479,7 +474,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     <li>
                       <a
                         href="/affiliates"
-                        onClick={(e) => { e.preventDefault(); window.location.href = '/affiliates'; }}
+                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/affiliates'); window.dispatchEvent(new PopStateEvent('popstate')); }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -489,7 +484,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     <li>
                       <a
                         href="/accounts"
-                        onClick={(e) => { e.preventDefault(); window.location.href = '/accounts'; }}
+                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/accounts'); window.dispatchEvent(new PopStateEvent('popstate')); }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -514,9 +509,11 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                       <button
                         onClick={() => {
                           if (link.key === 'fees') {
-                            window.location.href = '/fees-page';
+                            window.history.pushState(null, '', '/fees-page');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
                           } else if (link.key === 'careers') {
-                            window.location.href = '/work-with-us';
+                            window.history.pushState(null, '', '/work-with-us');
+                            window.dispatchEvent(new PopStateEvent('popstate'));
                           } else {
                             setOpenDoc(link.key);
                             setOpenFaqItem(null);
@@ -594,19 +591,6 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
             </div>
           </div>
 
-          {/* Selectors row — above the bottom bar */}
-          <div className="flex items-center justify-center gap-2 pb-5">
-            <CurrencySelector />
-            <LanguageSelector />
-            <button
-              onClick={toggleTheme}
-              className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
-              title={theme === 'dark' ? (lang === 'pt' ? 'Tema claro' : lang === 'en' ? 'Light theme' : 'Tema claro') : (lang === 'pt' ? 'Tema escuro' : lang === 'en' ? 'Dark theme' : 'Tema oscuro')}
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-          </div>
-
           {/* Bottom bar */}
           <div className="border-t border-gray-800 py-5">
             <div className="flex flex-col md:flex-row items-center justify-between space-y-3 md:space-y-0">
@@ -614,6 +598,18 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                 {copyrightText}
               </div>
               <div className="flex items-center gap-3 text-xs text-gray-400">
+                <div className="flex items-center gap-2">
+                  <CurrencySelector />
+                  <LanguageSelector />
+                  <button
+                    onClick={toggleTheme}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
+                    title={theme === 'dark' ? (lang === 'pt' ? 'Tema claro' : lang === 'en' ? 'Light theme' : 'Tema claro') : (lang === 'pt' ? 'Tema escuro' : lang === 'en' ? 'Dark theme' : 'Tema oscuro')}
+                  >
+                    {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </button>
+                </div>
+                <span className="text-gray-700">|</span>
                 <button
                   onClick={() => setOpenDoc('privacy')}
                   className="hover:text-white transition-colors"

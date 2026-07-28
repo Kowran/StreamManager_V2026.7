@@ -411,7 +411,10 @@ export function UserPurchases() {
       <PurchaseDetailPage
         purchaseId={detailPageId}
         onBack={() => {
-          window.location.href = '/purchases';
+          setShowDetailPage(false);
+          setDetailPageId(null);
+          window.history.pushState(null, '', '/purchases');
+          loadUserPurchases();
         }}
       />
     );
@@ -487,8 +490,8 @@ export function UserPurchases() {
             }`}>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center space-x-3 sm:space-x-4">
-                  <div className="flex-shrink-0 w-24 sm:w-28">
-                    <div className="aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                  <div className="flex-shrink-0">
+                    <div className="h-14 w-14 sm:h-16 sm:w-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                       {purchase.store_products?.image_url ? (
                         <img
                           src={purchase.store_products.image_url}
@@ -609,8 +612,9 @@ export function UserPurchases() {
                   )}
                   <button
                     onClick={() => {
-                      sessionStorage.setItem('purchase_detail_id', purchase.id);
-                      window.location.href = `/purchases/${purchase.id}`;
+                      setDetailPageId(purchase.id);
+                      setShowDetailPage(true);
+                      window.history.pushState(null, '', `/purchases/${purchase.id}`);
                     }}
                     className={`inline-flex items-center px-3 py-1.5 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation w-full sm:w-auto justify-center ${
                       isCancelled(purchase)
@@ -833,8 +837,8 @@ export function UserPurchases() {
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <div className="flex items-start space-x-4 mb-4">
                   {/* Product Image */}
-                  <div className="flex-shrink-0 w-full sm:w-48">
-                    <div className="aspect-video rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                  <div className="flex-shrink-0">
+                    <div className="h-20 w-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                       {selectedPurchase.store_products?.image_url ? (
                         <img
                           src={selectedPurchase.store_products.image_url}

@@ -813,7 +813,8 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
           <div className="px-6 pb-5">
             <button
               onClick={() => {
-                window.location.href = `/seller/${profile.seller_slug}`;
+                window.history.pushState(null, '', `/seller/${profile.seller_slug}`);
+                window.dispatchEvent(new PopStateEvent('popstate'));
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-white text-sm transition-all hover:opacity-90"
               style={{ backgroundColor: themeColor }}
@@ -1219,7 +1220,8 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                                   onClick={() => {
                                     const ident = r.profiles?.username || r.rater_id;
                                     if (ident) {
-                                      window.location.href = `/seller/${profile.seller_slug}`;
+                                      window.history.pushState(null, '', `/user/${ident}`);
+                                      window.dispatchEvent(new PopStateEvent('popstate'));
                                     }
                                   }}
                                   className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
@@ -1266,7 +1268,8 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                                   onClick={() => {
                                     const ident = r.profiles?.username || r.rater_id;
                                     if (ident) {
-                                      window.location.href = `/seller/${profile.seller_slug}`;
+                                      window.history.pushState(null, '', `/user/${ident}`);
+                                      window.dispatchEvent(new PopStateEvent('popstate'));
                                     }
                                   }}
                                   className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors"

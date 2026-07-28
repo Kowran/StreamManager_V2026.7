@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3crect width='20' height='14' x='2' y='5' rx='2'/%3e%3cline x1='2' x2='22' y1='10' y2='10'/%3e%3c/svg%3e" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="description" content="Complete platform for streaming account management and social media marketing. Manage Netflix, Disney+, Spotify and grow your social networks with our SMM panel." />
+    <title>StreamManager - Streaming Accounts Management System</title>
+    <script>
+      // Dynamic title based on subdomain
+      window.addEventListener('DOMContentLoaded', function() {
+        const hostname = window.location.hostname;
+        const parts = hostname.split('.');
+
+        if (parts.length > 2 || hostname.includes('localhost')) {
+          const sub = parts[0];
+          if (sub === 'login' || sub === 'painel' || sub === 'panel' || sub === 'dashboard') {
+            document.title = 'Login - StreamManager';
+          } else if (sub === 'home' || sub === 'www') {
+            document.title = 'StreamManager - Streaming & SMM Services';
+          }
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

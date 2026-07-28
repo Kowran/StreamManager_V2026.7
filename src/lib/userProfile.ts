@@ -1,3 +1,4 @@
 export function navigateToUserProfile(userId: string): void {
-  window.location.href = `/user/${userId}`;
+  window.history.pushState(null, '', `/user/${userId}`);
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }
