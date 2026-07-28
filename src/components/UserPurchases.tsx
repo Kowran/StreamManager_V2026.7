@@ -496,7 +496,7 @@ export function UserPurchases() {
                         <img
                           src={purchase.store_products.image_url}
                           alt={purchase.product_name}
-                          className={`w-full h-full object-cover transition-all ${
+                          className={`w-full h-full object-contain transition-all ${
                             isCancelled(purchase) || isExpired(purchase.purchase_date) ? 'grayscale opacity-60' : ''
                           }`}
                           onError={(e) => {
@@ -843,7 +843,7 @@ export function UserPurchases() {
                         <img
                           src={selectedPurchase.store_products.image_url}
                           alt={selectedPurchase.product_name}
-                          className={`w-full h-full object-cover ${
+                          className={`w-full h-full object-contain ${
                             isCancelled(selectedPurchase) || isExpired(selectedPurchase.purchase_date) ? 'grayscale opacity-60' : ''
                           }`}
                           onError={(e) => {

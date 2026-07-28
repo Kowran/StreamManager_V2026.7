@@ -389,7 +389,8 @@ function AppContent() {
   }, [activeTab, user, loading]);
 
   // Dynamic browser tab title based on current page
-  const siteName = siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz';
+  const siteName = siteSettings?.site_name || storeConfig?.store_name || '';
+  const settingsLoaded = siteSettings !== null || storeConfig !== null;
   const browserTitle = siteSettings?.browser_title || siteName;
 
   useEffect(() => {
@@ -449,7 +450,7 @@ function AppContent() {
 
     const setStaticTitle = () => {
       if (activeTab in staticTitles) {
-        document.title = `${staticTitles[activeTab]} | ${siteName}`;
+        document.title = siteName ? `${staticTitles[activeTab]} | ${siteName}` : staticTitles[activeTab];
       } else if (activeTab === 'store' || !activeTab) {
         document.title = browserTitle;
       }
@@ -466,7 +467,7 @@ function AppContent() {
             .eq('id', productDetailId)
             .maybeSingle();
           if (!cancelled && data?.name) {
-            document.title = `${data.name} | ${siteName}`;
+            document.title = siteName ? `${data.name} | ${siteName}` : data.name;
           }
         } catch { /* ignore */ }
       })();
@@ -482,7 +483,7 @@ function AppContent() {
             .maybeSingle();
           if (!cancelled) {
             const name = data?.username || data?.full_name;
-            if (name) document.title = `${name} | ${siteName}`;
+            if (name) document.title = siteName ? `${name} | ${siteName}` : name;
           }
         } catch { /* ignore */ }
       })();
@@ -498,17 +499,17 @@ function AppContent() {
             .maybeSingle();
           if (!cancelled) {
             const name = data?.username || data?.full_name;
-            if (name) document.title = `${name} | ${siteName}`;
+            if (name) document.title = siteName ? `${name} | ${siteName}` : name;
           }
         } catch { /* ignore */ }
       })();
       return () => { cancelled = true; };
     } else if (activeTab === 'category-search' && categorySlug) {
-      document.title = `${categorySlug} | ${siteName}`;
+      document.title = siteName ? `${categorySlug} | ${siteName}` : categorySlug;
     } else if (activeTab === 'search-results' && searchQuery) {
-      document.title = `${tr('Buscar', 'Search', 'Buscar')}: ${searchQuery} | ${siteName}`;
+      document.title = siteName ? `${tr('Buscar', 'Search', 'Buscar')}: ${searchQuery} | ${siteName}` : `${tr('Buscar', 'Search', 'Buscar')}: ${searchQuery}`;
     } else if (activeTab === 'checkout') {
-      document.title = `${tr('Checkout', 'Checkout', 'Checkout')} | ${siteName}`;
+      document.title = siteName ? `${tr('Checkout', 'Checkout', 'Checkout')} | ${siteName}` : tr('Checkout', 'Checkout', 'Checkout');
     } else {
       setStaticTitle();
     }
@@ -1006,13 +1007,13 @@ function AppContent() {
                       target.style.display = 'none';
                     }}
                   />
-                ) : (
+                ) : settingsLoaded ? (
                   <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg mr-2">
                     <CreditCard className="h-5 w-5 text-white" />
                   </div>
-                )}
+                ) : null}
                 <span className="text-base font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                  {siteSettings?.site_name || storeConfig?.store_name || ''}
                 </span>
               </button>
 
@@ -1036,11 +1037,11 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg ${(siteSettings?.header_logo_url || storeConfig?.store_logo_url) || !settingsLoaded ? 'hidden' : ''}`}>
                   <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                 </div>
                 <span className="ml-2 text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                  {siteSettings?.site_name || storeConfig?.store_name || ''}
                 </span>
               </button>
 
@@ -1201,11 +1202,11 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg ${(siteSettings?.header_logo_url || storeConfig?.store_logo_url) || !settingsLoaded ? 'hidden' : ''}`}>
                   <CreditCard className="h-6 w-6 text-white" />
                 </div>
                 <span className="ml-2 text-lg font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                  {siteSettings?.site_name || storeConfig?.store_name || ''}
                 </span>
               </button>
               <button

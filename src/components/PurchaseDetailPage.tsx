@@ -281,7 +281,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
             <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0">
               {purchase.store_products?.image_url ? (
                 <img src={purchase.store_products.image_url} alt={purchase.product_name}
-                  className={`w-full h-full object-cover ${isCancelled || isExpired ? 'grayscale opacity-60' : ''}`} />
+                  className={`w-full h-full object-contain ${isCancelled || isExpired ? 'grayscale opacity-60' : ''}`} />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
                   <Package className="h-10 w-10 text-white" />

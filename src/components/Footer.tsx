@@ -100,13 +100,16 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
     setShowCookieBanner(false);
   }
 
-  const siteName = siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz';
+  const siteName = siteSettings?.site_name || storeConfig?.store_name || '';
+  const settingsLoaded = siteSettings !== null || storeConfig !== null;
   const footerLogo = siteSettings?.footer_logo_url || siteSettings?.header_logo_url || storeConfig?.store_logo_url;
   const contactEmail = siteSettings?.contact_email || storeConfig?.contact_info?.email || 'support@rhoudz.com';
   const currentYear = new Date().getFullYear();
   const copyrightText = siteSettings?.copyright_text ||
     storeConfig?.copyright ||
-    `© ${currentYear} ${siteName}. ${lang === 'pt' ? 'Todos os direitos reservados.' : lang === 'en' ? 'All rights reserved.' : 'Todos los derechos reservados.'}`;
+    siteName
+      ? `© ${currentYear} ${siteName}. ${lang === 'pt' ? 'Todos os direitos reservados.' : lang === 'en' ? 'All rights reserved.' : 'Todos los derechos reservados.'}`
+      : `© ${currentYear} ${lang === 'pt' ? 'Todos os direitos reservados.' : lang === 'en' ? 'All rights reserved.' : 'Todos los derechos reservados.'}`;
 
   const social = { ...siteSettings?.social_links, ...storeConfig?.social_links };
 
@@ -406,7 +409,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded ${footerLogo ? 'hidden' : ''}`}>
+                <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded ${footerLogo || !settingsLoaded ? 'hidden' : ''}`}>
                   <Globe className="h-4 w-4 text-white" />
                 </div>
                 <span className="font-bold text-base">{siteName}</span>

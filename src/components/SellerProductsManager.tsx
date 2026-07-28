@@ -291,7 +291,7 @@ export function SellerProductsManager() {
                 <div className="col-span-4 flex items-center gap-4">
                   <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
                     {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                      <img src={product.image_url} alt={product.name} className="w-full h-full object-contain" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <ImageIcon className="h-5 w-5 text-gray-400" />
@@ -404,7 +404,7 @@ export function SellerProductsManager() {
             <div className="flex items-start gap-3">
               <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
                 {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                  <img src={product.image_url} alt={product.name} className="w-full h-full object-contain" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon className="h-6 w-6 text-gray-400" />
@@ -621,7 +621,7 @@ function ProductFormPage({
           >
             {imagePreview ? (
               <div className="relative w-full h-[280px] group">
-                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                   <div className="flex items-center gap-2">
                     <button
