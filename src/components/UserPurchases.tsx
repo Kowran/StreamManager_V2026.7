@@ -411,10 +411,7 @@ export function UserPurchases() {
       <PurchaseDetailPage
         purchaseId={detailPageId}
         onBack={() => {
-          setShowDetailPage(false);
-          setDetailPageId(null);
-          window.history.pushState(null, '', '/purchases');
-          loadUserPurchases();
+          window.location.href = '/purchases';
         }}
       />
     );
@@ -612,9 +609,8 @@ export function UserPurchases() {
                   )}
                   <button
                     onClick={() => {
-                      setDetailPageId(purchase.id);
-                      setShowDetailPage(true);
-                      window.history.pushState(null, '', `/purchases/${purchase.id}`);
+                      sessionStorage.setItem('purchase_detail_id', purchase.id);
+                      window.location.href = `/purchases/${purchase.id}`;
                     }}
                     className={`inline-flex items-center px-3 py-1.5 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation w-full sm:w-auto justify-center ${
                       isCancelled(purchase)

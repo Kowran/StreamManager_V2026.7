@@ -434,14 +434,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   }
 
   function navigateToProduct(pid: string) {
-    window.history.pushState(null, '', `/product/${pid}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.location.href = `/product/${pid}`;
   }
 
   const navigateToSeller = useCallback(() => {
     if (product?.seller_info?.seller_slug) {
-      window.history.pushState(null, '', `/seller/${product.seller_info.seller_slug}`);
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      window.location.href = `/seller/${product.seller_info.seller_slug}`;
     }
   }, [product]);
 
@@ -1243,8 +1241,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
             setShowConfirmModal(false);
             const vid = varId || selectedVariation?.id || '';
             sessionStorage.setItem('checkout_data', JSON.stringify({ productId: product.id, variationId: vid, quantity: qty }));
-            window.history.pushState(null, '', `/checkout/${product.id}`);
-            window.dispatchEvent(new PopStateEvent('popstate'));
+            window.location.href = `/seller/${product.seller_info.seller_slug}`;
           }}
         />
       )}

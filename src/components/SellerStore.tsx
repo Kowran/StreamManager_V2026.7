@@ -25,7 +25,7 @@ export function SellerStore() {
 
   const sellerNavigate = (tab: SellerTab) => {
     setActiveTab(tab);
-    window.history.pushState(null, '', `/seller-store/${tab}`);
+    window.history.replaceState(null, '', `/seller-store/${tab}`);
   };
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [openTicketsCount, setOpenTicketsCount] = useState(0);

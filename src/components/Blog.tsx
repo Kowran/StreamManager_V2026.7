@@ -194,14 +194,14 @@ export default function Blog({ onNavigate }: { onNavigate?: (tab: string) => voi
   const openPost = async (post: BlogPost) => {
     setSelectedPost(post);
     setView('detail');
-    window.history.pushState(null, '', `/blog/${post.id}`);
+    window.location.href = `/blog/${post.id}`;
     await supabase.rpc('increment_blog_views', { p_post_id: post.id });
   };
 
   const backToList = () => {
     setView('list');
     setSelectedPost(null);
-    window.history.pushState(null, '', '/blog');
+    window.location.href = '/blog';
   };
 
   const handleDelete = async (postId: string) => {

@@ -258,8 +258,7 @@ export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
                   <button
                     onClick={() => {
                       const ident = profile?.username || user.id;
-                      window.history.pushState(null, '', `/user/${ident}`);
-                      window.dispatchEvent(new PopStateEvent('popstate'));
+                      window.location.href = `/user/${ident}`;
                       handleClose();
                     }}
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"

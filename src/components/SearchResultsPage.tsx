@@ -270,8 +270,7 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
   };
 
   const onNavigateToSearch = (newQuery: string) => {
-    window.history.pushState(null, '', `/search/${encodeURIComponent(newQuery)}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.location.href = `/search/${encodeURIComponent(newQuery)}`;
   };
 
   const resetFilters = () => setFilters(defaultFilters);

@@ -723,7 +723,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
                   <button
                     onClick={() => {
                       const ident = seller.username || seller.id;
-                      if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
+                      if (ident) { window.location.href = `/user/${ident}`; }
                     }}
                     className="font-semibold text-gray-900 dark:text-white hover:underline text-left text-sm truncate block"
                   >

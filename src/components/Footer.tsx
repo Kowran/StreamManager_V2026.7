@@ -464,7 +464,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     <li>
                       <a
                         href="/community"
-                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/community'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                        onClick={(e) => { e.preventDefault(); window.location.href = '/community'; }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -474,7 +474,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     <li>
                       <a
                         href="/affiliates"
-                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/affiliates'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                        onClick={(e) => { e.preventDefault(); window.location.href = '/affiliates'; }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -484,7 +484,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     <li>
                       <a
                         href="/accounts"
-                        onClick={(e) => { e.preventDefault(); window.history.pushState(null, '', '/accounts'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                        onClick={(e) => { e.preventDefault(); window.location.href = '/accounts'; }}
                         className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
                       >
                         <HelpCircle className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
@@ -509,11 +509,9 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                       <button
                         onClick={() => {
                           if (link.key === 'fees') {
-                            window.history.pushState(null, '', '/fees-page');
-                            window.dispatchEvent(new PopStateEvent('popstate'));
+                            window.location.href = '/fees-page';
                           } else if (link.key === 'careers') {
-                            window.history.pushState(null, '', '/work-with-us');
-                            window.dispatchEvent(new PopStateEvent('popstate'));
+                            window.location.href = '/work-with-us';
                           } else {
                             setOpenDoc(link.key);
                             setOpenFaqItem(null);

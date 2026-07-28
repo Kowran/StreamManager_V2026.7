@@ -73,8 +73,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const navigateToSearch = (q: string) => {
     const query = q.trim();
     if (!query) return;
-    window.history.pushState(null, '', `/search/${encodeURIComponent(query)}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.location.href = `/search/${encodeURIComponent(query)}`;
   };
   const [activeCategory, setActiveCategory] = useState('all');
   const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
@@ -722,8 +721,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     trackView(product);
-    window.history.pushState(null, '', `/product/${product.id}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.location.href = `/product/${product.id}`;
   }, [trackView]);
 
   // Pagination logic
@@ -1041,7 +1039,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               {language === 'pt' ? 'Categorias de Jogos' : language === 'en' ? 'Game Categories' : 'Categorías de Juegos'}
             </h2>
             <button
-              onClick={() => { window.history.pushState(null, '', '/game-categories'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+              onClick={() => { window.location.href = '/game-categories'; }}
               className="flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors whitespace-nowrap"
             >
               {t.language === 'pt' ? 'Ver tudo' : t.language === 'en' ? 'See all' : 'Ver todo'}
@@ -1069,7 +1067,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               {productCategories.map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => { window.history.pushState(null, '', `/category/${cat.slug}`); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                  onClick={() => { window.location.href = `/category/${cat.slug}`; }}
                   className="group relative flex-shrink-0 w-[100px] sm:w-[120px] aspect-[3/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
                 >
                   {cat.image_url ? (
@@ -1142,14 +1140,12 @@ export function Store({ onNavigate }: StoreProps = {}) {
             onPurchase={handlePurchase}
             onAddToCart={handleAddToCart}
             onCardClick={() => {
-              window.history.pushState(null, '', `/product/${product.id}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+              window.location.href = `/product/${product.id}`;
             }}
             purchasing={purchasing}
             onViewSellerProfile={(sellerId, sellerSlug) => {
               if (sellerSlug) {
-                window.history.pushState(null, '', `/seller/${sellerSlug}`);
-                window.dispatchEvent(new PopStateEvent('popstate'));
+                window.location.href = `/seller/${sellerSlug}`;
               } else {
                 setSelectedSellerId(sellerId);
                 setShowSellerProfile(true);
@@ -1563,8 +1559,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
           price={purchaseSuccessData.price}
           orderId={purchaseSuccessData.orderId}
           onViewPurchase={() => {
-            window.history.pushState(null, '', '/purchases');
-            window.dispatchEvent(new PopStateEvent('popstate'));
+            window.location.href = '/purchases';
           }}
         />
       )}
@@ -1578,8 +1573,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             setSelectedSellerId(null);
           }}
           onProductClick={(product) => {
-            window.history.pushState(null, '', `/product/${product.id}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+            window.location.href = `/product/${product.id}`;
             setShowSellerProfile(false);
           }}
         />

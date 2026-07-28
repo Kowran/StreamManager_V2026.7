@@ -274,7 +274,7 @@ export default function Community() {
   const navigateToProfile = (author?: { email: string; full_name?: string; username?: string }, authorId?: string) => {
     if (!author && !authorId) return;
     const ident = author?.username || authorId;
-    if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
+    if (ident) { window.location.href = `/user/${ident}`; }
   };
 
   const AuthorLink = ({ author, authorId, className }: { author?: { email: string; full_name?: string; username?: string }, authorId?: string, className?: string }) => {

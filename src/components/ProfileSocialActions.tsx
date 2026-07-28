@@ -269,8 +269,7 @@ export function FollowersModal({ isOpen, onClose, targetUserId, mode, themeColor
                   key={u.id}
                   onClick={() => {
                     const ident = u.username || u.id;
-                    window.history.pushState(null, '', `/user/${ident}`);
-                    window.dispatchEvent(new PopStateEvent('popstate'));
+                    window.location.href = `/user/${ident}`;
                     onClose();
                   }}
                   className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left"

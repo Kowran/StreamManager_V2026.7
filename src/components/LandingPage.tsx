@@ -142,9 +142,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
   const navigateToSearch = (q: string) => {
     const query = q.trim();
-    window.history.pushState(null, '', `/search/${encodeURIComponent(query)}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.location.href = `/search/${encodeURIComponent(query)}`;
   };
   const { getRecentlyViewedProducts, trackView } = useRecentlyViewed();
   const [selectedPrimaryCategory, setSelectedPrimaryCategory] = useState<'all' | PrimaryCategory>('all');
@@ -751,12 +749,10 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             const isFiltering = selectedGameCategory !== null || selectedPrimaryCategory !== 'all' || searchQuery;
             const handleProductClick = (product: StoreProduct) => {
               trackView(product);
-              window.history.pushState(null, '', `/product/${product.id}`);
-              window.dispatchEvent(new PopStateEvent('popstate'));
+              window.location.href = `/product/${product.id}`;
             };
             const navigateToSearch = (query: string) => {
-              window.history.pushState(null, '', `/search/${encodeURIComponent(query)}`);
-              window.dispatchEvent(new PopStateEvent('popstate'));
+              window.location.href = `/search/${encodeURIComponent(query)}`;
             };
 
             if (isFiltering) {
