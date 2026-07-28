@@ -24,7 +24,6 @@ interface SellerProfile {
   cover_url?: string | null;
   bio?: string | null;
   theme_color?: string | null;
-  profile_badge?: string | null;
   created_at: string;
   role: string;
   last_seen_at?: string | null;
@@ -318,14 +317,6 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                   <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                     {profile?.full_name || 'Usuário'}
                   </h2>
-                  {profile?.profile_badge && (
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      {profile.profile_badge}
-                    </span>
-                  )}
                   <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
                     profile?.role === 'admin'
                       ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'

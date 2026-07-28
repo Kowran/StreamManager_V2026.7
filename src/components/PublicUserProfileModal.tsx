@@ -21,7 +21,6 @@ interface Profile {
   cover_url: string | null;
   bio: string | null;
   theme_color: string | null;
-  profile_badge: string | null;
   created_at: string;
   role: string;
   last_seen_at: string | null;
@@ -51,7 +50,7 @@ export function PublicUserProfileModal({ userId, onClose }: PublicUserProfileMod
       setLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, username, avatar_url, cover_url, bio, theme_color, profile_badge, created_at, role, last_seen_at, user_level, user_xp, seller_level, seller_xp, seller_slug')
+        .select('id, full_name, username, avatar_url, cover_url, bio, theme_color, created_at, role, last_seen_at, user_level, user_xp, seller_level, seller_xp, seller_slug')
         .eq('id', userId)
         .maybeSingle();
 
@@ -143,11 +142,6 @@ export function PublicUserProfileModal({ userId, onClose }: PublicUserProfileMod
                     <User className="h-8 w-8" style={{ color: themeColor }} />
                   )}
                 </div>
-                {profile.profile_badge && (
-                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 flex items-center gap-1">
-                    <Shield className="h-3 w-3" /> {profile.profile_badge}
-                  </span>
-                )}
               </div>
 
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">

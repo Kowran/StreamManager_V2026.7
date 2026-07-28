@@ -32,7 +32,6 @@ interface SellerProfile {
   cover_position?: number | null;
   bio?: string;
   theme_color?: string;
-  profile_badge?: string;
   created_at: string;
   role: string;
   seller_slug: string;
@@ -513,15 +512,6 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
                 {profile.full_name || 'Vendedor'}
               </h1>
-              {profile.profile_badge && (
-                <span
-                  className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full text-white shadow-sm"
-                  style={{ backgroundColor: themeColor }}
-                >
-                  <Sparkles className="w-3 h-3" />
-                  {profile.profile_badge}
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">

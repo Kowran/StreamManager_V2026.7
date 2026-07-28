@@ -1130,7 +1130,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
         <div className="col-span-full">
           <SMMPanel onNavigate={onNavigate} />
         </div>
-      ) : (
+      ) : isFiltering ? (
       <>
       {/* Products Grid */}
       <div className="products-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 min-w-0">
@@ -1242,7 +1242,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       )}
       </>
-      )}
+      ) : null}
       </div>
 
       {/* Recent Reviews Section — Carousel */}

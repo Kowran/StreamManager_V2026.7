@@ -28,7 +28,6 @@ interface ProfileData {
   cover_position?: number | null;
   bio: string | null;
   theme_color: string | null;
-  profile_badge: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -58,16 +57,6 @@ const THEME_COLORS = [
   { label: 'Ciano', value: '#06b6d4' },
   { label: 'Laranja', value: '#f97316' },
   { label: 'Cinza', value: '#6b7280' },
-];
-
-const BADGES = [
-  { label: 'Nenhum', value: '' },
-  { label: '⭐ VIP', value: '⭐ VIP' },
-  { label: '🔥 Ativo', value: '🔥 Ativo' },
-  { label: '💎 Premium', value: '💎 Premium' },
-  { label: '🚀 Early Bird', value: '🚀 Early Bird' },
-  { label: '🌟 Top Fan', value: '🌟 Top Fan' },
-  { label: '🎯 Pro', value: '🎯 Pro' },
 ];
 
 export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProfilePageProps) {
@@ -113,7 +102,6 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
     language: 'pt',
     bio: '',
     theme_color: '#3b82f6',
-    profile_badge: '',
   });
 
   const isSelf = user?.id === profile?.id;
@@ -142,7 +130,6 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         language: profile.language || 'pt',
         bio: profile.bio || '',
         theme_color: profile.theme_color || '#3b82f6',
-        profile_badge: profile.profile_badge || '',
       });
       setHideExpiringBalloon(profile.hide_expiring_balloon || false);
       setCoverPosition(profile.cover_position != null ? profile.cover_position : 50);
@@ -378,7 +365,6 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
           language: formData.language,
           bio: formData.bio.trim() || null,
           theme_color: formData.theme_color,
-          profile_badge: formData.profile_badge || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
@@ -445,7 +431,6 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         language: profile.language || 'pt',
         bio: profile.bio || '',
         theme_color: profile.theme_color || '#3b82f6',
-        profile_badge: profile.profile_badge || '',
       });
     }
   }
@@ -679,14 +664,6 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   {profile.full_name || lbl('Usuário', 'User', 'Usuario')}
                 </h2>
-                {profile.profile_badge && (
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
-                    style={{ backgroundColor: themeColor }}
-                  >
-                    {profile.profile_badge}
-                  </span>
-                )}
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                   profile.role === 'admin'
                     ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
@@ -1033,28 +1010,6 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
                       <div className="h-1.5 w-16 rounded-full mt-1.5" style={{ backgroundColor: `${formData.theme_color}66` }} />
                     </div>
                     <span className="text-xs text-gray-400 ml-auto">{lbl('Pré-visualização', 'Preview', 'Vista previa')}</span>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                    {lbl('Badge do perfil', 'Profile badge', 'Insignia del perfil')}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {BADGES.map(badge => (
-                      <button
-                        key={badge.value}
-                        onClick={() => setFormData(prev => ({ ...prev, profile_badge: badge.value }))}
-                        className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${
-                          formData.profile_badge === badge.value
-                            ? 'border-transparent text-white shadow-sm'
-                            : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500 bg-white dark:bg-gray-700/50'
-                        }`}
-                        style={formData.profile_badge === badge.value ? { backgroundColor: formData.theme_color } : {}}
-                      >
-                        {badge.label || lbl('Nenhum', 'None', 'Ninguno')}
-                      </button>
-                    ))}
                   </div>
                 </div>
 
