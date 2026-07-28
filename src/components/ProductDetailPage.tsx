@@ -536,7 +536,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               <div className="lg:sticky lg:top-20 space-y-4">
                 {/* Main image card */}
                 <div className="relative group rounded-3xl overflow-hidden bg-white dark:bg-gray-900 shadow-xl shadow-gray-200/50 dark:shadow-black/30 border border-gray-200 dark:border-gray-800">
-                  <div className="relative aspect-[4/3] sm:aspect-[16/10] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+                  <div className="relative aspect-square sm:aspect-[16/10] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
                     {!imageLoaded && (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <Loader className="h-8 w-8 animate-spin text-gray-400" />
@@ -547,7 +547,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                         src={product.image_url}
                         alt={product.name}
                         onLoad={() => setImageLoaded(true)}
-                        className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        className={`w-full h-full object-contain transition-transform duration-700 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; setImageLoaded(true); }}
                       />
                     ) : (

@@ -399,14 +399,14 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
 
           <div className="flex items-center space-x-3">
             {(siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
-              <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-8 w-8 object-cover rounded-lg"
+              <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-6 w-6 object-cover rounded-lg"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : null}
-            <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-2 rounded-lg ${(siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? 'hidden' : ''}`}>
-              <CreditCard className="h-5 w-5 text-white" />
+            <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded-lg ${(siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? 'hidden' : ''}`}>
+              <CreditCard className="h-4 w-4 text-white" />
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-white">
               {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
             </h1>
           </div>

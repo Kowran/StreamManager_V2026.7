@@ -302,6 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       clearLocalSession();
+      window.location.href = '/';
     }
   };
 

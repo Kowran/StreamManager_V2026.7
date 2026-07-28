@@ -33,7 +33,7 @@ import { AdminSecurityCenter } from './components/AdminSecurityCenter';
 
 import { AccountsAccessManager } from './components/AccountsAccessManager';
 import { MessageCircle, ShoppingCart } from 'lucide-react';
-import { SupportSystem } from './components/SupportSystem';
+import { HelpCenter } from './components/HelpCenter';
 import { AdminSupportManager } from './components/AdminSupportManager';
 import { AdminDisputeManager } from './components/AdminDisputeManager';
 import { UserProfile } from './components/UserProfile';
@@ -729,7 +729,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'support':
-        return <SupportSystem />;
+        return <HelpCenter />;
       case 'admin-support':
         return (
           <AdminGuard page="admin-support">
