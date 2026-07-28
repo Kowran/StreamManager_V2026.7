@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, Gift, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, Smartphone, Coins, SlidersHorizontal, ChevronDown, Shuffle, FolderTree, Info, Wallet, Quote, Plus, type LucideIcon } from 'lucide-react';
-import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, SlidersHorizontal, ChevronDown, Shuffle, Info, Wallet, Quote, Plus, type LucideIcon } from 'lucide-react';
+import { supabase, StoreProduct } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCart } from './CartProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -77,7 +77,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const [activeCategory, setActiveCategory] = useState('all');
-  const [activePrimaryCategory, setActivePrimaryCategory] = useState<'all' | PrimaryCategory>('all');
   const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductWithSeller | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
@@ -647,33 +646,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
     }
   }
 
-  const primaryCategoryConfig: Record<PrimaryCategory, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
-    account: { icon: UserCheck, label: language === 'pt' ? 'Contas' : language === 'en' ? 'Accounts' : 'Cuentas', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
-    item: { icon: Package, label: language === 'pt' ? 'Itens' : 'Items', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
-    mobile_recharge: { icon: Smartphone, label: language === 'pt' ? 'Recarga' : language === 'en' ? 'Recharge' : 'Recarga', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
-    game: { icon: Gamepad2, label: language === 'pt' ? 'Jogos' : language === 'en' ? 'Games' : 'Juegos', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
-    gift_card: { icon: Gift, label: language === 'pt' ? 'Gift Cards' : 'Gift Cards', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
-    top_up: { icon: Coins, label: language === 'pt' ? 'Top-Up' : 'Top-Up', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
-  };
-
-  const primaryCategories = useMemo(() => {
-    const counts: Record<string, number> = {};
-    products.forEach(p => {
-      const pc = (p as any).primary_category || 'item';
-      counts[pc] = (counts[pc] || 0) + 1;
-    });
-    return [
-      { key: 'all' as const, label: language === 'pt' ? 'Todos' : language === 'en' ? 'All' : 'Todos', icon: LayoutGrid, color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' }, count: products.length },
-      ...PRIMARY_CATEGORIES.map(cat => ({
-        key: cat.key,
-        label: primaryCategoryConfig[cat.key].label,
-        icon: primaryCategoryConfig[cat.key].icon,
-        color: primaryCategoryConfig[cat.key].color,
-        count: counts[cat.key] || 0,
-      })).filter(c => c.count > 0),
-    ];
-  }, [products, language]);
-
   const categoryConfig: Record<string, { icon: LucideIcon; label: string; color: { activeBg: string; activeText: string; badgeActive: string } }> = {
     streaming: { icon: Clapperboard, label: 'Streaming', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
     music: { icon: Music, label: language === 'pt' ? 'Música' : 'Music', color: { activeBg: 'bg-gray-900', activeText: 'text-white', badgeActive: 'bg-gray-800 text-white' } },
@@ -704,14 +676,30 @@ export function Store({ onNavigate }: StoreProps = {}) {
     ];
   }, [products, language]);
 
-  const allProducts = [...products];
+  // Interleave products across categories so they appear mixed together
+  const allProducts = useMemo(() => {
+    const byCategory: Record<string, StoreProduct[]> = {};
+    products.forEach(p => {
+      const cat = p.category || 'other';
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(p);
+    });
+    const categories = Object.keys(byCategory);
+    const maxLen = Math.max(...categories.map(c => byCategory[c].length));
+    const result: StoreProduct[] = [];
+    for (let i = 0; i < maxLen; i++) {
+      for (const cat of categories) {
+        if (byCategory[cat][i]) result.push(byCategory[cat][i]);
+      }
+    }
+    return result;
+  }, [products]);
   
   const filteredProducts = allProducts.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
-    const matchesPrimary = activePrimaryCategory === 'all' || ((product as any).primary_category || 'item') === activePrimaryCategory;
-    return matchesSearch && matchesCategory && matchesPrimary;
+    return matchesSearch && matchesCategory;
   });
 
   // Recommended products (shuffled random)
@@ -725,25 +713,12 @@ export function Store({ onNavigate }: StoreProps = {}) {
     return shuffled.slice(0, 20);
   }, [products]);
 
-  // Products grouped by category
-  const productsByCategory = useMemo(() => {
-    const groups: Record<string, StoreProduct[]> = {};
-    products.forEach(p => {
-      const cat = p.category || 'other';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(p);
-    });
-    return Object.entries(groups)
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([cat, items]) => ({ category: cat, products: items.slice(0, 20) }));
-  }, [products]);
-
   // Recently viewed products
   const recentlyViewedProducts = useMemo(() => {
     return getRecentlyViewedProducts(products).slice(0, 20);
   }, [products, getRecentlyViewedProducts]);
 
-  const isFiltering = activeCategory !== 'all' || activePrimaryCategory !== 'all' || searchTerm;
+  const isFiltering = activeCategory !== 'all' || searchTerm;
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     trackView(product);
@@ -760,7 +735,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, activeCategory, activePrimaryCategory]);
+  }, [searchTerm, activeCategory]);
 
 
   const paymentMethods: PaymentMethod[] = [
@@ -1057,41 +1032,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       </div>
 
-      {/* Primary Category - Square Cards */}
-      <div className="mb-4 sm:mb-6">
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-7 gap-1.5 sm:gap-3">
-          {primaryCategories.map(({ key, label, icon: Icon, color, count }) => (
-            <button
-              key={key}
-              onClick={() => setActivePrimaryCategory(key)}
-              className={`relative flex flex-col items-center justify-center gap-1 p-1.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 group ${
-                activePrimaryCategory === key
-                  ? `${color.activeBg} ${color.activeText} shadow-md sm:shadow-lg scale-[1.03] border-transparent`
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm sm:hover:shadow-md hover:scale-[1.02]'
-              }`}
-            >
-              <div className={`p-1 sm:p-2.5 rounded-lg sm:rounded-xl transition-colors ${
-                activePrimaryCategory === key
-                  ? 'bg-white/20'
-                  : 'bg-gray-100 dark:bg-gray-700 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
-              }`}>
-                <Icon className="h-4 w-4 sm:h-7 sm:w-7 flex-shrink-0" />
-              </div>
-              <span className="text-[10px] sm:text-sm font-bold text-center leading-tight">{label}</span>
-              {count > 0 && (
-                <span className={`absolute top-1 right-1 sm:top-1.5 sm:right-1.5 text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full ${
-                  activePrimaryCategory === key
-                    ? 'bg-white/25 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                }`}>
-                  {count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Horizontal product rows - shown when not filtering */}
       {/* Product Categories - Game cards carousel */}
       {!isFiltering && activeCategory !== 'smm' && !loading && productCategories.length > 0 && (
@@ -1171,16 +1111,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
               onViewAll={() => { setActiveCategory('all'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             />
           )}
-          {productsByCategory.map(({ category, products: catProducts }) => (
-            <ProductRow
-              key={category}
-              title={category.charAt(0).toUpperCase() + category.slice(1)}
-              products={catProducts}
-              onProductClick={handleProductClick}
-              icon={<FolderTree className="w-5 h-5 text-amber-500" />}
-              onViewAll={() => { setActiveCategory(category); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-            />
-          ))}
           {recentlyViewedProducts.length > 0 && (
             <ProductRow
               title={t.language === 'pt' ? 'Vistos Recentemente' : t.language === 'en' ? 'Recently Viewed' : 'Vistos Recientemente'}
@@ -1193,7 +1123,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
       )}
 
       {/* Products grid */}
-      <div className={(!isFiltering && activeCategory !== 'smm' && !loading && products.length > 0) ? 'hidden' : ''}>
+      <div>
 
       {/* SMM Panel - shown when Social Media category is active */}
       {activeCategory === 'smm' ? (

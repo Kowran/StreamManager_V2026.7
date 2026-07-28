@@ -296,6 +296,9 @@ function AppContent() {
   useEffect(() => {
     const handlePathChange = () => {
       const path = window.location.pathname.slice(1) || 'store';
+    if (path === 'store') {
+      window.history.replaceState(null, '', '/');
+    }
 
       // Check if it's a user profile route
       if (path.startsWith('user/')) {
@@ -361,9 +364,10 @@ function AppContent() {
   // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
     if (!loading && activeTab !== 'product-detail' && activeTab !== 'user-profile' && activeTab !== 'seller-profile' && activeTab !== 'checkout' && activeTab !== 'cart' && activeTab !== 'category-search' && activeTab !== 'search-results') {
+      const targetPath = activeTab === 'store' ? '' : activeTab;
       const currentPath = window.location.pathname.slice(1);
-      if (currentPath !== activeTab) {
-        window.history.pushState(null, '', `/${activeTab}`);
+      if (currentPath !== targetPath) {
+        window.history.pushState(null, '', targetPath ? `/${targetPath}` : '/');
       }
     }
   }, [activeTab, user, loading]);
@@ -637,7 +641,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setCategorySlug(null);
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onProductClick={(product: any) => {
               setProductDetailId(product.id);
@@ -654,7 +658,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setSearchQuery('');
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onProductClick={(product: any) => {
               setProductDetailId(product.id);
@@ -741,7 +745,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setProfileIdentifier(null);
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onNavigate={navigateWithRecharge}
           />
@@ -785,7 +789,7 @@ function AppContent() {
           <GameCategoriesPage
             onBack={() => {
               setActiveTab('store');
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onCategoryClick={(slug) => {
               setCategorySlug(slug);
@@ -799,7 +803,7 @@ function AppContent() {
           <SellerRecruitmentPage
             onBack={() => {
               setActiveTab('store');
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onBecomeSeller={() => {
               setActiveTab('seller-requests');
@@ -866,7 +870,7 @@ function AppContent() {
           <FeesPage
             onBack={() => {
               setActiveTab('store');
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
           />
         );
@@ -875,7 +879,7 @@ function AppContent() {
           <WorkWithUsPage
             onBack={() => {
               setActiveTab('store');
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
           />
         );
@@ -887,7 +891,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setSellerSlug(null);
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onProductClick={(product: any) => {
               setProductDetailId(product.id);
@@ -972,7 +976,7 @@ function AppContent() {
               <button
                 onClick={() => {
                   setActiveTab('store');
-                  window.history.pushState(null, '', '/store');
+                  window.history.pushState(null, '', '/');
                 }}
                 className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
               >
@@ -980,18 +984,18 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-6 w-6 object-cover rounded-lg mr-2"
+                    className="h-10 w-10 object-cover rounded-lg mr-2"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                     }}
                   />
                 ) : (
-                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-1.5 rounded-lg mr-2">
-                    <CreditCard className="h-3 w-3 text-white" />
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg mr-2">
+                    <CreditCard className="h-5 w-5 text-white" />
                   </div>
                 )}
-                <span className="text-sm font-bold text-gray-900 dark:text-white">
+                <span className="text-lg font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1000,7 +1004,7 @@ function AppContent() {
               <button
                 onClick={() => {
                   setActiveTab('store');
-                  window.history.pushState(null, '', '/store');
+                  window.history.pushState(null, '', '/');
                 }}
                 className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
               >
@@ -1008,7 +1012,7 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-8 w-8 object-cover rounded-lg"
+                    className="h-12 w-12 sm:h-14 sm:w-14 object-cover rounded-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -1016,10 +1020,10 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                  <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-white" />
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
                 </div>
-                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                <span className="ml-3 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1162,7 +1166,7 @@ function AppContent() {
               <button
                 onClick={() => {
                   setActiveTab('store');
-                  window.history.pushState(null, '', '/store');
+                  window.history.pushState(null, '', '/');
                   setIsMobileMenuOpen(false);
                 }}
                 className="flex items-center hover:opacity-80 transition-opacity"
@@ -1171,7 +1175,7 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-8 w-8 object-cover rounded-lg"
+                    className="h-10 w-10 object-cover rounded-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -1179,10 +1183,10 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                  <CreditCard className="h-5 w-5 text-white" />
+                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
+                  <CreditCard className="h-6 w-6 text-white" />
                 </div>
-                <span className="ml-3 text-lg font-bold text-gray-900 dark:text-white">
+                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1280,7 +1284,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setProductDetailId(null);
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onGetStarted={() => {
               setShowLoginModal(true);
@@ -1295,7 +1299,7 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               setCheckoutData(null);
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onSuccess={() => {
               setActiveTab('purchases');
@@ -1307,7 +1311,7 @@ function AppContent() {
           <CartPage
             onBack={() => {
               setActiveTab('store');
-              window.history.pushState(null, '', '/store');
+              window.history.pushState(null, '', '/');
             }}
             onSuccess={() => {
               setActiveTab('purchases');
