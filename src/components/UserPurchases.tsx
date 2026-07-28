@@ -173,6 +173,12 @@ export function UserPurchases() {
     if (user) {
       loadUserPurchases();
       loadUserRatings();
+      const savedPurchaseId = sessionStorage.getItem('purchase_detail_id');
+      if (savedPurchaseId) {
+        setDetailPageId(savedPurchaseId);
+        setShowDetailPage(true);
+        sessionStorage.removeItem('purchase_detail_id');
+      }
     }
   }, [user]);
 
@@ -407,6 +413,7 @@ export function UserPurchases() {
         onBack={() => {
           setShowDetailPage(false);
           setDetailPageId(null);
+          window.history.pushState(null, '', '/purchases');
           loadUserPurchases();
         }}
       />
@@ -607,6 +614,7 @@ export function UserPurchases() {
                     onClick={() => {
                       setDetailPageId(purchase.id);
                       setShowDetailPage(true);
+                      window.history.pushState(null, '', `/purchases/${purchase.id}`);
                     }}
                     className={`inline-flex items-center px-3 py-1.5 sm:py-2 border border-transparent text-xs sm:text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors touch-manipulation w-full sm:w-auto justify-center ${
                       isCancelled(purchase)
@@ -638,12 +646,12 @@ export function UserPurchases() {
                 ];
                 return (
                   <div className="mt-3 mb-1">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-start gap-1">
                       {steps.map((step, idx) => {
                         const isLast = idx === steps.length - 1;
                         return (
                           <React.Fragment key={idx}>
-                            <div className="flex flex-col items-center">
+                            <div className="flex flex-col items-center flex-shrink-0">
                               <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
                                 step.done
                                   ? 'bg-green-500 border-green-500 text-white'
@@ -656,7 +664,7 @@ export function UserPurchases() {
                               </span>
                             </div>
                             {!isLast && (
-                              <div className={`flex-1 h-0.5 mb-4 ${
+                              <div className={`flex-1 h-0.5 mt-[11px] ${
                                 step.done && steps[idx + 1]?.done
                                   ? 'bg-green-400 dark:bg-green-500'
                                   : step.done

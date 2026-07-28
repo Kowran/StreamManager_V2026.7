@@ -357,6 +357,10 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
   function handleBuyNow() {
     if (!user) { setShowLoginModal(true); return; }
     if (!userCredit) return;
+    if (product.seller_id && product.seller_id === user.id) {
+      alert(lang === 'pt' ? 'Você não pode comprar seu próprio produto' : lang === 'en' ? 'You cannot buy your own product' : 'No puedes comprar tu propio producto');
+      return;
+    }
     checkPendingRatings().then(hasPending => {
       if (hasPending) { setShowRatingModal(true); return; }
       setShowConfirmModal(true);

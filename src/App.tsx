@@ -323,6 +323,13 @@ function AppContent() {
         }
         setCheckoutData(parsed || { productId, variationId: '', quantity: 1 });
         setActiveTab('checkout');
+      } else if (path.startsWith('purchases/')) {
+        const purchaseId = path.replace('purchases/', '');
+        setProfileIdentifier(null);
+        setSellerSlug(null);
+        setProductDetailId(null);
+        setActiveTab('purchases');
+        sessionStorage.setItem('purchase_detail_id', purchaseId);
       } else if (path.startsWith('cart')) {
         setActiveTab('cart');
       } else if (path.startsWith('category/')) {
