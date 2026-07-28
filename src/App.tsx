@@ -1386,10 +1386,12 @@ function AppContent() {
       />
 
               {showLoginPage && (
-        <LoginPage
-          onLoginSuccess={() => setShowLoginPage(false)}
-          onBack={() => setShowLoginPage(false)}
-        />
+        <div className="fixed inset-0 z-[100] overflow-y-auto">
+          <LoginPage
+            onLoginSuccess={() => setShowLoginPage(false)}
+            onBack={() => setShowLoginPage(false)}
+          />
+        </div>
       )}
       {showLoginModal && (
         <LoginModal
