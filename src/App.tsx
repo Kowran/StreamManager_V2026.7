@@ -138,6 +138,7 @@ function AppContent() {
 
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [siteSettings, setSiteSettings] = useState<{ site_name?: string; header_logo_url?: string; browser_title?: string; favicon_url?: string } | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [sellerSlug, setSellerSlug] = useState<string | null>(null);
   const [profileIdentifier, setProfileIdentifier] = useState<string | null>(null);
   const [categorySlug, setCategorySlug] = useState<string | null>(null);
@@ -442,6 +443,7 @@ function AppContent() {
     };
 
     const setStaticTitle = () => {
+      if (!settingsLoaded) return;
       if (activeTab in staticTitles) {
         document.title = `${staticTitles[activeTab]} | ${siteName}`;
       } else if (activeTab === 'store' || !activeTab) {
@@ -506,7 +508,7 @@ function AppContent() {
     } else {
       setStaticTitle();
     }
-  }, [activeTab, productDetailId, sellerSlug, profileIdentifier, categorySlug, searchQuery, siteName, browserTitle, t.language]);
+  }, [activeTab, productDetailId, sellerSlug, profileIdentifier, categorySlug, searchQuery, siteName, browserTitle, t.language, settingsLoaded]);
 
   async function loadStoreConfig() {
     try {
@@ -528,6 +530,7 @@ function AppContent() {
         .eq('key', 'site_settings')
         .maybeSingle();
       setSiteSettings(siteData?.value || null);
+      setSettingsLoaded(true);
     } catch (error) {
       console.error('Error loading store config:', error);
     }
@@ -968,7 +971,7 @@ function AppContent() {
                 }}
                 className="sm:hidden flex items-center hover:opacity-80 transition-opacity"
               >
-                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
+                {settingsLoaded && (siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
@@ -978,14 +981,16 @@ function AppContent() {
                       target.style.display = 'none';
                     }}
                   />
-                ) : (
+                ) : settingsLoaded ? (
                   <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 rounded-lg mr-2">
                     <CreditCard className="h-5 w-5 text-white" />
                   </div>
+                ) : null}
+                {settingsLoaded && (
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">
+                    {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                  </span>
                 )}
-                <span className="text-lg font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
-                </span>
               </button>
 
               {/* Desktop Logo */}
@@ -995,7 +1000,7 @@ function AppContent() {
                 }}
                 className="hidden sm:flex items-center hover:opacity-80 transition-opacity"
               >
-                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
+                {settingsLoaded && (siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
@@ -1007,12 +1012,16 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                  <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
-                </div>
-                <span className="ml-3 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
-                </span>
+                {settingsLoaded && !(siteSettings?.header_logo_url || storeConfig?.store_logo_url) && (
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg">
+                    <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
+                  </div>
+                )}
+                {settingsLoaded && (
+                  <span className="ml-3 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                    {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                  </span>
+                )}
               </button>
 
               {/* Desktop Navigation Buttons */}
@@ -1156,7 +1165,7 @@ function AppContent() {
                 }}
                 className="flex items-center hover:opacity-80 transition-opacity"
               >
-                {siteSettings?.header_logo_url || storeConfig?.store_logo_url ? (
+                {settingsLoaded && (siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
@@ -1168,12 +1177,16 @@ function AppContent() {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                  <CreditCard className="h-6 w-6 text-white" />
-                </div>
-                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
-                  {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
-                </span>
+                {settingsLoaded && !(siteSettings?.header_logo_url || storeConfig?.store_logo_url) && (
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg">
+                    <CreditCard className="h-6 w-6 text-white" />
+                  </div>
+                )}
+                {settingsLoaded && (
+                  <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                    {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
+                  </span>
+                )}
               </button>
               <button
                 onClick={(e) => {

@@ -278,7 +278,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
         <div className="p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start gap-4">
             {/* Image */}
-            <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0">
+            <div className="w-full sm:w-64 aspect-video rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0">
               {purchase.store_products?.image_url ? (
                 <img src={purchase.store_products.image_url} alt={purchase.product_name}
                   className={`w-full h-full object-cover ${isCancelled || isExpired ? 'grayscale opacity-60' : ''}`} />

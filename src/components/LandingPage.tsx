@@ -92,6 +92,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
   const { theme, toggleTheme } = useTheme();
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [affiliateCode, setAffiliateCode] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<StoreProduct | null>(null);
@@ -261,6 +262,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
       if (siteRes.error && siteRes.error.code !== 'PGRST116') throw siteRes.error;
       setStoreConfig(storeRes.data?.value || null);
       setSiteSettings(siteRes.data?.value || null);
+      setSettingsLoaded(true);
     } catch (error) {
       console.error('Error loading store config:', error);
     }
@@ -396,17 +398,21 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
           )}
 
           <div className="flex items-center space-x-3">
-            {(siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
+            {settingsLoaded && (siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? (
               <img src={siteSettings?.header_logo_url || storeConfig?.store_logo_url} alt="Logo" className="h-6 w-6 object-cover rounded-lg"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : null}
-            <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded-lg ${(siteSettings?.header_logo_url || storeConfig?.store_logo_url) ? 'hidden' : ''}`}>
-              <CreditCard className="h-4 w-4 text-white" />
-            </div>
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white">
-              {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
-            </h1>
+            {settingsLoaded && !(siteSettings?.header_logo_url || storeConfig?.store_logo_url) && (
+              <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded-lg">
+                <CreditCard className="h-4 w-4 text-white" />
+              </div>
+            )}
+            {settingsLoaded && (
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">
+                {siteSettings?.site_name || storeConfig?.store_name || 'StreamManager'}
+              </h1>
+            )}
           </div>
 
           {/* Desktop Search */}

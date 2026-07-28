@@ -289,7 +289,7 @@ export function SellerProductsManager() {
               >
                 {/* Product info with image */}
                 <div className="col-span-4 flex items-center gap-4">
-                  <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
+                  <div className="relative w-24 aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
                     {product.image_url ? (
                       <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                     ) : (
@@ -402,7 +402,7 @@ export function SellerProductsManager() {
         {filteredProducts.map((product) => (
           <div key={product.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-start gap-3">
-              <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
+              <div className="relative w-24 aspect-video rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600">
                 {product.image_url ? (
                   <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
                 ) : (
@@ -620,7 +620,7 @@ function ProductFormPage({
             style={{ minHeight: '280px' }}
           >
             {imagePreview ? (
-              <div className="relative w-full h-[280px] group">
+              <div className="relative w-full aspect-video group">
                 <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                   <div className="flex items-center gap-2">
@@ -649,7 +649,7 @@ function ProductFormPage({
                 )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[280px] p-6 text-center">
+              <div className="flex flex-col items-center justify-center aspect-video p-6 text-center" style={{ minHeight: '280px' }}>
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/30 mb-4">
                   {uploading ? (
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />

@@ -50,6 +50,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
   const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
   const [openDoc, setOpenDoc] = useState<LegalDoc | null>(null);
   const [openFaqItem, setOpenFaqItem] = useState<number | null>(null);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [showCookieBanner, setShowCookieBanner] = useState(false);
 
   const lang = language;
@@ -86,6 +87,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
 
       setSiteSettings(siteData?.value || null);
       setStoreConfig(storeData?.value || null);
+      setSettingsLoaded(true);
     } catch (error) {
       console.error('Error loading footer settings:', error);
     }
@@ -102,6 +104,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
 
   const siteName = siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz';
   const footerLogo = siteSettings?.footer_logo_url || siteSettings?.header_logo_url || storeConfig?.store_logo_url;
+  const displaySiteName = settingsLoaded ? siteName : '';
   const contactEmail = siteSettings?.contact_email || storeConfig?.contact_info?.email || 'support@rhoudz.com';
   const currentYear = new Date().getFullYear();
   const copyrightText = siteSettings?.copyright_text ||
@@ -394,7 +397,7 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
             {/* Brand column */}
             <div className="md:col-span-1">
               <div className="flex items-center space-x-2 mb-3">
-                {footerLogo ? (
+                {settingsLoaded && footerLogo ? (
                   <img
                     src={footerLogo}
                     alt="Logo"
@@ -406,10 +409,12 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     }}
                   />
                 ) : null}
-                <div className={`bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded ${footerLogo ? 'hidden' : ''}`}>
-                  <Globe className="h-4 w-4 text-white" />
-                </div>
-                <span className="font-bold text-base">{siteName}</span>
+                {settingsLoaded && !footerLogo && (
+                  <div className="bg-gradient-to-r from-blue-500 to-cyan-600 p-1.5 rounded">
+                    <Globe className="h-4 w-4 text-white" />
+                  </div>
+                )}
+                <span className="font-bold text-base">{displaySiteName}</span>
               </div>
               <p className="text-xs text-gray-400 leading-relaxed mb-4">
                 {tr(
