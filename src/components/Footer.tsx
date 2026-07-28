@@ -591,40 +591,42 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
             </div>
           </div>
 
+          {/* Selectors bar (above the divider) */}
+          <div className="py-4">
+            <div className="flex items-center justify-center gap-3 text-xs text-gray-400">
+              <div className="flex items-center gap-2">
+                <CurrencySelector />
+                <LanguageSelector />
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
+                  title={theme === 'dark' ? (lang === 'pt' ? 'Tema claro' : lang === 'en' ? 'Light theme' : 'Tema claro') : (lang === 'pt' ? 'Tema escuro' : lang === 'en' ? 'Dark theme' : 'Tema oscuro')}
+                >
+                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
+              </div>
+              <span className="text-gray-700">|</span>
+              <button
+                onClick={() => setOpenDoc('privacy')}
+                className="hover:text-white transition-colors"
+              >
+                {tr('Privacidade', 'Privacy', 'Privacidad')}
+              </button>
+              <span className="text-gray-700">|</span>
+              <button
+                onClick={() => setShowCookieBanner(true)}
+                className="flex items-center space-x-1 hover:text-white transition-colors"
+              >
+                <Cookie className="h-3 w-3" />
+                <span>{tr('Cookies', 'Cookies', 'Cookies')}</span>
+              </button>
+            </div>
+          </div>
+
           {/* Bottom bar */}
           <div className="border-t border-gray-800 py-5">
-            <div className="flex flex-col md:flex-row items-center justify-between space-y-3 md:space-y-0">
-              <div className="text-xs text-gray-400 text-center md:text-left">
-                {copyrightText}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-gray-400">
-                <div className="flex items-center gap-2">
-                  <CurrencySelector />
-                  <LanguageSelector />
-                  <button
-                    onClick={toggleTheme}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
-                    title={theme === 'dark' ? (lang === 'pt' ? 'Tema claro' : lang === 'en' ? 'Light theme' : 'Tema claro') : (lang === 'pt' ? 'Tema escuro' : lang === 'en' ? 'Dark theme' : 'Tema oscuro')}
-                  >
-                    {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                  </button>
-                </div>
-                <span className="text-gray-700">|</span>
-                <button
-                  onClick={() => setOpenDoc('privacy')}
-                  className="hover:text-white transition-colors"
-                >
-                  {tr('Privacidade', 'Privacy', 'Privacidad')}
-                </button>
-                <span className="text-gray-700">|</span>
-                <button
-                  onClick={() => setShowCookieBanner(true)}
-                  className="flex items-center space-x-1 hover:text-white transition-colors"
-                >
-                  <Cookie className="h-3 w-3" />
-                  <span>{tr('Cookies', 'Cookies', 'Cookies')}</span>
-                </button>
-              </div>
+            <div className="text-xs text-gray-400 text-center">
+              {copyrightText}
             </div>
           </div>
 

@@ -33,7 +33,7 @@ import { AdminSecurityCenter } from './components/AdminSecurityCenter';
 
 import { AccountsAccessManager } from './components/AccountsAccessManager';
 import { MessageCircle, ShoppingCart } from 'lucide-react';
-import { SupportSystem } from './components/SupportSystem';
+import { HelpCenter } from './components/HelpCenter';
 import { AdminSupportManager } from './components/AdminSupportManager';
 import { AdminDisputeManager } from './components/AdminDisputeManager';
 import { UserProfile } from './components/UserProfile';
@@ -166,6 +166,7 @@ function AppContent() {
     const path = `/search/${encodeURIComponent(query)}`;
     window.history.pushState(null, '', path);
     window.dispatchEvent(new PopStateEvent('popstate'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCreateOffer = () => {
@@ -177,7 +178,9 @@ function AppContent() {
       window.history.pushState(null, '', '/seller-recruitment');
     } else {
       setShowLoginModal(true);
+      return;
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useOnlineHeartbeat(user?.id);
@@ -191,6 +194,7 @@ function AppContent() {
     if (!dynamicRoutes.includes(tab)) {
       window.history.pushState(null, '', `/${tab}`);
     }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -367,6 +371,11 @@ function AppContent() {
     window.addEventListener('popstate', handlePathChange);
     return () => window.removeEventListener('popstate', handlePathChange);
   }, []);
+
+  // Scroll to top whenever the active tab changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeTab]);
 
   // Update URL when tab changes (skip routes with dynamic IDs)
   useEffect(() => {
@@ -729,7 +738,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'support':
-        return <SupportSystem />;
+        return <HelpCenter />;
       case 'admin-support':
         return (
           <AdminGuard page="admin-support">
@@ -991,7 +1000,7 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-10 w-10 object-cover rounded-lg mr-2"
+                    className="h-8 w-8 object-cover rounded-lg mr-2"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -1002,7 +1011,7 @@ function AppContent() {
                     <CreditCard className="h-5 w-5 text-white" />
                   </div>
                 )}
-                <span className="text-lg font-bold text-gray-900 dark:text-white">
+                <span className="text-base font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1019,7 +1028,7 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-12 w-12 sm:h-14 sm:w-14 object-cover rounded-lg"
+                    className="h-10 w-10 sm:h-11 sm:w-11 object-cover rounded-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -1028,9 +1037,9 @@ function AppContent() {
                   />
                 ) : null}
                 <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 sm:p-3 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
-                  <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-white" />
+                  <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 text-white" />
                 </div>
-                <span className="ml-3 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                <span className="ml-2 text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1046,6 +1055,7 @@ function AppContent() {
                       onClick={() => {
                         setActiveTab(item.id as ActiveTab);
                         window.history.pushState(null, '', `/${item.id}`);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
                       className={`relative flex items-center gap-1.5 px-2.5 lg:px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                         isActive
@@ -1114,7 +1124,7 @@ function AppContent() {
               {/* Chat Button - only for authenticated users */}
               {user && (
                 <button
-                  onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '/messages'); }}
+                  onClick={() => { setActiveTab('messages'); window.history.pushState(null, '', '/messages'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                   className="relative p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md transition-colors"
                   title={t.language === 'pt' ? 'Mensagens' : t.language === 'en' ? 'Messages' : 'Mensajes'}
                 >
@@ -1175,6 +1185,7 @@ function AppContent() {
                   setActiveTab('store');
                   window.history.pushState(null, '', '/');
                   setIsMobileMenuOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className="flex items-center hover:opacity-80 transition-opacity"
               >
@@ -1182,7 +1193,7 @@ function AppContent() {
                   <img
                     src={siteSettings?.header_logo_url || storeConfig?.store_logo_url}
                     alt="Logo"
-                    className="h-10 w-10 object-cover rounded-lg"
+                    className="h-8 w-8 object-cover rounded-lg"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
@@ -1193,7 +1204,7 @@ function AppContent() {
                 <div className={`bg-gradient-to-r from-blue-500 to-purple-600 p-2.5 rounded-lg ${siteSettings?.header_logo_url || storeConfig?.store_logo_url ? 'hidden' : ''}`}>
                   <CreditCard className="h-6 w-6 text-white" />
                 </div>
-                <span className="ml-3 text-xl font-bold text-gray-900 dark:text-white">
+                <span className="ml-2 text-lg font-bold text-gray-900 dark:text-white">
                   {siteSettings?.site_name || storeConfig?.store_name || 'Rhoudz'}
                 </span>
               </button>
@@ -1260,6 +1271,7 @@ function AppContent() {
                     setActiveTab('messages');
                     window.history.pushState(null, '', '/messages');
                     setIsMobileMenuOpen(false);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'messages'
@@ -1292,6 +1304,7 @@ function AppContent() {
               setActiveTab('store');
               setProductDetailId(null);
               window.history.pushState(null, '', '/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onGetStarted={() => {
               setShowLoginModal(true);
@@ -1307,11 +1320,13 @@ function AppContent() {
               setActiveTab('store');
               setCheckoutData(null);
               window.history.pushState(null, '', '/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onSuccess={() => {
               setActiveTab('purchases');
               setCheckoutData(null);
               window.history.pushState(null, '', '/purchases');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
         ) : activeTab === 'cart' ? (
@@ -1319,10 +1334,12 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               window.history.pushState(null, '', '/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             onSuccess={() => {
               setActiveTab('purchases');
               window.history.pushState(null, '', '/purchases');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
         ) : (

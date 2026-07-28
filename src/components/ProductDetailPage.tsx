@@ -547,7 +547,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                         src={product.image_url}
                         alt={product.name}
                         onLoad={() => setImageLoaded(true)}
-                        className={`w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                        className={`w-full h-full object-contain sm:object-cover transition-transform duration-700 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; setImageLoaded(true); }}
                       />
                     ) : (
@@ -1132,7 +1132,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-800">
                         {rp.image_url ? (
                           <img src={rp.image_url} alt={rp.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            className="w-full h-full object-contain sm:object-cover group-hover:scale-110 transition-transform duration-500"
                             onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
                           />
                         ) : (

@@ -335,7 +335,7 @@ export function UserMenu({ onNavigate, isAdmin, isSeller }: UserMenuProps) {
 
                 {/* Logout */}
                 <button
-                  onClick={() => { signOut(); handleClose(); }}
+                  onClick={() => { signOut(); handleClose(); window.location.href = '/'; }}
                   className="w-full text-left px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-3 transition-colors border-t border-gray-200 dark:border-gray-700"
                 >
                   <LogOut className="h-4 w-4" />
