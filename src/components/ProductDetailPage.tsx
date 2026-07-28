@@ -404,6 +404,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           product_id: product.id,
           quantity: _quantity || detailQuantity || 1,
           coupon_code: couponCode || null,
+          recharge_data: rechargeData,
           use_cashback: useCashback || false,
           variation_id: variationId || selectedVariation?.id || null,
         }),

@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .form-input {
+    @apply w-full pl-10 pr-3 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all;
+  }
+  .field-hint {
+    @apply text-xs mt-1.5;
+  }
+}
+
 @layer utilities {
   .product-row-scroll::-webkit-scrollbar {
     height: 4px;
