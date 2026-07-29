@@ -82,7 +82,6 @@ import { ChatInbox } from './components/ChatInbox';
 import { CartPage } from './components/CartPage';
 import { CartDrawer } from './components/CartDrawer';
 import { useCart } from './components/CartProvider';
-import { GlobalChat } from './components/GlobalChat';
 
 import { AdminProductCategoriesManager } from './components/AdminProductCategoriesManager';
 import { CategorySearchPage } from './components/CategorySearchPage';
@@ -920,7 +919,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'messages':
-        return <ChatInbox />;
+        return <ChatInbox isAdmin={isAdmin} siteLogo={siteSettings?.header_logo_url || storeConfig?.store_logo_url || null} />;
       case 'notifications':
         return <NotificationsPage />;
       case 'seller-requests':
@@ -1419,9 +1418,6 @@ function AppContent() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
-
-      {/* Global Chat - Rhoudz Oficial */}
-      <GlobalChat isAdmin={isAdmin} siteLogo={siteSettings?.header_logo_url || storeConfig?.store_logo_url || null} />
 
       {/* Expiring Items Chat */}
       <ExpiringItemsChat />

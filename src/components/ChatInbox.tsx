@@ -10,6 +10,8 @@ import { useLanguage } from './LanguageProvider';
 import { ChatModal } from './ChatModal';
 import { OnlineBadge } from './OnlineBadge';
 import { ChatSettingsModal } from './ChatSettingsModal';
+import { GlobalChat, useGlobalChatUnread } from './GlobalChat';
+import { BadgeCheck } from 'lucide-react';
 
 interface ChatPreview {
   id: string;
@@ -43,13 +45,15 @@ const DEFAULT_SETTINGS: ChatSettings = {
   outbound_translate_to: null,
 };
 
-export function ChatInbox() {
+export function ChatInbox({ isAdmin = false, siteLogo = null }: { isAdmin?: boolean; siteLogo?: string | null }) {
   const { user } = useAuth();
   const { language, t } = useLanguage();
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [openChatUserId, setOpenChatUserId] = useState<string | null>(null);
+  const [showGlobalChat, setShowGlobalChat] = useState(false);
+  const { unread: globalUnread, lastMessage: globalLastMessage, lastMessageAt: globalLastMessageAt } = useGlobalChatUnread(user?.id);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
@@ -207,8 +211,8 @@ export function ChatInbox() {
 
   const totalUnread = chats.reduce((acc, c) => acc + c.unread, 0);
 
-  const showList = !isMobile || !openChatUserId;
-  const showChat = !isMobile || openChatUserId;
+  const showList = !isMobile || (!openChatUserId && !showGlobalChat);
+  const showChat = !isMobile || openChatUserId || showGlobalChat;
 
   return (
     <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-white dark:bg-gray-900">
@@ -257,6 +261,51 @@ export function ChatInbox() {
 
           {/* Chat list */}
           <div className="flex-1 overflow-y-auto">
+            {/* Rhoudz Oficial - fixed at top */}
+            {!loading && (
+              <div className="py-1">
+                <button
+                  onClick={() => { setShowGlobalChat(true); setOpenChatUserId(null); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 mx-1 rounded-xl transition-all text-left ${
+                    showGlobalChat
+                      ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                  style={{ width: 'calc(100% - 8px)' }}
+                >
+                  <div className="relative shrink-0">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center ring-2 ring-white dark:ring-gray-900 shadow-sm bg-gradient-to-br from-blue-600 to-cyan-600">
+                      {siteLogo ? (
+                        <img src={siteLogo} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <MessageCircle className="h-5 w-5 text-white" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={`text-sm truncate flex items-center gap-1 ${globalUnread > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+                        Rhoudz Oficial
+                        <BadgeCheck className="w-3.5 h-3.5 text-blue-500" fill="currentColor" />
+                      </span>
+                      <span className={`text-xs shrink-0 ${globalUnread > 0 ? 'text-blue-500 font-medium' : 'text-gray-400'}`}>
+                        {formatTime(globalLastMessageAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className={`text-xs truncate flex-1 ${globalUnread > 0 ? 'text-gray-600 dark:text-gray-300 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
+                        {globalLastMessage || tr('Chat oficial da plataforma', 'Official platform chat', 'Chat oficial de la plataforma')}
+                      </p>
+                      {globalUnread > 0 && (
+                        <span className="shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
+                          {globalUnread > 9 ? '9+' : globalUnread}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-300 dark:text-gray-600" />
@@ -361,7 +410,50 @@ export function ChatInbox() {
       {/* Right side - chat area */}
       {showChat && (
         <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900">
-          {openChatUserId ? (
+          {showGlobalChat ? (
+            <>
+              {isMobile && (
+                <button
+                  onClick={() => setShowGlobalChat(false)}
+                  className="md:hidden flex items-center gap-2 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border-b border-gray-200 dark:border-gray-700"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  {tr('Voltar', 'Back', 'Volver')}
+                </button>
+              )}
+              <div className="flex flex-col h-full">
+                <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0">
+                  <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-600">
+                    {siteLogo ? (
+                      <img src={siteLogo} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <MessageCircle className="h-5 w-5 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1">
+                      Rhoudz Oficial
+                      <BadgeCheck className="w-4 h-4 text-blue-500" fill="currentColor" />
+                    </h3>
+                    <p className="text-[11px] text-gray-400">
+                      {tr('Chat oficial da plataforma', 'Official platform chat', 'Chat oficial de la plataforma')}
+                    </p>
+                  </div>
+                  {!isMobile && (
+                    <button
+                      onClick={() => setShowGlobalChat(false)}
+                      className="w-8 h-8 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-center transition-colors"
+                    >
+                      <ArrowLeft className="h-4 w-4 text-gray-400" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <GlobalChat isAdmin={isAdmin} siteLogo={siteLogo} embedded />
+                </div>
+              </div>
+            </>
+          ) : openChatUserId ? (
             <>
               {isMobile && (
                 <button
