@@ -45,8 +45,13 @@ export function GlobalChat({ isAdmin, siteLogo, embedded }: GlobalChatProps) {
     audioRef.current.volume = 0.3;
   }, []);
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const scrollToBottom = useCallback((smooth = true) => {
-    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' });
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    }
   }, []);
 
   const loadMessages = useCallback(async () => {
@@ -221,7 +226,7 @@ export function GlobalChat({ isAdmin, siteLogo, embedded }: GlobalChatProps) {
   return (
     <div className={`flex flex-col h-full bg-gray-50 dark:bg-gray-900 ${embedded ? '' : ''}`}>
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-gray-50 dark:bg-gray-950">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-gray-50 dark:bg-gray-950">
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin text-blue-500" />

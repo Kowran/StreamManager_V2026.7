@@ -1257,13 +1257,18 @@ function InventoryPage({
 
   async function updateInventoryItem(item: InventoryItem, field: keyof InventoryItem, value: string) {
     if (!item.id) return;
+    setInventory(prev => prev.map(i => i.id === item.id ? { ...i, [field]: value } : i));
+  }
+
+  async function commitInventoryItem(item: InventoryItem) {
+    if (!item.id) return;
     try {
       await supabase.from('product_inventory')
-        .update({ [field]: value, updated_at: new Date().toISOString() })
+        .update({ email: item.email, password: item.password, instructions: item.instructions, updated_at: new Date().toISOString() })
         .eq('id', item.id).eq('status', 'available');
-      await loadInventory();
     } catch (error) {
       console.error('Error updating inventory item:', error);
+      await loadInventory();
     }
   }
 
@@ -1532,6 +1537,7 @@ function InventoryPage({
                             value={item.email}
                             disabled={item.status === 'reserved'}
                             onChange={(e) => updateInventoryItem(item, 'email', e.target.value)}
+                            onBlur={() => commitInventoryItem(item)}
                             className={`${inputClass} text-sm py-1.5 ${item.status === 'reserved' ? 'opacity-60 cursor-not-allowed' : ''}`}
                           />
                           {item.variation_id && (
@@ -1548,6 +1554,7 @@ function InventoryPage({
                             value={item.password}
                             disabled={item.status === 'reserved'}
                             onChange={(e) => updateInventoryItem(item, 'password', e.target.value)}
+                            onBlur={() => commitInventoryItem(item)}
                             className={`${inputClass} text-sm py-1.5 ${item.status === 'reserved' ? 'opacity-60 cursor-not-allowed' : ''}`}
                           />
                         </div>
@@ -1558,6 +1565,7 @@ function InventoryPage({
                             value={item.instructions}
                             disabled={item.status === 'reserved'}
                             onChange={(e) => updateInventoryItem(item, 'instructions', e.target.value)}
+                            onBlur={() => commitInventoryItem(item)}
                             className={`${inputClass} text-sm py-1.5 ${item.status === 'reserved' ? 'opacity-60 cursor-not-allowed' : ''}`}
                           />
                         </div>

@@ -112,8 +112,13 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
   const tr = (pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es;
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const scrollToBottom = useCallback((smooth = true) => {
-    bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' });
+    const el = scrollContainerRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    }
   }, []);
 
   useEffect(() => {
@@ -792,7 +797,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scroll-smooth bg-gray-50 dark:bg-gray-900">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scroll-smooth bg-gray-50 dark:bg-gray-900">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
