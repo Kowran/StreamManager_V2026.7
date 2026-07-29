@@ -622,6 +622,12 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-xl shadow-gray-200/50 dark:shadow-black/30 border border-gray-200 dark:border-gray-800 p-5 sm:p-6 lg:sticky lg:top-20">
                 {/* Delivery badges */}
                 <div className="flex flex-wrap gap-2 mb-4">
+                  {product.is_featured && (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
+                      <Sparkles className="h-3.5 w-3.5 mr-1" />
+                      {lang === 'pt' ? 'Destaque' : lang === 'en' ? 'Featured' : 'Destacado'}
+                    </span>
+                  )}
                   {product.manual_delivery ? (
                     (product as any).account_recharge ? (
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">

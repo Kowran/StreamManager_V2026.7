@@ -99,7 +99,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [productToConfirm, setProductToConfirm] = useState<ProductWithSeller | null>(null);
   const [banners, setBanners] = useState<any[]>([]);
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [pendingRating, setPendingRating] = useState<{ productId: string; productName: string } | null>(null);
+  const [pendingRating, setPendingRating] = useState<{ productId: string; productName: string; orderId?: string } | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showSellerForm, setShowSellerForm] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -1109,10 +1109,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 dark:from-amber-400 dark:to-yellow-400 bg-clip-text text-transparent">
                   {t.language === 'pt' ? 'Destaques' : t.language === 'en' ? 'Featured' : 'Destacados'}
                 </h2>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                  <Star className="h-2.5 w-2.5 fill-current" />
-                  VIP
-                </span>
                 <div className="h-px flex-1 bg-gradient-to-r from-amber-200 to-transparent dark:from-amber-700/50" />
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
@@ -1666,6 +1662,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
           }}
           productId={pendingRating.productId}
           productName={pendingRating.productName}
+          orderId={pendingRating.orderId}
           onRatingSubmitted={() => {
             setShowRatingModal(false);
             setPendingRating(null);
@@ -1838,47 +1835,8 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
           : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-2xl'
       } ${!isAvailable ? 'opacity-75' : ''}`}
     >
-      {isFeatured && (
-        <div className="absolute top-0 right-0 z-20">
-          <div className="bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-bl-lg shadow-md flex items-center gap-1">
-            <Sparkles className="h-2.5 w-2.5" />
-            {t.language === 'pt' ? 'DESTAQUE' : t.language === 'en' ? 'FEATURED' : 'DESTACADO'}
-          </div>
-        </div>
-      )}
       {/* Product Image */}
       <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
-        {/* Top-left category badge */}
-        <span className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-black/55 backdrop-blur-sm text-white capitalize">
-          {product.category}
-        </span>
-        {/* Top-right promo / delivery */}
-        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex flex-col items-end gap-1">
-          {hasPromo && discountPct > 0 && (
-            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-red-500 text-white shadow-sm">
-              -{discountPct}%
-            </span>
-          )}
-          {product.manual_delivery ? (
-            (product as any).account_recharge ? (
-              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-amber-500 text-white shadow-sm">
-                <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-blue-500 text-white shadow-sm">
-                <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                {t.language === 'pt' ? 'Manual' : t.language === 'en' ? 'Manual' : 'Manual'}
-              </span>
-            )
-          ) : (
-            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-500 text-white shadow-sm">
-              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-              {t.language === 'pt' ? 'Auto' : t.language === 'en' ? 'Auto' : 'Auto'}
-            </span>
-          )}
-        </div>
-
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -1910,20 +1868,6 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
           </div>
         )}
 
-        {/* Bottom badges: low stock + sales count */}
-        <div className="absolute bottom-1.5 left-1.5 sm:bottom-2 sm:left-2 flex flex-col gap-1 z-10">
-          {lowStock && (
-            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-orange-500/90 backdrop-blur-sm text-white">
-              {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-            </span>
-          )}
-          {salesCount > 0 && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-emerald-500/90 backdrop-blur-sm text-white">
-              <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Product Info */}
@@ -1933,13 +1877,27 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
         </h3>
 
         {product.seller_info && (
-          <div className="mb-2 flex items-center gap-1.5">
+          <div className="mb-2 flex items-center gap-1.5 min-w-0">
+            {product.seller_info.avatar_url ? (
+              <img
+                src={product.seller_info.avatar_url}
+                alt={product.seller_info.business_name}
+                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover flex-shrink-0 border border-gray-200 dark:border-gray-600"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                <span className="text-[8px] sm:text-[9px] font-bold text-white uppercase">
+                  {product.seller_info.business_name?.charAt(0) || '?'}
+                </span>
+              </div>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onViewSellerProfile(product.seller_id || null, product.seller_info?.seller_slug);
               }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[140px]"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[120px]"
             >
               {product.seller_info.business_name}
             </button>
@@ -1948,6 +1906,53 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
             </span>
           </div>
         )}
+
+        {/* Tags row (moved below the photo) */}
+        <div className="mb-2.5 flex flex-wrap gap-1 sm:gap-1.5">
+          {isFeatured && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
+              <Sparkles className="h-2.5 w-2.5" />
+              {t.language === 'pt' ? 'Destaque' : t.language === 'en' ? 'Featured' : 'Destacado'}
+            </span>
+          )}
+          <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 capitalize">
+            {product.category}
+          </span>
+          {hasPromo && discountPct > 0 && (
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-red-500 text-white shadow-sm">
+              -{discountPct}%
+            </span>
+          )}
+          {product.manual_delivery ? (
+            (product as any).account_recharge ? (
+              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                {t.language === 'pt' ? 'Manual' : t.language === 'en' ? 'Manual' : 'Manual'}
+              </span>
+            )
+          ) : (
+            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+              {t.language === 'pt' ? 'Auto' : t.language === 'en' ? 'Auto' : 'Auto'}
+            </span>
+          )}
+          {lowStock && (
+            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
+              {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
+            </span>
+          )}
+          {salesCount > 0 && (
+            <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+              <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+              {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
+            </span>
+          )}
+        </div>
 
         {/* Product Rating */}
         <div className="mb-3">
