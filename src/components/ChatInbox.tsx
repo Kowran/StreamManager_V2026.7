@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { MessageCircle, User, Search, Loader2, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  MessageCircle, User, Search, Loader2, ArrowLeft, Settings,
+  Languages, Bell, BellOff, Volume2, VolumeX, CornerDownLeft,
+  Eye, EyeOff, Check, X, Trash2, Pin, Archive,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { ChatModal } from './ChatModal';
 import { OnlineBadge } from './OnlineBadge';
+import { ChatSettingsModal } from './ChatSettingsModal';
 
 interface ChatPreview {
   id: string;
@@ -20,14 +25,37 @@ interface ChatPreview {
   user2_id: string;
 }
 
+interface ChatSettings {
+  auto_translate: boolean;
+  translate_to: string;
+  show_original: boolean;
+  enter_to_send: boolean;
+  sound_enabled: boolean;
+}
+
+const DEFAULT_SETTINGS: ChatSettings = {
+  auto_translate: false,
+  translate_to: 'en',
+  show_original: true,
+  enter_to_send: true,
+  sound_enabled: true,
+};
+
 export function ChatInbox() {
   const { user } = useAuth();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [openChatUserId, setOpenChatUserId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<ChatSettings>(DEFAULT_SETTINGS);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const isInitialMount = useRef(true);
+
+  const tr = (pt: string, en: string, es: string) =>
+    language === 'pt' ? pt : language === 'en' ? en : es;
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -38,6 +66,7 @@ export function ChatInbox() {
   useEffect(() => {
     if (!user) return;
     loadChats();
+    loadSettings();
 
     const channel = supabase
       .channel('direct-chats-inbox')
@@ -50,6 +79,64 @@ export function ChatInbox() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  async function loadSettings() {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('chat_settings')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        // Table might not exist yet, use defaults
+        return;
+      }
+
+      if (data) {
+        setSettings({
+          auto_translate: data.auto_translate,
+          translate_to: data.translate_to,
+          show_original: data.show_original,
+          enter_to_send: data.enter_to_send,
+          sound_enabled: data.sound_enabled,
+        });
+      }
+    } catch {
+      // Use defaults if table doesn't exist
+    }
+  }
+
+  async function saveSettings(newSettings: ChatSettings) {
+    if (!user) return;
+    setSettingsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('chat_settings')
+        .upsert({
+          user_id: user.id,
+          auto_translate: newSettings.auto_translate,
+          translate_to: newSettings.translate_to,
+          show_original: newSettings.show_original,
+          enter_to_send: newSettings.enter_to_send,
+          sound_enabled: newSettings.sound_enabled,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) {
+        // If table doesn't exist or RLS blocks, just update local state
+        setSettings(newSettings);
+        return;
+      }
+
+      setSettings(newSettings);
+    } catch {
+      setSettings(newSettings);
+    } finally {
+      setSettingsLoading(false);
+    }
+  }
 
   async function loadChats() {
     if (!user) return;
@@ -116,36 +203,39 @@ export function ChatInbox() {
 
   const totalUnread = chats.reduce((acc, c) => acc + c.unread, 0);
 
-  const t = (pt: string, en: string, es: string) =>
-    language === 'pt' ? pt : language === 'en' ? en : es;
-
-  // On mobile: show list OR chat, not both
-  // On desktop: show list on left, chat on right
   const showList = !isMobile || !openChatUserId;
   const showChat = !isMobile || openChatUserId;
 
   return (
-    <div className="h-[calc(100vh-64px)] flex overflow-hidden">
+    <div className="h-[calc(100vh-64px)] flex overflow-hidden bg-white dark:bg-gray-900">
       {/* Left sidebar - chat list */}
       {showList && (
-        <div className={`${isMobile && openChatUserId ? 'hidden' : 'w-full'} md:w-80 lg:w-96 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-800`}>
+        <div className={`${isMobile && openChatUserId ? 'hidden' : 'w-full'} md:w-80 lg:w-96 border-r border-gray-200 dark:border-gray-700 flex flex-col bg-white dark:bg-gray-900`}>
           {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="relative">
-                <MessageCircle className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-                {totalUnread > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                    {totalUnread > 9 ? '9+' : totalUnread}
-                  </span>
-                )}
+          <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                  <MessageCircle className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900 dark:text-white tracking-tight">
+                    {tr('Mensagens', 'Messages', 'Mensajes')}
+                  </h2>
+                  {totalUnread > 0 && (
+                    <p className="text-[11px] text-blue-500 font-medium">
+                      {totalUnread} {tr('não lida(s)', 'unread', 'no leída(s)')}
+                    </p>
+                  )}
+                </div>
               </div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                {t('Mensagens', 'Messages', 'Mensajes')}
-              </h2>
-              <span className="text-xs text-gray-400 ml-auto">
-                {chats.length} {t('conversa(s)', 'conversation(s)', 'conversa(s)')}
-              </span>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center transition-colors group"
+                title={tr('Configurações', 'Settings', 'Configuración')}
+              >
+                <Settings className="h-4 w-4 text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors" />
+              </button>
             </div>
 
             {/* Search */}
@@ -155,8 +245,8 @@ export function ChatInbox() {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder={t('Buscar conversa...', 'Search conversation...', 'Buscar conversa...')}
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
+                placeholder={tr('Buscar conversa...', 'Search conversations...', 'Buscar conversa...')}
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-colors"
               />
             </div>
           </div>
@@ -165,70 +255,101 @@ export function ChatInbox() {
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                <Loader2 className="h-6 w-6 animate-spin text-gray-300 dark:text-gray-600" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-                <MessageCircle className="h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                  <MessageCircle className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+                </div>
+                <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                   {search
-                    ? t('Nenhuma conversa encontrada', 'No conversation found', 'Ninguna conversa encontrada')
-                    : t('Nenhuma mensagem ainda', 'No messages yet', 'Aún no hay mensajes')}
+                    ? tr('Nenhuma conversa encontrada', 'No conversation found', 'Ninguna conversa encontrada')
+                    : tr('Nenhuma mensagem ainda', 'No messages yet', 'Aún no hay mensajes')}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {!search && t('Visite o perfil de um usuário para iniciar uma conversa', 'Visit a user profile to start a conversation', 'Visita el perfil de un usuario para iniciar una conversa')}
+                <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
+                  {!search && tr('Visite o perfil de um usuário para iniciar uma conversa', 'Visit a user profile to start a conversation', 'Visita el perfil de un usuario para iniciar una conversa')}
                 </p>
               </div>
             ) : (
-              filtered.map((chat) => (
-                <button
-                  key={chat.id}
-                  onClick={() => setOpenChatUserId(chat.other_user_id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left ${
-                    openChatUserId === chat.other_user_id ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-blue-500' : ''
-                  }`}
-                >
-                  {/* Avatar */}
-                  <div className="relative shrink-0">
-                    <div
-                      className="w-11 h-11 rounded-xl overflow-hidden flex items-center justify-center"
-                      style={{ background: chat.other_user_theme ? `${chat.other_user_theme}33` : '#f3f4f6' }}
+              <div className="py-1">
+                {filtered.map((chat) => {
+                  const isActive = openChatUserId === chat.other_user_id;
+                  return (
+                    <button
+                      key={chat.id}
+                      onClick={() => setOpenChatUserId(chat.other_user_id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 mx-1 rounded-xl transition-all text-left ${
+                        isActive
+                          ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-200 dark:ring-blue-800'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                      }`}
+                      style={{ width: 'calc(100% - 8px)' }}
                     >
-                      {chat.other_user_avatar ? (
-                        <img src={chat.other_user_avatar} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="h-5 w-5 text-gray-400" />
-                      )}
-                    </div>
-                    <OnlineBadge
-                      lastSeenAt={chat.other_user_last_seen}
-                      showLabel={false}
-                      size="sm"
-                    />
-                  </div>
+                      {/* Avatar */}
+                      <div className="relative shrink-0">
+                        <div
+                          className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center ring-2 ring-white dark:ring-gray-900 shadow-sm"
+                          style={{ background: chat.other_user_theme ? `${chat.other_user_theme}33` : '#f3f4f6' }}
+                        >
+                          {chat.other_user_avatar ? (
+                            <img src={chat.other_user_avatar} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <User className="h-5 w-5 text-gray-400" />
+                          )}
+                        </div>
+                        <OnlineBadge
+                          lastSeenAt={chat.other_user_last_seen}
+                          showLabel={false}
+                          size="sm"
+                        />
+                      </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className={`text-sm truncate ${chat.unread > 0 ? 'font-semibold text-gray-900 dark:text-white' : 'font-medium text-gray-800 dark:text-gray-200'}`}>
-                        {chat.other_user_name || t('Usuário', 'User', 'Usuario')}
-                      </span>
-                      <span className="text-xs text-gray-400 shrink-0">{formatTime(chat.last_message_at)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className={`text-xs truncate flex-1 ${chat.unread > 0 ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
-                        {chat.last_message || t('Nenhuma mensagem', 'No messages', 'Sin mensajes')}
-                      </p>
-                      {chat.unread > 0 && (
-                        <span className="shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
-                          {chat.unread > 9 ? '9+' : chat.unread}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className={`text-sm truncate ${chat.unread > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+                            {chat.other_user_name || tr('Usuário', 'User', 'Usuario')}
+                          </span>
+                          <span className={`text-xs shrink-0 ${chat.unread > 0 ? 'text-blue-500 font-medium' : 'text-gray-400'}`}>
+                            {formatTime(chat.last_message_at)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className={`text-xs truncate flex-1 ${chat.unread > 0 ? 'text-gray-600 dark:text-gray-300 font-medium' : 'text-gray-400 dark:text-gray-500'}`}>
+                            {chat.last_message || tr('Nenhuma mensagem', 'No messages', 'Sin mensajes')}
+                          </p>
+                          {chat.unread > 0 && (
+                            <span className="shrink-0 min-w-[20px] h-5 px-1 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
+                              {chat.unread > 9 ? '9+' : chat.unread}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
+          </div>
+
+          {/* Footer with settings summary */}
+          <div className="px-4 py-2.5 border-t border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+              <span>{chats.length} {tr('conversa(s)', 'conversation(s)', 'conversa(s)')}</span>
+              <div className="flex items-center gap-2">
+                {settings.auto_translate && (
+                  <span className="flex items-center gap-1 text-blue-500" title={tr('Tradução automática ativa', 'Auto-translate on', 'Traducción automática activa')}>
+                    <Languages className="h-3 w-3" />
+                  </span>
+                )}
+                {settings.sound_enabled ? (
+                  <Volume2 className="h-3 w-3" />
+                ) : (
+                  <VolumeX className="h-3 w-3" />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -241,32 +362,51 @@ export function ChatInbox() {
               {isMobile && (
                 <button
                   onClick={() => setOpenChatUserId(null)}
-                  className="md:hidden flex items-center gap-2 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="md:hidden flex items-center gap-2 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors border-b border-gray-200 dark:border-gray-700"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  {t('Voltar', 'Back', 'Volver')}
+                  {tr('Voltar', 'Back', 'Volver')}
                 </button>
               )}
               <ChatModal
                 otherUserId={openChatUserId}
                 onClose={() => { setOpenChatUserId(null); loadChats(); }}
                 embedded
+                chatSettings={settings}
               />
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-              <MessageCircle className="h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
-              <p className="text-base font-medium text-gray-700 dark:text-gray-300">
-                {t('Selecione uma conversa', 'Select a conversation', 'Selecciona una conversa')}
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900/20 dark:to-cyan-900/20 flex items-center justify-center mb-5">
+                <MessageCircle className="h-10 w-10 text-blue-400 dark:text-blue-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1.5">
+                {tr('Suas Mensagens', 'Your Messages', 'Tus Mensajes')}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-xs leading-relaxed">
+                {tr('Escolha uma conversa à esquerda para começar a conversar', 'Choose a conversation on the left to start chatting', 'Elige una conversa a la izquierda para empezar a chatear')}
               </p>
-              <p className="text-sm text-gray-400 mt-1">
-                {t('Escolha uma conversa à esquerda para começar a conversar', 'Choose a conversation on the left to start chatting', 'Elige una conversa a la izquierda para empezar a chatear')}
-              </p>
+              {settings.auto_translate && (
+                <div className="mt-4 flex items-center gap-1.5 text-xs text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full">
+                  <Languages className="h-3.5 w-3.5" />
+                  {tr('Tradução automática ativa', 'Auto-translate enabled', 'Traducción automática activa')}
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
+      {/* Settings Modal */}
+      {showSettings && (
+        <ChatSettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          settings={settings}
+          onSave={saveSettings}
+          isSaving={settingsLoading}
+        />
+      )}
     </div>
   );
 }

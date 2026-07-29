@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package, ChevronRight, Ban, CheckCircle, MoreVertical } from 'lucide-react';
+import {
+  X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package,
+  ChevronRight, Ban, CheckCircle, MoreVertical, Languages, Settings, Volume2, VolumeX,
+  CornerDownLeft, ArrowLeft, Globe, Check,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { OnlineBadge } from './OnlineBadge';
+import { ChatSettingsModal, ChatSettingsData } from './ChatSettingsModal';
 
 interface OtherUser {
   id: string;
@@ -34,16 +39,36 @@ interface OrderContext {
   customerName: string;
 }
 
+interface TranslationCache {
+  [messageId: string]: { text: string; sourceLang?: string };
+}
+
 interface ChatModalProps {
   otherUserId: string;
   onClose: () => void;
   orderContext?: OrderContext;
   embedded?: boolean;
+  chatSettings?: ChatSettingsData;
 }
 
-export function ChatModal({ otherUserId, onClose, orderContext, embedded }: ChatModalProps) {
+const DEFAULT_SETTINGS: ChatSettingsData = {
+  auto_translate: false,
+  translate_to: 'en',
+  show_original: true,
+  enter_to_send: true,
+  sound_enabled: true,
+};
+
+const LANG_LABELS: Record<string, string> = {
+  pt: 'Português', en: 'English', es: 'Español', fr: 'Français',
+  de: 'Deutsch', it: 'Italiano', ja: '日本語', ko: '한국어',
+  zh: '中文', ru: 'Русский', ar: 'العربية', nl: 'Nederlands',
+};
+
+export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSettings }: ChatModalProps) {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const settings = chatSettings || DEFAULT_SETTINGS;
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [chatId, setChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,14 +82,40 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
   const [blockedByOther, setBlockedByOther] = useState(false);
   const [blockLoading, setBlockLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [translations, setTranslations] = useState<TranslationCache>({});
+  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
+  const [showTranslated, setShowTranslated] = useState<Set<string>>(new Set());
   const imgInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const contextSentRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const prevMsgCount = useRef(0);
+
+  const tr = (pt: string, en: string, es: string) =>
+    language === 'pt' ? pt : language === 'en' ? en : es;
 
   const scrollToBottom = useCallback((smooth = true) => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' });
   }, []);
+
+  // Create notification sound element
+  useEffect(() => {
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
+    audioRef.current.volume = 0.3;
+  }, []);
+
+  // Play sound on new incoming message
+  useEffect(() => {
+    if (settings.sound_enabled && messages.length > prevMsgCount.current) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.sender_id !== user?.id) {
+        audioRef.current?.play().catch(() => {});
+      }
+    }
+    prevMsgCount.current = messages.length;
+  }, [messages, settings.sound_enabled, user]);
 
   useEffect(() => {
     if (!user || !otherUserId) return;
@@ -86,6 +137,10 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
           setTimeout(() => scrollToBottom(), 50);
           if (payload.new.sender_id !== user?.id) {
             markMessagesRead(chatId);
+            // Auto-translate if enabled
+            if (settings.auto_translate && payload.new.content) {
+              translateMessage(payload.new as Message);
+            }
           }
         }
       )
@@ -96,7 +151,76 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
 
   useEffect(() => {
     if (messages.length > 0) scrollToBottom(false);
+    // Auto-translate all incoming messages if enabled
+    if (settings.auto_translate) {
+      messages.forEach(msg => {
+        if (msg.sender_id !== user?.id && msg.content && !translations[msg.id] && !translatingIds.has(msg.id)) {
+          translateMessage(msg);
+        }
+      });
+    }
   }, [messages.length]);
+
+  async function translateMessage(msg: Message) {
+    if (translatingIds.has(msg.id) || translations[msg.id]) return;
+    if (!msg.content || msg.content.startsWith('[order_ref:')) return;
+
+    setTranslatingIds(prev => new Set(prev).add(msg.id));
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) return;
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.session.access_token}`,
+        },
+        body: JSON.stringify({
+          message_id: msg.id,
+          target_lang: settings.translate_to,
+          text: msg.content,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Translation failed');
+
+      const data = await response.json();
+      if (data.translatedText) {
+        setTranslations(prev => ({
+          ...prev,
+          [msg.id]: { text: data.translatedText, sourceLang: data.sourceLang },
+        }));
+        if (settings.auto_translate) {
+          setShowTranslated(prev => new Set(prev).add(msg.id));
+        }
+      }
+    } catch (err) {
+      console.error('Translation error:', err);
+    } finally {
+      setTranslatingIds(prev => {
+        const next = new Set(prev);
+        next.delete(msg.id);
+        return next;
+      });
+    }
+  }
+
+  function toggleTranslation(msg: Message) {
+    if (showTranslated.has(msg.id)) {
+      setShowTranslated(prev => {
+        const next = new Set(prev);
+        next.delete(msg.id);
+        return next;
+      });
+    } else {
+      if (!translations[msg.id]) {
+        translateMessage(msg);
+      }
+      setShowTranslated(prev => new Set(prev).add(msg.id));
+    }
+  }
 
   async function initChat() {
     if (!user) return;
@@ -179,7 +303,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
     const oid = otherUserId;
     const isUser1 = uid < oid;
     const col = isUser1 ? 'user2_unread' : 'user1_unread';
-    const preview = language === 'pt' ? `Pedido: ${ctx.productName}` : language === 'en' ? `Order: ${ctx.productName}` : `Pedido: ${ctx.productName}`;
+    const preview = tr(`Pedido: ${ctx.productName}`, `Order: ${ctx.productName}`, `Pedido: ${ctx.productName}`);
     await supabase
       .from('direct_chats')
       .update({ last_message: preview, last_message_at: new Date().toISOString() })
@@ -293,7 +417,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
       const uid = user.id;
       const oid = otherUserId;
       const isUser1 = uid < oid;
-      const preview = content.length > 60 ? content.slice(0, 60) + '…' : (imgToSend ? '📷 Image' : '');
+      const preview = content.length > 60 ? content.slice(0, 60) + '…' : (imgToSend ? '📷 Image' : content);
       await supabase
         .from('direct_chats')
         .update({ last_message: preview, last_message_at: new Date().toISOString() })
@@ -312,7 +436,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && settings.enter_to_send) {
       e.preventDefault();
       sendMessage();
     }
@@ -358,7 +482,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
 
         {/* Header */}
         <div
-          className="flex items-center gap-3 px-4 py-3 shrink-0"
+          className="flex items-center gap-3 px-4 py-3 shrink-0 relative"
           style={{ background: `linear-gradient(135deg, ${themeColor}dd, ${themeColor}aa)` }}
         >
           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-white/20 flex items-center justify-center">
@@ -376,77 +500,104 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
               }}
               className="font-semibold text-white truncate text-sm hover:underline text-left"
             >
-              {otherUser?.full_name || (language === 'pt' ? 'Usuário' : 'User')}
+              {otherUser?.full_name || tr('Usuário', 'User', 'Usuario')}
             </button>
-            <OnlineBadge
-              lastSeenAt={otherUser?.last_seen_at}
-              language={language}
-              showLabel
-              size="sm"
-            />
+            <div className="flex items-center gap-2">
+              <OnlineBadge
+                lastSeenAt={otherUser?.last_seen_at}
+                language={language}
+                showLabel
+                size="sm"
+              />
+              {settings.auto_translate && (
+                <span className="flex items-center gap-0.5 text-white/70 text-[10px]">
+                  <Languages className="h-2.5 w-2.5" />
+                  {LANG_LABELS[settings.translate_to]?.split(' ')[0]}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="relative">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
-            >
-              <MoreVertical className="h-5 w-5" />
-            </button>
-            {showMenu && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-20 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1">
-                  <button
-                    onClick={() => {
-                      const ident = otherUser?.username || otherUser?.id;
-                      if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
-                      setShowMenu(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
-                  >
-                    <User className="h-4 w-4" />
-                    {language === 'pt' ? 'Ver perfil' : language === 'en' ? 'View profile' : 'Ver perfil'}
-                  </button>
-                  <button
-                    onClick={toggleBlock}
-                    disabled={blockLoading}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left ${
-                      isBlocked
-                        ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
-                        : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                    }`}
-                  >
-                    {isBlocked
-                      ? <><CheckCircle className="h-4 w-4" /> {language === 'pt' ? 'Desbloquear' : language === 'en' ? 'Unblock' : 'Desbloquear'}</>
-                      : <><Ban className="h-4 w-4" /> {language === 'pt' ? 'Bloquear' : language === 'en' ? 'Block' : 'Bloquear'}</>
-                    }
-                  </button>
-                </div>
-              </>
+
+          {/* Quick settings indicators */}
+          <div className="flex items-center gap-1">
+            {settings.sound_enabled ? (
+              <Volume2 className="h-4 w-4 text-white/50" />
+            ) : (
+              <VolumeX className="h-4 w-4 text-white/50" />
+            )}
+            <div className="relative">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </button>
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 py-1">
+                    <button
+                      onClick={() => {
+                        const ident = otherUser?.username || otherUser?.id;
+                        if (ident) { window.history.pushState(null, '', `/user/${ident}`); window.dispatchEvent(new PopStateEvent('popstate')); }
+                        setShowMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                    >
+                      <User className="h-4 w-4" />
+                      {tr('Ver perfil', 'View profile', 'Ver perfil')}
+                    </button>
+                    <button
+                      onClick={() => { setShowMenu(false); setShowSettingsModal(true); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                    >
+                      <Settings className="h-4 w-4" />
+                      {tr('Configurações', 'Settings', 'Configuración')}
+                    </button>
+                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-1" />
+                    <button
+                      onClick={toggleBlock}
+                      disabled={blockLoading}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors text-left ${
+                        isBlocked
+                          ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                          : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+                      }`}
+                    >
+                      {isBlocked
+                        ? <><CheckCircle className="h-4 w-4" /> {tr('Desbloquear', 'Unblock', 'Desbloquear')}</>
+                        : <><Ban className="h-4 w-4" /> {tr('Bloquear', 'Block', 'Bloquear')}</>
+                      }
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+            {!embedded && (
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         {/* No outside contact warning */}
         <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-start gap-2 shrink-0">
           <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
-            {language === 'pt'
-              ? 'Proibido compartilhar contatos externos (WhatsApp, email, redes sociais). Toda comunicação deve ser pelo chat do site.'
-              : language === 'en'
-              ? 'Sharing external contacts (WhatsApp, email, social media) is prohibited. All communication must stay on the site chat.'
-              : 'Prohibido compartir contactos externos (WhatsApp, email, redes sociales). Toda comunicación debe ser por el chat del sitio.'}
+            {tr(
+              'Proibido compartilhar contatos externos (WhatsApp, email, redes sociais). Toda comunicação deve ser pelo chat do site.',
+              'Sharing external contacts (WhatsApp, email, social media) is prohibited. All communication must stay on the site chat.',
+              'Prohibido compartir contactos externos (WhatsApp, email, redes sociales). Toda comunicación debe ser por el chat del sitio.'
+            )}
           </p>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scroll-smooth">
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1 scroll-smooth bg-gray-50 dark:bg-gray-900">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
@@ -460,10 +611,10 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                 <Circle className="h-6 w-6" style={{ color: themeColor }} />
               </div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {language === 'pt' ? 'Nenhuma mensagem ainda' : 'No messages yet'}
+                {tr('Nenhuma mensagem ainda', 'No messages yet', 'Aún no hay mensajes')}
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                {language === 'pt' ? 'Seja o primeiro a dizer olá!' : 'Be the first to say hello!'}
+                {tr('Seja o primeiro a dizer olá!', 'Be the first to say hello!', '¡Sé el primero en decir hola!')}
               </p>
             </div>
           ) : (
@@ -480,6 +631,11 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                   const sameAsPrev = prev?.sender_id === msg.sender_id;
                   const orderCtx = msg.metadata?.orderContext as OrderContext | undefined;
                   const isOrderCitation = !!orderCtx || msg.content?.startsWith('[order_ref:');
+                  const hasTranslation = !!translations[msg.id];
+                  const isTranslating = translatingIds.has(msg.id);
+                  const showTrans = showTranslated.has(msg.id);
+                  const canTranslate = msg.content && !isOrderCitation && !msg.image_url;
+
                   return (
                     <div
                       key={msg.id}
@@ -503,7 +659,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                             <div className="min-w-0 flex-1">
                               <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
                                 <ShoppingBag className="h-3 w-3" />
-                                {language === 'pt' ? 'Referência de Pedido' : language === 'en' ? 'Order Reference' : 'Referencia de Pedido'}
+                                {tr('Referência de Pedido', 'Order Reference', 'Referencia de Pedido')}
                               </span>
                               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{orderCtx.productName}</p>
                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -517,11 +673,28 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                             className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                               isMine
                                 ? 'text-white rounded-br-sm'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
+                                : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm shadow-sm'
                             }`}
                             style={isMine ? { backgroundColor: themeColor } : {}}
                           >
-                            {msg.content && <p>{msg.content}</p>}
+                            {msg.content && (
+                              <>
+                                <p className={showTrans && hasTranslation && settings.show_original ? 'opacity-50 text-xs mb-1 line-through' : ''}>
+                                  {msg.content}
+                                </p>
+                                {showTrans && hasTranslation && (
+                                  <p className={`text-sm ${isMine ? 'text-white' : 'text-gray-900 dark:text-white'} ${settings.show_original ? 'border-t border-white/20 dark:border-gray-600/30 pt-1 mt-1' : ''}`}>
+                                    {translations[msg.id].text}
+                                  </p>
+                                )}
+                                {isTranslating && (
+                                  <p className={`text-xs mt-1 flex items-center gap-1 ${isMine ? 'text-white/70' : 'text-gray-400'}`}>
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    {tr('Traduzindo...', 'Translating...', 'Traduciendo...')}
+                                  </p>
+                                )}
+                              </>
+                            )}
                             {msg.image_url && (
                               <img
                                 src={msg.image_url}
@@ -532,7 +705,35 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                             )}
                           </div>
                         )}
-                        <span className="text-[10px] text-gray-400 mt-0.5 px-1">{formatTime(msg.created_at)}</span>
+                        <div className={`flex items-center gap-1.5 mt-0.5 px-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <span className="text-[10px] text-gray-400">{formatTime(msg.created_at)}</span>
+                          {canTranslate && (
+                            <button
+                              onClick={() => toggleTranslation(msg)}
+                              disabled={isTranslating}
+                              className={`flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-md transition-all disabled:opacity-50 ${
+                                showTrans
+                                  ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                  : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                              }`}
+                              title={showTrans ? tr('Ver original', 'Show original', 'Ver original') : tr('Traduzir', 'Translate', 'Traducir')}
+                            >
+                              {isTranslating ? (
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                              ) : showTrans ? (
+                                <Check className="h-2.5 w-2.5" />
+                              ) : (
+                                <Languages className="h-2.5 w-2.5" />
+                              )}
+                              {!showTrans && !isTranslating && tr('Traduzir', 'Translate', 'Traducir')}
+                            </button>
+                          )}
+                          {hasTranslation && showTrans && translations[msg.id]?.sourceLang && (
+                            <span className="text-[9px] text-gray-300 dark:text-gray-500">
+                              {translations[msg.id].sourceLang} → {settings.translate_to}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -548,8 +749,8 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
           <div className="px-4 py-3 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800 text-center shrink-0">
             <p className="text-sm text-red-600 dark:text-red-400">
               {isBlocked
-                ? (language === 'pt' ? 'Você bloqueou este usuário. Desbloqueie para enviar mensagens.' : language === 'en' ? 'You blocked this user. Unblock to send messages.' : 'Bloqueaste a este usuario. Desbloquea para enviar mensajes.')
-                : (language === 'pt' ? 'Este usuário bloqueou você.' : language === 'en' ? 'This user blocked you.' : 'Este usuario te bloqueó.')}
+                ? tr('Você bloqueou este usuário. Desbloqueie para enviar mensagens.', 'You blocked this user. Unblock to send messages.', 'Bloqueaste a este usuario. Desbloquea para enviar mensajes.')
+                : tr('Este usuário bloqueou você.', 'This user blocked you.', 'Este usuario te bloqueó.')}
             </p>
             {isBlocked && (
               <button
@@ -557,14 +758,14 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
                 disabled={blockLoading}
                 className="mt-2 px-4 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors disabled:opacity-40"
               >
-                {language === 'pt' ? 'Desbloquear' : language === 'en' ? 'Unblock' : 'Desbloquear'}
+                {tr('Desbloquear', 'Unblock', 'Desbloquear')}
               </button>
             )}
           </div>
         )}
 
         {/* Input area */}
-        <div className="px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0">
+        <div className="px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900">
           {imageUrl && (
             <div className="relative mb-2">
               <img src={imageUrl} alt="Preview" className="rounded-xl max-h-28 w-full object-cover border border-gray-200 dark:border-gray-700" />
@@ -582,7 +783,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
               onClick={() => imgInputRef.current?.click()}
               disabled={uploadingImg}
               className="shrink-0 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-40 mb-0.5"
-              title={language === 'pt' ? 'Enviar imagem' : 'Send image'}
+              title={tr('Enviar imagem', 'Send image', 'Enviar imagen')}
             >
               {uploadingImg ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
             </button>
@@ -594,7 +795,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
               rows={1}
               maxLength={1000}
               disabled={isBlocked || blockedByOther}
-              placeholder={isBlocked || blockedByOther ? (language === 'pt' ? 'Bloqueado' : 'Blocked') : (language === 'pt' ? 'Digite uma mensagem...' : 'Type a message...')}
+              placeholder={isBlocked || blockedByOther ? tr('Bloqueado', 'Blocked', 'Bloqueado') : tr('Digite uma mensagem...', 'Type a message...', 'Escribe un mensaje...')}
               className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 resize-none outline-none min-h-[24px] max-h-[120px] overflow-y-auto"
               style={{ lineHeight: '1.5' }}
             />
@@ -611,12 +812,27 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded }: Chat
             </button>
           </div>
           <p className="text-[10px] text-gray-400 text-center mt-1">
-            Enter {language === 'pt' ? 'para enviar' : 'to send'} · Shift+Enter {language === 'pt' ? 'para nova linha' : 'for new line'}
+            {settings.enter_to_send
+              ? `Enter ${tr('para enviar', 'to send', 'para enviar')} · Shift+Enter ${tr('para nova linha', 'for new line', 'para nueva línea')}`
+              : `Enter ${tr('para nova linha', 'for new line', 'para nueva línea')}`
+            }
           </p>
         </div>
       </div>
 
-
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <ChatSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          settings={settings}
+          onSave={(s) => {
+            // Settings are saved at inbox level; just close here
+            setShowSettingsModal(false);
+          }}
+          isSaving={false}
+        />
+      )}
     </div>
   );
 }
