@@ -22,6 +22,7 @@ import { ProductRow } from './ProductRow';
 import { LoginModal } from './LoginModal';
 import { BlogPreview } from './Blog';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { buildProductUrl } from '../lib/productUrl';
 
 interface UserCredit {
   balance: number;
@@ -722,7 +723,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     trackView(product);
-    window.history.pushState(null, '', `/product/${product.id}`);
+    window.history.pushState(null, '', buildProductUrl(product.name, product.id));
     window.dispatchEvent(new PopStateEvent('popstate'));
   }, [trackView]);
 
@@ -1142,8 +1143,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
             onPurchase={handlePurchase}
             onAddToCart={handleAddToCart}
             onCardClick={() => {
-              window.history.pushState(null, '', `/product/${product.id}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+              window.history.pushState(null, '', buildProductUrl(product.name, product.id));
+              window.dispatchEvent(new PopStateEvent('popstate'));
             }}
             purchasing={purchasing}
             onViewSellerProfile={(sellerId, sellerSlug) => {
@@ -1578,8 +1579,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
             setSelectedSellerId(null);
           }}
           onProductClick={(product) => {
-            window.history.pushState(null, '', `/product/${product.id}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+            window.history.pushState(null, '', buildProductUrl(product.name, product.id));
+            window.dispatchEvent(new PopStateEvent('popstate'));
             setShowSellerProfile(false);
           }}
         />

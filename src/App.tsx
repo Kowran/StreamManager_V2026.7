@@ -90,6 +90,7 @@ import { GameCategoriesPage } from './components/GameCategoriesPage';
 import { SellerRecruitmentPage } from './components/SellerRecruitmentPage';
 import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
+import { parseProductIdFromUrl } from './lib/productUrl';
 
 type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'admin-discord' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
 
@@ -317,9 +318,11 @@ function AppContent() {
         setSellerSlug(slug);
         setActiveTab('seller-profile');
       } else if (path.startsWith('product/')) {
-        const productId = path.replace('product/', '');
-        setProductDetailId(productId);
-        setActiveTab('product-detail');
+        const productId = parseProductIdFromUrl(path);
+        if (productId) {
+          setProductDetailId(productId);
+          setActiveTab('product-detail');
+        }
       } else if (path.startsWith('checkout/')) {
         const productId = path.replace('checkout/', '');
         const stored = sessionStorage.getItem('checkout_data');

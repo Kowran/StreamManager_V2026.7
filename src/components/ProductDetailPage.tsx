@@ -16,6 +16,7 @@ import { LoginModal } from './LoginModal';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
 import { PurchaseConfirmModal } from './PurchaseConfirmModal';
 import { ProductRatingModal } from './ProductRatingModal';
+import { buildProductUrl } from '../lib/productUrl';
 import { SellerReputation } from './SellerReputation';
 import { ProductQABlock } from './ProductQABlock';
 
@@ -404,6 +405,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
           product_id: product.id,
           quantity: _quantity || detailQuantity || 1,
           coupon_code: couponCode || null,
+          recharge_data: rechargeData || null,
           use_cashback: useCashback || false,
           variation_id: variationId || selectedVariation?.id || null,
         }),
@@ -433,8 +435,8 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
     }
   }
 
-  function navigateToProduct(pid: string) {
-    window.history.pushState(null, '', `/product/${pid}`);
+  function navigateToProduct(pid: string, pname?: string) {
+    window.history.pushState(null, '', pname ? buildProductUrl(pname, pid) : `/product/${pid}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
   }
 
@@ -1126,7 +1128,7 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                   return (
                     <div
                       key={rp.id}
-                      onClick={() => navigateToProduct(rp.id)}
+                      onClick={() => navigateToProduct(rp.id, rp.name)}
                       className="group relative bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-800 hover:-translate-y-1"
                     >
                       <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-800">

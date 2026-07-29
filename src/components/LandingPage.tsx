@@ -11,6 +11,7 @@ import { Footer } from './Footer';
 import { ProductRow } from './ProductRow';
 import { Shuffle, TrendingUp, Eye } from 'lucide-react';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
+import { buildProductUrl } from '../lib/productUrl';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -751,7 +752,7 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
             const isFiltering = selectedGameCategory !== null || selectedPrimaryCategory !== 'all' || searchQuery;
             const handleProductClick = (product: StoreProduct) => {
               trackView(product);
-              window.history.pushState(null, '', `/product/${product.id}`);
+              window.history.pushState(null, '', buildProductUrl(product.name, product.id));
               window.dispatchEvent(new PopStateEvent('popstate'));
             };
             const navigateToSearch = (query: string) => {
