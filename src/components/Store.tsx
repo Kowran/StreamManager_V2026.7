@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, SlidersHorizontal, ChevronDown, Shuffle, Info, Wallet, Quote, Plus, type LucideIcon } from 'lucide-react';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, SlidersHorizontal, ChevronDown, Shuffle, Info, Wallet, Quote, Plus, Sparkles, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCart } from './CartProvider';
@@ -714,6 +714,11 @@ export function Store({ onNavigate }: StoreProps = {}) {
     return shuffled.slice(0, 20);
   }, [products]);
 
+  // Featured (Destaques) products
+  const featuredProducts = useMemo(() => {
+    return products.filter(p => p.is_featured && (p.manual_delivery || p.stock_quantity > 0)).slice(0, 12);
+  }, [products]);
+
   // Recently viewed products
   const recentlyViewedProducts = useMemo(() => {
     return getRecentlyViewedProducts(products).slice(0, 20);
@@ -1094,6 +1099,51 @@ export function Store({ onNavigate }: StoreProps = {}) {
       {/* Recommended Products */}
       {!isFiltering && activeCategory !== 'smm' && !loading && products.length > 0 && (
         <div className="mb-8">
+          {/* Featured Products Section */}
+          {featuredProducts.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg shadow-amber-500/30">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 dark:from-amber-400 dark:to-yellow-400 bg-clip-text text-transparent">
+                  {t.language === 'pt' ? 'Destaques' : t.language === 'en' ? 'Featured' : 'Destacados'}
+                </h2>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  <Star className="h-2.5 w-2.5 fill-current" />
+                  VIP
+                </span>
+                <div className="h-px flex-1 bg-gradient-to-r from-amber-200 to-transparent dark:from-amber-700/50" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
+                {featuredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    userCredit={userCredit}
+                    onPurchase={handlePurchase}
+                    onAddToCart={handleAddToCart}
+                    onCardClick={() => {
+                      window.history.pushState(null, '', buildProductUrl(product.name, product.id));
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                    }}
+                    purchasing={purchasing}
+                    onViewSellerProfile={(sellerId, sellerSlug) => {
+                      if (sellerSlug) {
+                        window.history.pushState(null, '', `/seller/${sellerSlug}`);
+                        window.dispatchEvent(new PopStateEvent('popstate'));
+                      } else {
+                        setSelectedSellerId(sellerId);
+                        setShowSellerProfile(true);
+                      }
+                    }}
+                    currentUserId={user?.id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <ProductRow
             title={t.language === 'pt' ? 'Recomendados para Você' : t.language === 'en' ? 'Recommended for You' : 'Recomendados para Ti'}
             subtitle={t.language === 'pt' ? 'Produtos selecionados aleatoriamente' : t.language === 'en' ? 'Randomly selected products' : 'Productos seleccionados al azar'}
@@ -1777,14 +1827,25 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
     : 0;
   const salesCount = (product as any).seller_info?.sales_count || 0;
   const lowStock = !product.manual_delivery && !(product as any).account_recharge && product.stock_quantity > 0 && product.stock_quantity <= 5;
+  const isFeatured = !!product.is_featured;
 
   return (
     <div
       onClick={() => onCardClick(product)}
-      className={`group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1 min-w-0 ${
-      !isAvailable ? 'opacity-75' : ''
-      }`}
+      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:-translate-y-1 min-w-0 ${
+        isFeatured
+          ? 'bg-gradient-to-br from-amber-50 via-white to-yellow-50 dark:from-amber-900/20 dark:via-gray-800 dark:to-yellow-900/20 border-2 border-amber-300 dark:border-amber-600/60 shadow-md hover:shadow-2xl hover:shadow-amber-500/20'
+          : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-2xl'
+      } ${!isAvailable ? 'opacity-75' : ''}`}
     >
+      {isFeatured && (
+        <div className="absolute top-0 right-0 z-20">
+          <div className="bg-gradient-to-r from-amber-400 to-yellow-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-bl-lg shadow-md flex items-center gap-1">
+            <Sparkles className="h-2.5 w-2.5" />
+            {t.language === 'pt' ? 'DESTAQUE' : t.language === 'en' ? 'FEATURED' : 'DESTACADO'}
+          </div>
+        </div>
+      )}
       {/* Product Image */}
       <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
         {/* Top-left category badge */}
@@ -1831,7 +1892,11 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
             }}
           />
         ) : (
-          <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-600 ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
+          <div className={`w-full h-full flex items-center justify-center ${
+            isFeatured
+              ? 'bg-gradient-to-br from-amber-400 to-yellow-600'
+              : 'bg-gradient-to-br from-blue-500 to-cyan-600'
+          } ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
             <Package className="w-10 h-10 text-white" />
           </div>
         )}
@@ -1917,7 +1982,9 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
             disabled={isOwnProduct || !isAvailable || purchasing}
             className={`flex-1 px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
               !isOwnProduct && isAvailable && !purchasing
-                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                ? isFeatured
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white shadow-md hover:shadow-lg shadow-amber-500/30'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
             }`}
           >

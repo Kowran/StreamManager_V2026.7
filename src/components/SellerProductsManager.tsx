@@ -4,7 +4,7 @@ import {
   Upload, Store as StoreIcon, ShoppingCart, Image as ImageIcon,
   ArrowLeft, Boxes, Zap, Hand, CheckCircle2, AlertCircle, Layers,
   Eye, EyeOff, Copy, FileText, UserCheck, Smartphone, Gamepad2, Gift, Coins,
-  ShieldCheck
+  ShieldCheck, Star, Sparkles
 } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES, ProductVariation } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -24,6 +24,7 @@ interface ProductFormData {
   delivery_type: 'automatic' | 'manual' | 'recharge';
   delivery_time: string;
   warranty_days: number | null;
+  is_featured: boolean;
 }
 
 interface InventoryItem {
@@ -52,7 +53,7 @@ export function SellerProductsManager() {
   const [formData, setFormData] = useState<ProductFormData>({
     name: '', description: '', price_usd: 0, category: 'streaming', primary_category: 'item',
     image_url: '', active: true, features: [], renewable: false, delivery_type: 'automatic',
-    delivery_time: '', warranty_days: 15,
+    delivery_time: '', warranty_days: 15, is_featured: false,
   });
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -77,12 +78,13 @@ export function SellerProductsManager() {
         delivery_type: editingProduct.account_recharge ? 'recharge' : editingProduct.manual_delivery ? 'manual' : 'automatic',
         delivery_time: editingProduct.delivery_time || '',
         warranty_days: editingProduct.warranty_days ?? 15,
+        is_featured: editingProduct.is_featured || false,
       });
     } else if (view === 'create') {
       setFormData({
         name: '', description: '', price_usd: 0, category: 'streaming',
         image_url: '', active: true, features: [], renewable: false, delivery_type: 'automatic',
-        delivery_time: '', warranty_days: 15,
+        delivery_time: '', warranty_days: 15, is_featured: false,
       });
     }
   }, [editingProduct, view]);
@@ -299,7 +301,15 @@ export function SellerProductsManager() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate flex items-center gap-1.5">
+                      {product.name}
+                      {product.is_featured && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex-shrink-0">
+                          <Star className="h-2.5 w-2.5 fill-current" />
+                          {lbl('Destaque', 'Featured', 'Destacado')}
+                        </span>
+                      )}
+                    </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{product.description}</p>
                     {product.features && product.features.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
@@ -412,7 +422,15 @@ export function SellerProductsManager() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">{product.name}</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate flex items-center gap-1.5">
+                  {product.name}
+                  {product.is_featured && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex-shrink-0">
+                      <Star className="h-2.5 w-2.5 fill-current" />
+                      {lbl('Destaque', 'Featured', 'Destacado')}
+                    </span>
+                  )}
+                </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{product.description}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-base font-bold text-gray-900 dark:text-white">${product.price_usdt.toFixed(2)}</span>
@@ -466,6 +484,7 @@ export function SellerProductsManager() {
         account_recharge: isRecharge,
         delivery_time: formData.delivery_time || null,
         warranty_days: formData.warranty_days,
+        is_featured: formData.is_featured,
         seller_id: user?.id,
         updated_at: new Date().toISOString(),
       };
@@ -1070,6 +1089,66 @@ function ProductFormPage({
               'El cliente tiene garantía de reemplazo o reembolso durante el período seleccionado.'
             )}
           </p>
+        </div>
+
+        {/* Featured Product Option */}
+        <div className={`rounded-2xl shadow-sm border p-5 transition-all ${
+          formData.is_featured
+            ? 'bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border-amber-300 dark:border-amber-700'
+            : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+        }`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className={`p-2.5 rounded-xl ${
+                formData.is_featured
+                  ? 'bg-gradient-to-br from-amber-400 to-yellow-500 text-white shadow-lg shadow-amber-500/30'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-400'
+              }`}>
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  {lbl('Produto Destaque', 'Featured Product', 'Producto Destacado')}
+                  {formData.is_featured && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white">
+                      <Star className="h-2.5 w-2.5 fill-current" />
+                      VIP
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md leading-relaxed">
+                  {lbl(
+                    'Seu produto aparece em uma categoria exclusiva de Destaques na loja com um card VIP especial. Cobre uma taxa adicional de 4% sobre a taxa da plataforma em cada venda deste produto.',
+                    'Your product appears in an exclusive Featured category in the store with a special VIP card. It charges an additional 4% fee on top of the platform fee for each sale of this product.',
+                    'Tu producto aparece en una categoría exclusiva de Destacados en la tienda con una tarjeta VIP especial. Cobra una tarifa adicional del 4% sobre la tarifa de la plataforma en cada venta de este producto.'
+                  )}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, is_featured: !prev.is_featured }))}
+              className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors ${
+                formData.is_featured ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                formData.is_featured ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+          {formData.is_featured && (
+            <div className="mt-4 p-3 rounded-xl bg-amber-100/60 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50">
+              <p className="text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+                {lbl(
+                  'Ativo: +4% na taxa da plataforma · Card VIP na loja',
+                  'Active: +4% platform fee · VIP card in store',
+                  'Activo: +4% en la tarifa de la plataforma · Tarjeta VIP en la tienda'
+                )}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Submit */}
