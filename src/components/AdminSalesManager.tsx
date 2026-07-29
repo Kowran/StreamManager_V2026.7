@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ShoppingBag, Search, Calendar, DollarSign, Package, Eye, Download,
   TrendingUp, CheckCircle, Clock, X, AlertTriangle, RefreshCw, ChevronLeft,
   ChevronRight, Zap, Check, Mail, Lock, FileText, ShieldAlert, Tag,
   Percent, Wallet, Store, User, Image as ImageIcon, ShieldCheck, Coins,
-  ArrowUpDown, Clock3, Hash, Star,
+  ArrowUpDown, Clock3, Hash, Star, Filter, SlidersHorizontal, Receipt,
+  ArrowUpRight, ArrowDownRight, Activity, ShoppingCart, XCircle,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -95,6 +96,72 @@ interface SalesStats {
 type SortField = 'date' | 'price' | 'product' | 'customer';
 type SortDir = 'asc' | 'desc';
 
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; icon: React.ReactNode; label: string }> = {
+  cancelled: { bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-600 dark:text-red-400', dot: 'bg-red-500', icon: <XCircle className="h-3 w-3" />, label: 'Cancelado' },
+  refunded: { bg: 'bg-yellow-50 dark:bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400', dot: 'bg-yellow-500', icon: <RefreshCw className="h-3 w-3" />, label: 'Reembolsado' },
+  disputed: { bg: 'bg-orange-50 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', dot: 'bg-orange-500', icon: <ShieldAlert className="h-3 w-3" />, label: 'Disputa' },
+  paid: { bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500', icon: <Clock className="h-3 w-3" />, label: 'Pendente' },
+  delivered: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', icon: <CheckCircle className="h-3 w-3" />, label: 'Entregue' },
+  completed: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', icon: <CheckCircle className="h-3 w-3" />, label: 'Concluído' },
+};
+
+function StatusBadge({ status }: { status?: string }) {
+  const c = STATUS_CONFIG[status || 'delivered'] || STATUS_CONFIG.delivered;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${c.bg} ${c.text}`}>
+      {c.icon}
+      {c.label}
+    </span>
+  );
+}
+
+function Avatar({ src, name, gradient, size = 'md' }: { src?: string; name: string; gradient: string; size?: 'sm' | 'md' | 'lg' }) {
+  const dims = { sm: 'w-7 h-7 text-[10px]', md: 'w-9 h-9 text-xs', lg: 'w-12 h-12 text-sm' };
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className={`${dims[size]} rounded-full object-cover border border-gray-200 dark:border-gray-600 flex-shrink-0`}
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+    );
+  }
+  return (
+    <div className={`${dims[size]} rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center text-white font-bold flex-shrink-0`}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+function StatCard({
+  label, value, icon: Icon, color, bg, trend, subtitle,
+}: {
+  label: string; value: string; icon: React.ElementType; color: string; bg: string; trend?: 'up' | 'down'; subtitle?: string;
+}) {
+  return (
+    <div className="group bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-lg transition-all duration-200">
+      <div className="flex items-start justify-between">
+        <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
+          <Icon className={`h-5 w-5 ${color}`} />
+        </div>
+        {trend === 'up' && <ArrowUpRight className="h-4 w-4 text-emerald-500" />}
+        {trend === 'down' && <ArrowDownRight className="h-4 w-4 text-red-500" />}
+      </div>
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-3">{label}</p>
+      <p className={`text-xl font-bold ${color} mt-0.5 break-all`}>{value}</p>
+      {subtitle && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{subtitle}</p>}
+    </div>
+  );
+}
+
+function DeliveryTypeBadge({ product }: { product: Sale['store_products'] }) {
+  if (!product) return null;
+  if (product.account_recharge) return <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400"><Zap className="h-2.5 w-2.5" /> Recarga</span>;
+  if (product.manual_delivery) return <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 dark:text-blue-400"><Clock3 className="h-2.5 w-2.5" /> Manual</span>;
+  return <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"><Zap className="h-2.5 w-2.5" /> Auto</span>;
+}
+
 export function AdminSalesManager() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -117,10 +184,11 @@ export function AdminSalesManager() {
   const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
   const [showCancelledSales, setShowCancelledSales] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [salesPerPage] = useState(10);
+  const [salesPerPage] = useState(12);
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => { checkAdminStatus(); }, []);
 
@@ -278,7 +346,7 @@ export function AdminSalesManager() {
     return { startDate, endDate };
   }
 
-  async function handleConfirmDelivery(orderId: string) {
+  const handleConfirmDelivery = useCallback(async (orderId: string) => {
     setConfirmingDelivery(orderId);
     try {
       const { error } = await supabase
@@ -287,12 +355,13 @@ export function AdminSalesManager() {
         .eq('id', orderId);
       if (error) throw error;
       await loadSales();
+      await loadStats();
     } catch (err: any) {
       alert(err.message || 'Erro ao confirmar entrega');
     } finally {
       setConfirmingDelivery(null);
     }
-  }
+  }, []);
 
   function exportSales() {
     const csv = generateCSV(filteredSales);
@@ -389,82 +458,84 @@ export function AdminSalesManager() {
     }
   }
 
-  function getStatusBadge(status?: string) {
-    const config: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {
-      cancelled: { bg: 'bg-red-100 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-400', icon: <AlertTriangle className="h-3 w-3" />, label: 'Cancelado' },
-      refunded: { bg: 'bg-yellow-100 dark:bg-yellow-900/20', text: 'text-yellow-700 dark:text-yellow-400', icon: <RefreshCw className="h-3 w-3" />, label: 'Reembolsado' },
-      disputed: { bg: 'bg-orange-100 dark:bg-orange-900/20', text: 'text-orange-700 dark:text-orange-400', icon: <ShieldAlert className="h-3 w-3" />, label: 'Disputa' },
-      paid: { bg: 'bg-amber-100 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400', icon: <Clock className="h-3 w-3" />, label: 'Pendente' },
-      delivered: { bg: 'bg-emerald-100 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', icon: <CheckCircle className="h-3 w-3" />, label: 'Entregue' },
-      completed: { bg: 'bg-emerald-100 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', icon: <CheckCircle className="h-3 w-3" />, label: 'Concluído' },
-    };
-    const c = config[status || 'delivered'] || config.delivered;
-    return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
-        {c.icon}
-        {c.label}
-      </span>
-    );
-  }
+  const hasActiveFilters = searchTerm || dateFilter !== 'all' || statusFilter !== 'all' || !showCancelledSales;
 
   if (!isAdmin) {
     return (
-      <div className="text-center py-12">
-        <ShoppingBag className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Acesso Restrito</h3>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Apenas administradores podem visualizar as vendas.</p>
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+          <ShoppingBag className="h-8 w-8 text-gray-400" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Acesso Restrito</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Apenas administradores podem visualizar as vendas.</p>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500" />
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 w-64 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-28 bg-gray-200 dark:bg-gray-700 rounded-2xl" />
+          ))}
+        </div>
+        <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded-2xl" />
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-20 bg-gray-200 dark:bg-gray-700 rounded-2xl" />
+          ))}
+        </div>
       </div>
     );
   }
 
-  const statCards = [
-    { label: 'Total Vendas', value: stats.total_sales.toString(), icon: ShoppingBag, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-    { label: 'Receita Total', value: `$${stats.total_revenue.toFixed(2)}`, icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
-    { label: 'Vendas Hoje', value: stats.today_sales.toString(), icon: Calendar, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-900/20' },
-    { label: 'Receita Hoje', value: `$${stats.today_revenue.toFixed(2)}`, icon: TrendingUp, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-900/20' },
-    { label: 'Este Mês', value: stats.this_month_sales.toString(), icon: Calendar, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20' },
-    { label: 'Rec. do Mês', value: `$${stats.this_month_revenue.toFixed(2)}`, icon: DollarSign, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20' },
-    { label: 'Ticket Médio', value: `$${stats.average_order_value.toFixed(2)}`, icon: TrendingUp, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' },
-    { label: 'Taxas Plataforma', value: `$${stats.total_fees.toFixed(2)}`, icon: Percent, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-900/20' },
-    { label: 'Lucro Vendedores', value: `$${stats.total_seller_profit.toFixed(2)}`, icon: Wallet, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
-    { label: 'Descontos', value: `$${stats.total_discounts.toFixed(2)}`, icon: Tag, color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-50 dark:bg-pink-900/20' },
-    { label: 'Cashback Usado', value: `$${stats.total_cashback.toFixed(2)}`, icon: Coins, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-    { label: 'Canceladas', value: stats.cancelled_sales.toString(), icon: AlertTriangle, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' },
+  const primaryStats = [
+    { label: 'Receita Total', value: `$${stats.total_revenue.toFixed(2)}`, icon: DollarSign, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/10', subtitle: `${stats.total_sales} vendas` },
+    { label: 'Vendas Hoje', value: stats.today_sales.toString(), icon: ShoppingCart, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/10', subtitle: `$${stats.today_revenue.toFixed(2)}` },
+    { label: 'Receita do Mês', value: `$${stats.this_month_revenue.toFixed(2)}`, icon: TrendingUp, color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-100 dark:bg-cyan-500/10', subtitle: `${stats.this_month_sales} vendas` },
+    { label: 'Ticket Médio', value: `$${stats.average_order_value.toFixed(2)}`, icon: Receipt, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-500/10', subtitle: 'Por venda' },
+  ];
+
+  const secondaryStats = [
+    { label: 'Taxas Plataforma', value: `$${stats.total_fees.toFixed(2)}`, icon: Percent, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-500/10' },
+    { label: 'Lucro Vendedores', value: `$${stats.total_seller_profit.toFixed(2)}`, icon: Wallet, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-100 dark:bg-indigo-500/10' },
+    { label: 'Descontos', value: `$${stats.total_discounts.toFixed(2)}`, icon: Tag, color: 'text-pink-600 dark:text-pink-400', bg: 'bg-pink-100 dark:bg-pink-500/10' },
+    { label: 'Cashback Usado', value: `$${stats.total_cashback.toFixed(2)}`, icon: Coins, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-500/10' },
+    { label: 'Vendas Canceladas', value: stats.cancelled_sales.toString(), icon: XCircle, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-500/10' },
+    { label: 'Receita Perdida', value: `$${stats.cancelled_revenue.toFixed(2)}`, icon: AlertTriangle, color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-500/10' },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gerenciar Vendas</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Visualize e gerencie todas as vendas realizadas na loja
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <ShoppingBag className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Gerenciar Vendas</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Acompanhe e gerencie todas as vendas da loja</p>
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={() => setShowCancelledSales(!showCancelledSales)}
-            className={`inline-flex items-center justify-center px-3 sm:px-4 py-2 font-medium rounded-lg transition-colors shadow-sm text-sm ${
+            className={`inline-flex items-center justify-center px-4 py-2.5 font-semibold rounded-xl transition-all text-sm ${
               showCancelledSales
-                ? 'bg-red-600 hover:bg-red-700 text-white'
+                ? 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/20'
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-300'
             }`}
           >
-            <AlertTriangle className="h-4 w-4 mr-2" />
+            <XCircle className="h-4 w-4 mr-2" />
             {showCancelledSales ? 'Ocultar Canceladas' : `Canceladas (${stats.cancelled_sales})`}
           </button>
           <button
             onClick={exportSales}
-            className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors shadow-sm text-sm"
+            disabled={filteredSales.length === 0}
+            className="inline-flex items-center justify-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-emerald-500/20 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
@@ -472,295 +543,263 @@ export function AdminSalesManager() {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-        {statCards.map((card, i) => (
-          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-3 sm:p-4 hover:shadow-md transition-shadow">
-            <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center mb-2`}>
-              <card.icon className={`h-4 w-4 ${card.color}`} />
-            </div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-0.5">{card.label}</p>
-            <p className={`text-base sm:text-lg font-bold ${card.color} break-all`}>{card.value}</p>
-          </div>
+      {/* Primary Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {primaryStats.map((card, i) => (
+          <StatCard key={i} {...card} />
+        ))}
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {secondaryStats.map((card, i) => (
+          <StatCard key={i} {...card} />
         ))}
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div className="flex-1 relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {/* Search bar */}
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700/50">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
                 placeholder="Buscar por produto, cliente, vendedor, cupom..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 text-sm"
+                className="w-full pl-11 pr-10 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm transition-all"
               />
               {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <button onClick={() => setSearchTerm('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                   <X className="h-4 w-4" />
                 </button>
               )}
             </div>
-            <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}
-              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-              <option value="all">Todas as Datas</option>
-              <option value="today">Hoje</option>
-              <option value="week">Última Semana</option>
-              <option value="month">Este Mês</option>
-              <option value="year">Este Ano</option>
-              <option value="custom">Período Personalizado</option>
-            </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-              <option value="all">Todos Status</option>
-              <option value="delivered">Entregue</option>
-              <option value="completed">Concluído</option>
-              <option value="paid">Pendente</option>
-              <option value="cancelled">Cancelado</option>
-              <option value="refunded">Reembolsado</option>
-              <option value="disputed">Disputa</option>
-            </select>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`sm:hidden inline-flex items-center justify-center px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                showFilters || dateFilter !== 'all' || statusFilter !== 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              Filtros
+            </button>
           </div>
+        </div>
 
-          {dateFilter === 'custom' && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        {/* Filter controls */}
+        <div className={`p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center ${showFilters ? 'block' : 'hidden sm:flex'}`}>
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+            <Filter className="h-4 w-4" />
+            <span className="font-medium">Filtrar:</span>
+          </div>
+          <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+            className="w-full sm:w-auto px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white text-sm transition-all">
+            <option value="all">Todas as Datas</option>
+            <option value="today">Hoje</option>
+            <option value="week">Última Semana</option>
+            <option value="month">Este Mês</option>
+            <option value="year">Este Ano</option>
+            <option value="custom">Período Personalizado</option>
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="w-full sm:w-auto px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white text-sm transition-all">
+            <option value="all">Todos Status</option>
+            <option value="delivered">Entregue</option>
+            <option value="completed">Concluído</option>
+            <option value="paid">Pendente</option>
+            <option value="cancelled">Cancelado</option>
+            <option value="refunded">Reembolsado</option>
+            <option value="disputed">Disputa</option>
+          </select>
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setSearchTerm(''); setDateFilter('all'); setStatusFilter('all'); setCustomDateRange({ start: '', end: '' }); setShowCancelledSales(false); }}
+              className="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
+
+        {/* Custom date range */}
+        {dateFilter === 'custom' && (
+          <div className="px-4 pb-4">
+            <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Período Personalizado:</span>
+                <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">Período Personalizado</span>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
                   <label className="block text-xs text-blue-700 dark:text-blue-400 mb-1">De:</label>
                   <input type="date" value={customDateRange.start} onChange={e => setCustomDateRange(p => ({ ...p, start: e.target.value }))}
-                    className="w-full px-3 py-2 border border-blue-300 dark:border-blue-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+                    className="w-full px-3 py-2 border border-blue-300 dark:border-blue-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs text-blue-700 dark:text-blue-400 mb-1">Até:</label>
                   <input type="date" value={customDateRange.end} onChange={e => setCustomDateRange(p => ({ ...p, end: e.target.value }))}
-                    className="w-full px-3 py-2 border border-blue-300 dark:border-blue-600 rounded-md focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+                    className="w-full px-3 py-2 border border-blue-300 dark:border-blue-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm" />
                 </div>
                 {(customDateRange.start || customDateRange.end) && (
                   <button onClick={() => setCustomDateRange({ start: '', end: '' })}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors self-end">
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors self-end">
                     Limpar
                   </button>
                 )}
               </div>
             </div>
-          )}
-
-          <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-            <span><strong className="text-gray-900 dark:text-white">{filteredSales.length}</strong> vendas encontradas</span>
-            <span>Canceladas: <strong className="text-red-600 dark:text-red-400">{stats.cancelled_sales}</strong></span>
-            <span>Perdido: <strong className="text-red-600 dark:text-red-400">${stats.cancelled_revenue.toFixed(2)}</strong></span>
           </div>
+        )}
+
+        {/* Result count */}
+        <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-100 dark:border-gray-700/50 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+          <span className="flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5" />
+            <strong className="text-gray-900 dark:text-white">{filteredSales.length}</strong> vendas encontradas
+          </span>
+          <span>Canceladas: <strong className="text-red-600 dark:text-red-400">{stats.cancelled_sales}</strong></span>
+          <span>Receita perdida: <strong className="text-red-600 dark:text-red-400">${stats.cancelled_revenue.toFixed(2)}</strong></span>
         </div>
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Desktop Table */}
+      <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-300" onClick={() => toggleSort('product')}>
-                  <span className="flex items-center gap-1">Produto {sortField === 'product' && <ArrowUpDown className="h-3 w-3" />}</span>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 transition-colors" onClick={() => toggleSort('product')}>
+                  <span className="flex items-center gap-1.5">Produto {sortField === 'product' && <ArrowUpDown className="h-3 w-3" />}</span>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Vendedor</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-300" onClick={() => toggleSort('customer')}>
-                  <span className="flex items-center gap-1">Cliente {sortField === 'customer' && <ArrowUpDown className="h-3 w-3" />}</span>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Vendedor</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 transition-colors" onClick={() => toggleSort('customer')}>
+                  <span className="flex items-center gap-1.5">Cliente {sortField === 'customer' && <ArrowUpDown className="h-3 w-3" />}</span>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-300" onClick={() => toggleSort('price')}>
-                  <span className="flex items-center gap-1">Valor {sortField === 'price' && <ArrowUpDown className="h-3 w-3" />}</span>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 transition-colors" onClick={() => toggleSort('price')}>
+                  <span className="flex items-center gap-1.5">Valor {sortField === 'price' && <ArrowUpDown className="h-3 w-3" />}</span>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Cupom/Cashback</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Taxa/Lucro</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Garantia</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase cursor-pointer hover:text-gray-700 dark:hover:text-gray-300" onClick={() => toggleSort('date')}>
-                  <span className="flex items-center gap-1">Data {sortField === 'date' && <ArrowUpDown className="h-3 w-3" />}</span>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Cupom/Cashback</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Taxa/Lucro</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Garantia</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 transition-colors" onClick={() => toggleSort('date')}>
+                  <span className="flex items-center gap-1.5">Data {sortField === 'date' && <ArrowUpDown className="h-3 w-3" />}</span>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ações</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-5 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
               {currentSales.map(sale => {
                 const hasCoupon = sale.store_orders?.discount_amount && Number(sale.store_orders.discount_amount) > 0;
                 const hasCashback = sale.store_orders?.cashback_used && Number(sale.store_orders.cashback_used) > 0;
                 const hasCommission = !!sale.commission;
                 return (
-                  <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    {/* Product with image */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                  <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                        <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                           {sale.store_products?.image_url ? (
-                            <img src={sale.store_products.image_url} alt={sale.product_name}
-                              className="w-full h-full object-cover" loading="lazy"
+                            <img src={sale.store_products.image_url} alt={sale.product_name} className="w-full h-full object-cover" loading="lazy"
                               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ImageIcon className="h-5 w-5 text-gray-400" />
-                            </div>
+                            <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-5 w-5 text-gray-400" /></div>
                           )}
                         </div>
-                        <div className="min-w-0 max-w-[200px]">
+                        <div className="min-w-0 max-w-[220px]">
                           <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{sale.product_name}</p>
-                            {sale.store_products?.is_featured && <Star className="h-3 w-3 text-amber-500 fill-amber-500 flex-shrink-0" />}
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{sale.product_name}</p>
+                            {sale.store_products?.is_featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">{sale.store_products?.category || '—'}</span>
                             {sale.store_orders?.variation_name && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{sale.store_orders.variation_name}</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{sale.store_orders.variation_name}</span>
                             )}
                           </div>
-                          {sale.store_products?.account_recharge ? (
-                            <span className="inline-flex items-center gap-0.5 mt-0.5 text-[10px] text-amber-600 dark:text-amber-400"><Zap className="h-2.5 w-2.5" /> Recarga</span>
-                          ) : sale.store_products?.manual_delivery ? (
-                            <span className="inline-flex items-center gap-0.5 mt-0.5 text-[10px] text-blue-600 dark:text-blue-400"><Clock3 className="h-2.5 w-2.5" /> Manual</span>
-                          ) : (
-                            <span className="inline-flex items-center gap-0.5 mt-0.5 text-[10px] text-emerald-600 dark:text-emerald-400"><Zap className="h-2.5 w-2.5" /> Auto</span>
-                          )}
+                          <DeliveryTypeBadge product={sale.store_products} />
                         </div>
                       </div>
                     </td>
-                    {/* Seller */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       {sale.seller_profile ? (
-                        <div className="flex items-center gap-2">
-                          {sale.seller_profile.avatar_url ? (
-                            <img src={sale.seller_profile.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-                              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                              {(sale.seller_profile.full_name || sale.seller_profile.username || 'V').charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{sale.seller_profile.full_name || sale.seller_profile.username || 'Vendedor'}</p>
-                          </div>
+                        <div className="flex items-center gap-2.5">
+                          <Avatar src={sale.seller_profile.avatar_url || undefined} name={sale.seller_profile.full_name || sale.seller_profile.username || 'V'} gradient="from-indigo-400 to-blue-500" size="sm" />
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[140px]">{sale.seller_profile.full_name || sale.seller_profile.username || 'Vendedor'}</p>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-500 to-gray-700 flex items-center justify-center">
-                            <Store className="h-3.5 w-3.5 text-white" />
-                          </div>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gray-500 to-gray-700 flex items-center justify-center"><Store className="h-3.5 w-3.5 text-white" /></div>
                           <span className="text-sm text-gray-600 dark:text-gray-400">Loja Admin</span>
                         </div>
                       )}
                     </td>
-                    {/* Customer */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        {sale.profiles?.avatar_url ? (
-                          <img src={sale.profiles.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                        ) : (
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold">
-                            {(sale.profiles?.username || sale.profiles?.full_name || sale.profiles?.email?.charAt(0) || 'C').charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar src={sale.profiles?.avatar_url || undefined} name={sale.profiles?.username || sale.profiles?.full_name || sale.profiles?.email || 'C'} gradient="from-emerald-400 to-teal-500" size="sm" />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {sale.profiles?.username || sale.profiles?.full_name || sale.store_orders?.customer_name || 'Cliente'}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{sale.profiles?.email || sale.store_orders?.customer_email || '—'}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[140px]">{sale.profiles?.username || sale.profiles?.full_name || sale.store_orders?.customer_name || 'Cliente'}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[160px]">{sale.profiles?.email || sale.store_orders?.customer_email || '—'}</p>
                         </div>
                       </div>
                     </td>
-                    {/* Price */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${sale.purchase_price.toFixed(2)}</div>
                       {sale.store_orders?.quantity && sale.store_orders.quantity > 1 && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">x{sale.store_orders.quantity}</div>
                       )}
                     </td>
-                    {/* Coupon / Cashback */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       {hasCoupon || hasCashback ? (
                         <div className="space-y-1">
                           {hasCoupon && (
-                            <div className="flex items-center gap-1">
-                              <Tag className="h-3 w-3 text-pink-500" />
-                              <span className="text-xs font-medium text-pink-600 dark:text-pink-400">
-                                {sale.coupon?.code || 'Cupom'} -${Number(sale.store_orders!.discount_amount).toFixed(2)}
-                              </span>
-                            </div>
+                            <div className="flex items-center gap-1"><Tag className="h-3 w-3 text-pink-500" /><span className="text-xs font-medium text-pink-600 dark:text-pink-400">{sale.coupon?.code || 'Cupom'} -${Number(sale.store_orders!.discount_amount).toFixed(2)}</span></div>
                           )}
                           {hasCashback && (
-                            <div className="flex items-center gap-1">
-                              <Coins className="h-3 w-3 text-amber-500" />
-                              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                                -${Number(sale.store_orders!.cashback_used).toFixed(2)}
-                              </span>
-                            </div>
+                            <div className="flex items-center gap-1"><Coins className="h-3 w-3 text-amber-500" /><span className="text-xs font-medium text-amber-600 dark:text-amber-400">-${Number(sale.store_orders!.cashback_used).toFixed(2)}</span></div>
                           )}
                         </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                      )}
+                      ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                     </td>
-                    {/* Fee / Profit */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       {hasCommission ? (
                         <div className="space-y-1">
-                          <div className="flex items-center gap-1">
-                            <Percent className="h-3 w-3 text-teal-500" />
-                            <span className="text-xs font-medium text-teal-600 dark:text-teal-400">${Number(sale.commission!.admin_amount).toFixed(2)}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Wallet className="h-3 w-3 text-indigo-500" />
-                            <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">${Number(sale.commission!.seller_amount).toFixed(2)}</span>
-                          </div>
+                          <div className="flex items-center gap-1"><Percent className="h-3 w-3 text-teal-500" /><span className="text-xs font-medium text-teal-600 dark:text-teal-400">${Number(sale.commission!.admin_amount).toFixed(2)}</span></div>
+                          <div className="flex items-center gap-1"><Wallet className="h-3 w-3 text-indigo-500" /><span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">${Number(sale.commission!.seller_amount).toFixed(2)}</span></div>
                         </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                      )}
+                      ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                     </td>
-                    {/* Warranty */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       {sale.store_products?.warranty_days != null && sale.store_products.warranty_days > 0 ? (
-                        <div className="flex items-center gap-1">
-                          <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{sale.store_products.warranty_days}d</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
-                      )}
+                        <div className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /><span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{sale.store_products.warranty_days}d</span></div>
+                      ) : <span className="text-xs text-gray-300 dark:text-gray-600">—</span>}
                     </td>
-                    {/* Date */}
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-5 py-3.5 whitespace-nowrap">
                       <div className="text-sm text-gray-900 dark:text-white">{new Date(sale.purchase_date).toLocaleDateString('pt-BR')}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{new Date(sale.purchase_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
                     </td>
-                    {/* Status */}
-                    <td className="px-4 py-3 whitespace-nowrap">{getStatusBadge(sale.store_orders?.status)}</td>
-                    {/* Actions */}
-                    <td className="px-4 py-3 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-5 py-3.5 whitespace-nowrap"><StatusBadge status={sale.store_orders?.status} /></td>
+                    <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                      <div className="flex items-center justify-end gap-1">
                         <button onClick={() => { setSelectedSale(sale); setShowDetails(true); }}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors" title="Ver detalhes">
+                          className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 transition-colors" title="Ver detalhes">
                           <Eye className="h-4 w-4" />
                         </button>
                         {sale.store_orders?.status === 'paid' && !sale.store_orders?.delivery_confirmed && (
                           <button onClick={() => handleConfirmDelivery(sale.store_orders!.id || sale.id)}
                             disabled={confirmingDelivery === (sale.store_orders!.id || sale.id)}
-                            className="text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors disabled:opacity-50" title="Confirmar entrega">
-                            {confirmingDelivery === (sale.store_orders!.id || sale.id) ? (
-                              <div className="h-4 w-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <Check className="h-4 w-4" />
-                            )}
+                            className="p-2 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10 transition-colors disabled:opacity-50" title="Confirmar entrega">
+                            {confirmingDelivery === (sale.store_orders!.id || sale.id) ? <div className="h-4 w-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : <Check className="h-4 w-4" />}
                           </button>
                         )}
                         {sale.store_orders?.status !== 'cancelled' && sale.store_orders?.status !== 'refunded' && (
                           <button onClick={() => { setSaleToCancel(sale); setShowCancellationModal(true); }}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors" title="Cancelar venda">
-                            <AlertTriangle className="h-4 w-4" />
+                            className="p-2 rounded-lg text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10 transition-colors" title="Cancelar venda">
+                            <XCircle className="h-4 w-4" />
                           </button>
                         )}
                       </div>
@@ -773,17 +812,16 @@ export function AdminSalesManager() {
         </div>
       </div>
 
-      {/* Mobile Card View */}
+      {/* Mobile Cards */}
       <div className="lg:hidden space-y-3">
         {currentSales.map(sale => {
           const hasCoupon = sale.store_orders?.discount_amount && Number(sale.store_orders.discount_amount) > 0;
           const hasCashback = sale.store_orders?.cashback_used && Number(sale.store_orders.cashback_used) > 0;
           const hasCommission = !!sale.commission;
           return (
-            <div key={sale.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-              {/* Top: product + price */}
+            <div key={sale.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3 mb-3">
-                <div className="flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                <div className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                   {sale.store_products?.image_url ? (
                     <img src={sale.store_products.image_url} alt={sale.product_name} className="w-full h-full object-cover" loading="lazy"
                       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -792,102 +830,84 @@ export function AdminSalesManager() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{sale.product_name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{sale.product_name}</p>
+                    {sale.store_products?.is_featured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />}
+                  </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 capitalize mt-0.5">
                     {sale.store_products?.category || '—'}
                     {sale.store_orders?.variation_name && ` · ${sale.store_orders.variation_name}`}
                   </p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1.5">
                     <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">${sale.purchase_price.toFixed(2)}</span>
-                    {getStatusBadge(sale.store_orders?.status)}
+                    <StatusBadge status={sale.store_orders?.status} />
                   </div>
                 </div>
               </div>
 
-              {/* Seller + Customer */}
               <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
-                  <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Vendedor</p>
-                  <div className="flex items-center gap-1.5">
-                    {sale.seller_profile?.avatar_url ? (
-                      <img src={sale.seller_profile.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white text-[8px] font-bold">
-                        {(sale.seller_profile?.full_name || sale.seller_profile?.username || 'V').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <span className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                      {sale.seller_profile?.full_name || sale.seller_profile?.username || 'Loja Admin'}
-                    </span>
+                <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-2.5">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Vendedor</p>
+                  <div className="flex items-center gap-2">
+                    <Avatar src={sale.seller_profile?.avatar_url || undefined} name={sale.seller_profile?.full_name || sale.seller_profile?.username || 'V'} gradient="from-indigo-400 to-blue-500" size="sm" />
+                    <span className="text-xs font-medium text-gray-900 dark:text-white truncate">{sale.seller_profile?.full_name || sale.seller_profile?.username || 'Loja Admin'}</span>
                   </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2">
-                  <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase mb-1">Cliente</p>
-                  <div className="flex items-center gap-1.5">
-                    {sale.profiles?.avatar_url ? (
-                      <img src={sale.profiles.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-[8px] font-bold">
-                        {(sale.profiles?.username || sale.profiles?.full_name || 'C').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    <span className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                      {sale.profiles?.username || sale.profiles?.full_name || 'Cliente'}
-                    </span>
+                <div className="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-2.5">
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase mb-1.5">Cliente</p>
+                  <div className="flex items-center gap-2">
+                    <Avatar src={sale.profiles?.avatar_url || undefined} name={sale.profiles?.username || sale.profiles?.full_name || 'C'} gradient="from-emerald-400 to-teal-500" size="sm" />
+                    <span className="text-xs font-medium text-gray-900 dark:text-white truncate">{sale.profiles?.username || sale.profiles?.full_name || 'Cliente'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Tags row */}
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {hasCoupon && (
-                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-pink-100 text-pink-700 dark:bg-pink-500/10 dark:text-pink-300">
                     <Tag className="h-2.5 w-2.5" /> {sale.coupon?.code || 'Cupom'} -${Number(sale.store_orders!.discount_amount).toFixed(2)}
                   </span>
                 )}
                 {hasCashback && (
-                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
                     <Coins className="h-2.5 w-2.5" /> Cashback -${Number(sale.store_orders!.cashback_used).toFixed(2)}
                   </span>
                 )}
                 {hasCommission && (
                   <>
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
                       <Percent className="h-2.5 w-2.5" /> Taxa ${Number(sale.commission!.admin_amount).toFixed(2)}
                     </span>
-                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
                       <Wallet className="h-2.5 w-2.5" /> Lucro ${Number(sale.commission!.seller_amount).toFixed(2)}
                     </span>
                   </>
                 )}
                 {sale.store_products?.warranty_days != null && sale.store_products.warranty_days > 0 && (
-                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                     <ShieldCheck className="h-2.5 w-2.5" /> {sale.store_products.warranty_days}d garantia
                   </span>
                 )}
                 {sale.store_products?.delivery_time && (
-                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                     <Clock3 className="h-2.5 w-2.5" /> {sale.store_products.delivery_time}
                   </span>
                 )}
               </div>
 
-              {/* Date + actions */}
-              <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700/50">
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {new Date(sale.purchase_date).toLocaleDateString('pt-BR')} {new Date(sale.purchase_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <div className="flex items-center gap-2">
                   <button onClick={() => { setSelectedSale(sale); setShowDetails(true); }}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1">
-                    <Eye className="h-3 w-3" /> Detalhes
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5">
+                    <Eye className="h-3.5 w-3.5" /> Detalhes
                   </button>
                   {sale.store_orders?.status !== 'cancelled' && sale.store_orders?.status !== 'refunded' && (
                     <button onClick={() => { setSaleToCancel(sale); setShowCancellationModal(true); }}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Cancelar
+                      className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-500/10 dark:hover:bg-red-500/20 dark:text-red-400 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5">
+                      <XCircle className="h-3.5 w-3.5" /> Cancelar
                     </button>
                   )}
                 </div>
@@ -900,63 +920,82 @@ export function AdminSalesManager() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-            Página {currentPage} de {totalPages} <span className="text-gray-400">({startIndex + 1}-{Math.min(endIndex, filteredSales.length)} de {filteredSales.length})</span>
+          <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+            Página <strong className="text-gray-900 dark:text-white">{currentPage}</strong> de {totalPages}
+            <span className="text-gray-400 dark:text-gray-500"> · {startIndex + 1}-{Math.min(endIndex, filteredSales.length)} de {filteredSales.length}</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-1.5">
             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
-              className="p-1.5 sm:p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              className="p-2 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
               <ChevronLeft className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
+                let pageNum: number;
                 if (totalPages <= 5) pageNum = i + 1;
                 else if (currentPage <= 3) pageNum = i + 1;
                 else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
                 else pageNum = currentPage - 2 + i;
                 return (
                   <button key={pageNum} onClick={() => setCurrentPage(pageNum)}
-                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-md transition-colors ${
-                      currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    className={`w-8 sm:w-9 h-8 sm:h-9 text-xs sm:text-sm font-medium rounded-xl transition-all ${
+                      currentPage === pageNum ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}>{pageNum}</button>
                 );
               })}
             </div>
             <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-              className="p-1.5 sm:p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              className="p-2 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
         </div>
       )}
 
+      {/* Empty State */}
       {filteredSales.length === 0 && (
-        <div className="text-center py-12">
-          <ShoppingBag className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-            {searchTerm || dateFilter !== 'all' || !showCancelledSales ? 'Nenhuma venda encontrada' : 'Nenhuma venda realizada'}
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-20 h-20 rounded-3xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+            <ShoppingBag className="h-10 w-10 text-gray-300 dark:text-gray-600" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            {hasActiveFilters ? 'Nenhuma venda encontrada' : 'Nenhuma venda realizada'}
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {searchTerm || dateFilter !== 'all' || !showCancelledSales ? 'Tente ajustar os filtros de busca' : 'As vendas aparecerão aqui quando os usuários comprarem produtos'}
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+            {hasActiveFilters ? 'Tente ajustar os filtros de busca para encontrar o que procura.' : 'As vendas aparecerão aqui quando os clientes começarem a comprar produtos.'}
           </p>
+          {hasActiveFilters && (
+            <button onClick={() => { setSearchTerm(''); setDateFilter('all'); setStatusFilter('all'); setCustomDateRange({ start: '', end: '' }); setShowCancelledSales(false); }}
+              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors">
+              Limpar filtros
+            </button>
+          )}
         </div>
       )}
 
-      {/* Sale Details Modal */}
+      {/* Details Modal */}
       {showDetails && selectedSale && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4">
-          <div className="relative top-4 sm:top-10 mx-auto p-4 sm:p-5 border w-full max-w-3xl shadow-lg rounded-xl bg-white dark:bg-gray-800 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Detalhes da Venda</h3>
-              <button onClick={() => setShowDetails(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                <X className="h-6 w-6" />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50 flex items-start sm:items-center justify-center p-3 sm:p-4">
+          <div className="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center">
+                  <Receipt className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Detalhes da Venda</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Pedido #{selectedSale.order_id?.slice(0, 8)}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDetails(false)} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-5">
+            <div className="p-5 space-y-5">
               {/* Product Hero */}
-              <div className="flex items-start gap-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+              <div className="flex items-start gap-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-700/30 rounded-2xl p-4">
                 <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                   {selectedSale.store_products?.image_url ? (
                     <img src={selectedSale.store_products.image_url} alt={selectedSale.product_name} className="w-full h-full object-cover"
@@ -970,7 +1009,7 @@ export function AdminSalesManager() {
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 capitalize">{selectedSale.store_products?.category || '—'}</span>
                     {selectedSale.store_orders?.variation_name && (
-                      <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{selectedSale.store_orders.variation_name}</span>
+                      <span className="px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">{selectedSale.store_orders.variation_name}</span>
                     )}
                     {selectedSale.store_products?.is_featured && (
                       <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-bold bg-gradient-to-r from-amber-400 to-yellow-500 text-white"><Star className="h-2.5 w-2.5 fill-current" /> Destaque</span>
@@ -978,7 +1017,7 @@ export function AdminSalesManager() {
                   </div>
                   <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
                     {selectedSale.store_products?.warranty_days != null && selectedSale.store_products.warranty_days > 0 && (
-                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3 w-3" /> {selectedSale.store_products.warranty_days} dias garantia</span>
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><ShieldCheck className="h-3 w-3" /> {selectedSale.store_products.warranty_days} dias</span>
                     )}
                     {selectedSale.store_products?.delivery_time && (
                       <span className="flex items-center gap-1"><Clock3 className="h-3 w-3" /> {selectedSale.store_products.delivery_time}</span>
@@ -990,117 +1029,104 @@ export function AdminSalesManager() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${selectedSale.purchase_price.toFixed(2)}</p>
-                  {getStatusBadge(selectedSale.store_orders?.status)}
+                  <div className="mt-1"><StatusBadge status={selectedSale.store_orders?.status} /></div>
                 </div>
               </div>
 
               {/* Financial Breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-200 dark:border-emerald-800/50">
-                  <div className="flex items-center gap-1.5 mb-1"><DollarSign className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400 uppercase">Valor Pago</span></div>
-                  <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">${selectedSale.purchase_price.toFixed(2)}</p>
+              <div>
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><DollarSign className="h-4 w-4 text-emerald-500" /> Composição Financeira</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 border border-emerald-200 dark:border-emerald-800/30">
+                    <div className="flex items-center gap-1.5 mb-1"><DollarSign className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase">Valor Pago</span></div>
+                    <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">${selectedSale.purchase_price.toFixed(2)}</p>
+                  </div>
+                  {selectedSale.store_orders?.discount_amount && Number(selectedSale.store_orders.discount_amount) > 0 && (
+                    <div className="bg-pink-50 dark:bg-pink-500/10 rounded-xl p-3 border border-pink-200 dark:border-pink-800/30">
+                      <div className="flex items-center gap-1.5 mb-1"><Tag className="h-3.5 w-3.5 text-pink-500" /><span className="text-[10px] font-semibold text-pink-700 dark:text-pink-400 uppercase">Desconto</span></div>
+                      <p className="text-base font-bold text-pink-600 dark:text-pink-400">-${Number(selectedSale.store_orders.discount_amount).toFixed(2)}</p>
+                      {selectedSale.coupon?.code && <p className="text-[10px] text-pink-500 mt-0.5">{selectedSale.coupon.code}</p>}
+                    </div>
+                  )}
+                  {selectedSale.store_orders?.cashback_used && Number(selectedSale.store_orders.cashback_used) > 0 && (
+                    <div className="bg-amber-50 dark:bg-amber-500/10 rounded-xl p-3 border border-amber-200 dark:border-amber-800/30">
+                      <div className="flex items-center gap-1.5 mb-1"><Coins className="h-3.5 w-3.5 text-amber-500" /><span className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase">Cashback</span></div>
+                      <p className="text-base font-bold text-amber-600 dark:text-amber-400">-${Number(selectedSale.store_orders.cashback_used).toFixed(2)}</p>
+                    </div>
+                  )}
+                  {selectedSale.commission && (
+                    <>
+                      <div className="bg-teal-50 dark:bg-teal-500/10 rounded-xl p-3 border border-teal-200 dark:border-teal-800/30">
+                        <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-teal-500" /><span className="text-[10px] font-semibold text-teal-700 dark:text-teal-400 uppercase">Taxa Plataf.</span></div>
+                        <p className="text-base font-bold text-teal-600 dark:text-teal-400">${Number(selectedSale.commission.admin_amount).toFixed(2)}</p>
+                        <p className="text-[10px] text-teal-500 mt-0.5">{Number(selectedSale.commission.admin_commission_rate).toFixed(1)}%</p>
+                      </div>
+                      <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-xl p-3 border border-indigo-200 dark:border-indigo-800/30">
+                        <div className="flex items-center gap-1.5 mb-1"><Wallet className="h-3.5 w-3.5 text-indigo-500" /><span className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-400 uppercase">Lucro Vend.</span></div>
+                        <p className="text-base font-bold text-indigo-600 dark:text-indigo-400">${Number(selectedSale.commission.seller_amount).toFixed(2)}</p>
+                        <p className="text-[10px] text-indigo-500 mt-0.5">{Number(selectedSale.commission.seller_commission_rate).toFixed(1)}%</p>
+                      </div>
+                    </>
+                  )}
                 </div>
-                {selectedSale.store_orders?.discount_amount && Number(selectedSale.store_orders.discount_amount) > 0 ? (
-                  <div className="bg-pink-50 dark:bg-pink-900/20 rounded-lg p-3 border border-pink-200 dark:border-pink-800/50">
-                    <div className="flex items-center gap-1.5 mb-1"><Tag className="h-3.5 w-3.5 text-pink-500" /><span className="text-[10px] font-medium text-pink-700 dark:text-pink-400 uppercase">Desconto Cupom</span></div>
-                    <p className="text-base font-bold text-pink-600 dark:text-pink-400">-${Number(selectedSale.store_orders.discount_amount).toFixed(2)}</p>
-                    {selectedSale.coupon?.code && <p className="text-[10px] text-pink-500 mt-0.5">{selectedSale.coupon.code}</p>}
-                  </div>
-                ) : <div className="hidden" />}
-                {selectedSale.store_orders?.cashback_used && Number(selectedSale.store_orders.cashback_used) > 0 ? (
-                  <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800/50">
-                    <div className="flex items-center gap-1.5 mb-1"><Coins className="h-3.5 w-3.5 text-amber-500" /><span className="text-[10px] font-medium text-amber-700 dark:text-amber-400 uppercase">Cashback</span></div>
-                    <p className="text-base font-bold text-amber-600 dark:text-amber-400">-${Number(selectedSale.store_orders.cashback_used).toFixed(2)}</p>
-                  </div>
-                ) : <div className="hidden" />}
-                {selectedSale.commission ? (
-                  <>
-                    <div className="bg-teal-50 dark:bg-teal-900/20 rounded-lg p-3 border border-teal-200 dark:border-teal-800/50">
-                      <div className="flex items-center gap-1.5 mb-1"><Percent className="h-3.5 w-3.5 text-teal-500" /><span className="text-[10px] font-medium text-teal-700 dark:text-teal-400 uppercase">Taxa Plataforma</span></div>
-                      <p className="text-base font-bold text-teal-600 dark:text-teal-400">${Number(selectedSale.commission.admin_amount).toFixed(2)}</p>
-                      <p className="text-[10px] text-teal-500 mt-0.5">{Number(selectedSale.commission.admin_commission_rate).toFixed(1)}%</p>
-                    </div>
-                    <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 border border-indigo-200 dark:border-indigo-800/50">
-                      <div className="flex items-center gap-1.5 mb-1"><Wallet className="h-3.5 w-3.5 text-indigo-500" /><span className="text-[10px] font-medium text-indigo-700 dark:text-indigo-400 uppercase">Lucro Vendedor</span></div>
-                      <p className="text-base font-bold text-indigo-600 dark:text-indigo-400">${Number(selectedSale.commission.seller_amount).toFixed(2)}</p>
-                      <p className="text-[10px] text-indigo-500 mt-0.5">{Number(selectedSale.commission.seller_commission_rate).toFixed(1)}%</p>
-                    </div>
-                  </>
-                ) : <div className="hidden" />}
               </div>
 
-              {/* Seller + Customer Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Seller */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><Store className="h-4 w-4 text-indigo-500" /> Vendedor</h4>
+              {/* Seller & Customer */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-gray-50 dark:bg-gray-700/40 rounded-2xl p-4">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><Store className="h-4 w-4 text-indigo-500" /> Vendedor</h4>
                   <div className="flex items-center gap-3">
-                    {selectedSale.seller_profile?.avatar_url ? (
-                      <img src={selectedSale.seller_profile.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-blue-500 flex items-center justify-center text-white font-bold">
-                        {(selectedSale.seller_profile?.full_name || selectedSale.seller_profile?.username || 'V').charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <Avatar src={selectedSale.seller_profile?.avatar_url || undefined} name={selectedSale.seller_profile?.full_name || selectedSale.seller_profile?.username || 'V'} gradient="from-indigo-400 to-blue-500" size="lg" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedSale.seller_profile?.full_name || selectedSale.seller_profile?.username || 'Loja Admin'}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{selectedSale.seller_profile?.full_name || selectedSale.seller_profile?.username || 'Loja Admin'}</p>
                       {selectedSale.seller_profile?.seller_slug && <p className="text-xs text-gray-500 dark:text-gray-400">@{selectedSale.seller_profile.seller_slug}</p>}
                     </div>
                   </div>
                 </div>
-                {/* Customer */}
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><User className="h-4 w-4 text-emerald-500" /> Cliente</h4>
+                <div className="bg-gray-50 dark:bg-gray-700/40 rounded-2xl p-4">
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><User className="h-4 w-4 text-emerald-500" /> Cliente</h4>
                   <div className="flex items-center gap-3">
-                    {selectedSale.profiles?.avatar_url ? (
-                      <img src={selectedSale.profiles.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold">
-                        {(selectedSale.profiles?.username || selectedSale.profiles?.full_name || selectedSale.profiles?.email?.charAt(0) || 'C').charAt(0).toUpperCase()}
-                      </div>
-                    )}
+                    <Avatar src={selectedSale.profiles?.avatar_url || undefined} name={selectedSale.profiles?.username || selectedSale.profiles?.full_name || selectedSale.profiles?.email || 'C'} gradient="from-emerald-400 to-teal-500" size="lg" />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{selectedSale.profiles?.username || selectedSale.profiles?.full_name || selectedSale.store_orders?.customer_name || 'Cliente'}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{selectedSale.profiles?.username || selectedSale.profiles?.full_name || selectedSale.store_orders?.customer_name || 'Cliente'}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{selectedSale.profiles?.email || selectedSale.store_orders?.customer_email || '—'}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Order Meta */}
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Informações do Pedido</h4>
+              {/* Order Info */}
+              <div className="bg-gray-50 dark:bg-gray-700/40 rounded-2xl p-4">
+                <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3">Informações do Pedido</h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">Data da Compra</p>
-                    <p className="text-gray-900 dark:text-white">{new Date(selectedSale.purchase_date).toLocaleDateString('pt-BR')} {new Date(selectedSale.purchase_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Data da Compra</p>
+                    <p className="text-gray-900 dark:text-white font-medium">{new Date(selectedSale.purchase_date).toLocaleDateString('pt-BR')} {new Date(selectedSale.purchase_date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                   {selectedSale.store_orders?.delivered_at && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Entregue em</p>
-                      <p className="text-gray-900 dark:text-white">{new Date(selectedSale.store_orders.delivered_at).toLocaleDateString('pt-BR')} {new Date(selectedSale.store_orders.delivered_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Entregue em</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{new Date(selectedSale.store_orders.delivered_at).toLocaleDateString('pt-BR')} {new Date(selectedSale.store_orders.delivered_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">ID do Pedido</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">ID do Pedido</p>
                     <p className="text-xs font-mono text-gray-600 dark:text-gray-400 break-all">{selectedSale.order_id}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">ID do Produto</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">ID do Produto</p>
                     <p className="text-xs font-mono text-gray-600 dark:text-gray-400 break-all">{selectedSale.product_id}</p>
                   </div>
                   {selectedSale.store_orders?.cancelled_at && (
                     <div>
-                      <p className="text-xs text-red-500">Cancelado em</p>
-                      <p className="text-red-600 dark:text-red-400">{new Date(selectedSale.store_orders.cancelled_at).toLocaleDateString('pt-BR')}</p>
+                      <p className="text-xs text-red-500 mb-0.5">Cancelado em</p>
+                      <p className="text-red-600 dark:text-red-400 font-medium">{new Date(selectedSale.store_orders.cancelled_at).toLocaleDateString('pt-BR')}</p>
                     </div>
                   )}
                 </div>
                 {selectedSale.store_orders?.cancellation_reason && (
-                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                    <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-1">Motivo do Cancelamento:</p>
+                  <div className="mt-3 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800/30 rounded-xl">
+                    <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">Motivo do Cancelamento:</p>
                     <p className="text-sm text-red-600 dark:text-red-400">{selectedSale.store_orders.cancellation_reason}</p>
                   </div>
                 )}
@@ -1108,36 +1134,36 @@ export function AdminSalesManager() {
 
               {/* Recharge Data */}
               {selectedSale.store_orders?.recharge_data && (
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                  <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2"><Zap className="h-4 w-4" /> Dados da Conta para Recarga</h4>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border space-y-2">
-                    <div className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 text-gray-400" /><span className="font-mono text-sm text-gray-900 dark:text-white break-all">{selectedSale.store_orders.recharge_data.email}</span></div>
-                    <div className="flex items-center gap-2"><Lock className="h-3.5 w-3.5 text-gray-400" /><span className="font-mono text-sm text-gray-900 dark:text-white break-all">{selectedSale.store_orders.recharge_data.password}</span></div>
+                <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl p-4">
+                  <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300 mb-3 flex items-center gap-2"><Zap className="h-4 w-4" /> Dados da Conta para Recarga</h4>
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-amber-100 dark:border-gray-700 space-y-2">
+                    <div className="flex items-center gap-2"><Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" /><span className="font-mono text-sm text-gray-900 dark:text-white break-all">{selectedSale.store_orders.recharge_data.email}</span></div>
+                    <div className="flex items-center gap-2"><Lock className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" /><span className="font-mono text-sm text-gray-900 dark:text-white break-all">{selectedSale.store_orders.recharge_data.password}</span></div>
                     {selectedSale.store_orders.recharge_data.extra_data && (
-                      <div className="flex items-start gap-2"><FileText className="h-3.5 w-3.5 text-gray-400 mt-0.5" /><span className="text-sm text-gray-700 dark:text-gray-300 break-all">{selectedSale.store_orders.recharge_data.extra_data}</span></div>
+                      <div className="flex items-start gap-2"><FileText className="h-3.5 w-3.5 text-gray-400 flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-700 dark:text-gray-300 break-all">{selectedSale.store_orders.recharge_data.extra_data}</span></div>
                     )}
                     {selectedSale.store_orders?.status === 'paid' && !selectedSale.store_orders?.delivery_confirmed && (
                       <button onClick={() => handleConfirmDelivery(selectedSale.store_orders!.id || selectedSale.id)}
                         disabled={confirmingDelivery === (selectedSale.store_orders!.id || selectedSale.id)}
-                        className="w-full mt-2 inline-flex items-center justify-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50">
+                        className="w-full mt-2 inline-flex items-center justify-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50">
                         {confirmingDelivery === (selectedSale.store_orders!.id || selectedSale.id) ? (
                           <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (<><Check className="h-4 w-4 mr-1.5" /> Confirmar Entrega</>)}
                       </button>
                     )}
                     {selectedSale.store_orders?.delivery_confirmed && (
-                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium"><CheckCircle className="h-4 w-4" /> Recarga entregue e confirmada</div>
+                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium pt-1"><CheckCircle className="h-4 w-4" /> Recarga entregue e confirmada</div>
                     )}
                   </div>
                 </div>
               )}
 
               {/* Credentials */}
-              <div className={`border rounded-xl p-4 ${selectedSale.store_orders?.status === 'cancelled' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'}`}>
-                <h4 className={`text-sm font-semibold mb-3 ${selectedSale.store_orders?.status === 'cancelled' ? 'text-red-800 dark:text-red-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
+              <div className={`rounded-2xl p-4 border ${selectedSale.store_orders?.status === 'cancelled' ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-800/30' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-800/30'}`}>
+                <h4 className={`text-sm font-bold mb-3 ${selectedSale.store_orders?.status === 'cancelled' ? 'text-red-800 dark:text-red-300' : 'text-emerald-800 dark:text-emerald-300'}`}>
                   {selectedSale.store_orders?.status === 'cancelled' ? 'Credenciais (Venda Cancelada)' : 'Credenciais Entregues'}
                 </h4>
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-100 dark:border-gray-700">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Email da Conta:</p>
@@ -1149,16 +1175,16 @@ export function AdminSalesManager() {
                     </div>
                   </div>
                   {selectedSale.credentials?.instructions && (
-                    <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600">
+                    <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700">
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Instruções:</p>
                       <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{selectedSale.credentials.instructions}</p>
                     </div>
                   )}
                   {selectedSale.credentials && typeof selectedSale.credentials === 'object' && Object.keys(selectedSale.credentials).length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-gray-200 dark:border-gray-600">
+                    <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700">
                       <details>
                         <summary className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">Dados JSON completos</summary>
-                        <pre className="mt-2 text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded border overflow-x-auto">{JSON.stringify(selectedSale.credentials, null, 2)}</pre>
+                        <pre className="mt-2 text-xs bg-gray-50 dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-700 overflow-x-auto">{JSON.stringify(selectedSale.credentials, null, 2)}</pre>
                       </details>
                     </div>
                   )}
@@ -1166,9 +1192,15 @@ export function AdminSalesManager() {
               </div>
             </div>
 
-            <div className="flex justify-end mt-6 pt-4 border-t border-gray-200 dark:border-gray-600">
+            <div className="sticky bottom-0 flex justify-end gap-2 px-5 py-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-2xl">
+              {selectedSale.store_orders?.status !== 'cancelled' && selectedSale.store_orders?.status !== 'refunded' && (
+                <button onClick={() => { setSaleToCancel(selectedSale); setShowDetails(false); setShowCancellationModal(true); }}
+                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-500/10 dark:hover:bg-red-500/20 dark:text-red-400 text-sm font-semibold rounded-xl transition-colors flex items-center gap-2">
+                  <XCircle className="h-4 w-4" /> Cancelar Venda
+                </button>
+              )}
               <button onClick={() => setShowDetails(false)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                className="px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                 Fechar
               </button>
             </div>
