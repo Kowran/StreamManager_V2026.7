@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X, Send, Loader2, User, Circle, ImagePlus, ShieldAlert, ShoppingBag, Package,
   ChevronRight, Ban, CheckCircle, MoreVertical, Languages, Settings, Volume2, VolumeX,
-  CornerDownLeft, ArrowLeft, Globe, Check,
+  CornerDownLeft, ArrowLeft, Globe, Check, CheckCheck, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
@@ -19,6 +19,8 @@ interface OtherUser {
   username: string | null;
 }
 
+type MessageStatus = 'sending' | 'sent' | 'read' | 'error';
+
 interface Message {
   id: string;
   chat_id: string;
@@ -28,6 +30,9 @@ interface Message {
   read_at: string | null;
   created_at: string;
   metadata?: any;
+  _status?: MessageStatus;
+  _originalContent?: string;
+  _translatedContent?: string;
 }
 
 interface OrderContext {
@@ -57,12 +62,19 @@ const DEFAULT_SETTINGS: ChatSettingsData = {
   show_original: true,
   enter_to_send: true,
   sound_enabled: true,
+  outbound_translate_to: null,
 };
 
 const LANG_LABELS: Record<string, string> = {
   pt: 'Português', en: 'English', es: 'Español', fr: 'Français',
   de: 'Deutsch', it: 'Italiano', ja: '日本語', ko: '한국어',
   zh: '中文', ru: 'Русский', ar: 'العربية', nl: 'Nederlands',
+};
+
+const LANG_FLAGS: Record<string, string> = {
+  pt: '🇧🇷', en: '🇺🇸', es: '🇪🇸', fr: '🇫🇷',
+  de: '🇩🇪', it: '🇮🇹', ja: '🇯🇵', ko: '🇰🇷',
+  zh: '🇨🇳', ru: '🇷🇺', ar: '🇸🇦', nl: '🇳🇱',
 };
 
 export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSettings }: ChatModalProps) {
@@ -86,12 +98,16 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
   const [translations, setTranslations] = useState<TranslationCache>({});
   const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set());
   const [showTranslated, setShowTranslated] = useState<Set<string>>(new Set());
+  const [outboundPreview, setOutboundPreview] = useState<string | null>(null);
+  const [outboundTranslating, setOutboundTranslating] = useState(false);
+  const [showOutboundPreview, setShowOutboundPreview] = useState(false);
   const imgInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const contextSentRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prevMsgCount = useRef(0);
+  const outboundDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const tr = (pt: string, en: string, es: string) =>
     language === 'pt' ? pt : language === 'en' ? en : es;
@@ -100,13 +116,11 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
     bottomRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant' });
   }, []);
 
-  // Create notification sound element
   useEffect(() => {
     audioRef.current = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
     audioRef.current.volume = 0.3;
   }, []);
 
-  // Play sound on new incoming message
   useEffect(() => {
     if (settings.sound_enabled && messages.length > prevMsgCount.current) {
       const lastMsg = messages[messages.length - 1];
@@ -122,6 +136,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
     initChat();
   }, [user, otherUserId]);
 
+  // Realtime subscription for new messages AND read_at updates
   useEffect(() => {
     if (!chatId) return;
     const channel = supabase
@@ -137,11 +152,23 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
           setTimeout(() => scrollToBottom(), 50);
           if (payload.new.sender_id !== user?.id) {
             markMessagesRead(chatId);
-            // Auto-translate if enabled
             if (settings.auto_translate && payload.new.content) {
               translateMessage(payload.new as Message);
             }
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'direct_messages', filter: `chat_id=eq.${chatId}` },
+        (payload) => {
+          const updated = payload.new as Message;
+          setMessages(prev => prev.map(m => {
+            if (m.id === updated.id) {
+              return { ...m, read_at: updated.read_at, _status: updated.read_at ? 'read' : m._status };
+            }
+            return m;
+          }));
         }
       )
       .subscribe();
@@ -151,7 +178,6 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
 
   useEffect(() => {
     if (messages.length > 0) scrollToBottom(false);
-    // Auto-translate all incoming messages if enabled
     if (settings.auto_translate) {
       messages.forEach(msg => {
         if (msg.sender_id !== user?.id && msg.content && !translations[msg.id] && !translatingIds.has(msg.id)) {
@@ -160,6 +186,58 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
       });
     }
   }, [messages.length]);
+
+  // Outbound translation preview debounced
+  useEffect(() => {
+    if (!settings.outbound_translate_to || !input.trim()) {
+      setOutboundPreview(null);
+      setShowOutboundPreview(false);
+      return;
+    }
+
+    if (outboundDebounceRef.current) clearTimeout(outboundDebounceRef.current);
+
+    outboundDebounceRef.current = setTimeout(async () => {
+      const text = input.trim();
+      if (!text) return;
+      setOutboundTranslating(true);
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (!session.session?.access_token) return;
+
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.session.access_token}`,
+          },
+          body: JSON.stringify({
+            target_lang: settings.outbound_translate_to,
+            text,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Translation failed');
+        const data = await response.json();
+        if (data.translatedText && data.translatedText !== text) {
+          setOutboundPreview(data.translatedText);
+          setShowOutboundPreview(true);
+        } else {
+          setOutboundPreview(null);
+          setShowOutboundPreview(false);
+        }
+      } catch {
+        setOutboundPreview(null);
+        setShowOutboundPreview(false);
+      } finally {
+        setOutboundTranslating(false);
+      }
+    }, 600);
+
+    return () => {
+      if (outboundDebounceRef.current) clearTimeout(outboundDebounceRef.current);
+    };
+  }, [input, settings.outbound_translate_to]);
 
   async function translateMessage(msg: Message) {
     if (translatingIds.has(msg.id) || translations[msg.id]) return;
@@ -355,7 +433,11 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
       .select('*')
       .eq('chat_id', id)
       .order('created_at', { ascending: true });
-    setMessages(data || []);
+    const loaded: Message[] = (data || []).map(m => ({
+      ...m,
+      _status: m.sender_id === user?.id ? (m.read_at ? 'read' : 'sent') : undefined,
+    }));
+    setMessages(loaded);
   }
 
   async function markMessagesRead(id: string) {
@@ -401,23 +483,57 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
   async function sendMessage() {
     if ((!input.trim() && !imageUrl) || !chatId || !user || sending) return;
     if (isBlocked || blockedByOther) return;
-    const content = input.trim();
+
+    // Use translated preview if outbound translation is active
+    const originalContent = input.trim();
+    const contentToSend = (settings.outbound_translate_to && outboundPreview && showOutboundPreview)
+      ? outboundPreview
+      : originalContent;
     const imgToSend = imageUrl;
+    const tempId = `temp-${Date.now()}`;
+
+    // Optimistic message
+    const optimisticMsg: Message = {
+      id: tempId,
+      chat_id: chatId,
+      sender_id: user.id,
+      content: contentToSend,
+      image_url: imgToSend,
+      read_at: null,
+      created_at: new Date().toISOString(),
+      _status: 'sending',
+      _originalContent: settings.outbound_translate_to && outboundPreview ? originalContent : undefined,
+      _translatedContent: settings.outbound_translate_to && outboundPreview ? outboundPreview : undefined,
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
     setInput('');
     setImageUrl(null);
+    setOutboundPreview(null);
+    setShowOutboundPreview(false);
     setSending(true);
+    scrollToBottom();
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('direct_messages')
-        .insert({ chat_id: chatId, sender_id: user.id, content, image_url: imgToSend });
+        .insert({ chat_id: chatId, sender_id: user.id, content: contentToSend, image_url: imgToSend })
+        .select('*')
+        .single();
 
       if (error) throw error;
+
+      // Replace optimistic message with real one
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, id: data.id, _status: 'sent' as MessageStatus }
+          : m
+      ));
 
       const uid = user.id;
       const oid = otherUserId;
       const isUser1 = uid < oid;
-      const preview = content.length > 60 ? content.slice(0, 60) + '…' : (imgToSend ? '📷 Image' : content);
+      const preview = contentToSend.length > 60 ? contentToSend.slice(0, 60) + '…' : (imgToSend ? '📷 Image' : contentToSend);
       await supabase
         .from('direct_chats')
         .update({ last_message: preview, last_message_at: new Date().toISOString() })
@@ -427,11 +543,62 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
       await supabase.rpc('increment_chat_unread', { p_chat_id: chatId, p_column: col });
     } catch (err) {
       console.error('Error sending message:', err);
-      setInput(content);
-      setImageUrl(imgToSend);
+      // Mark message as error so user can retry
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, _status: 'error' as MessageStatus, content: originalContent }
+          : m
+      ));
     } finally {
       setSending(false);
       inputRef.current?.focus();
+    }
+  }
+
+  async function retryMessage(msg: Message) {
+    if (!chatId || !user) return;
+    const tempId = msg.id;
+
+    // Reset to sending status
+    setMessages(prev => prev.map(m =>
+      m.id === tempId
+        ? { ...m, _status: 'sending' as MessageStatus }
+        : m
+    ));
+
+    try {
+      const { data, error } = await supabase
+        .from('direct_messages')
+        .insert({ chat_id: chatId, sender_id: user.id, content: msg.content, image_url: msg.image_url })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, id: data.id, _status: 'sent' as MessageStatus }
+          : m
+      ));
+
+      const uid = user.id;
+      const oid = otherUserId;
+      const isUser1 = uid < oid;
+      const preview = msg.content.length > 60 ? msg.content.slice(0, 60) + '…' : (msg.image_url ? '📷 Image' : msg.content);
+      await supabase
+        .from('direct_chats')
+        .update({ last_message: preview, last_message_at: new Date().toISOString() })
+        .eq('id', chatId);
+
+      const col = isUser1 ? 'user2_unread' : 'user1_unread';
+      await supabase.rpc('increment_chat_unread', { p_chat_id: chatId, p_column: col });
+    } catch (err) {
+      console.error('Retry failed:', err);
+      setMessages(prev => prev.map(m =>
+        m.id === tempId
+          ? { ...m, _status: 'error' as MessageStatus }
+          : m
+      ));
     }
   }
 
@@ -464,6 +631,29 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
       }
     });
     return groups;
+  }
+
+  function renderStatusIcon(msg: Message) {
+    if (msg.sender_id !== user?.id) return null;
+    if (msg._status === 'sending') {
+      return <Loader2 className="h-3 w-3 text-white/60 animate-spin shrink-0" />;
+    }
+    if (msg._status === 'error') {
+      return (
+        <button
+          onClick={() => retryMessage(msg)}
+          className="flex items-center gap-0.5 text-red-300 hover:text-red-200 transition-colors shrink-0"
+          title={tr('Falha ao enviar. Toque para reenviar.', 'Failed to send. Tap to retry.', 'Error al enviar. Toca para reintentar.')}
+        >
+          <AlertCircle className="h-3 w-3" />
+          <RefreshCw className="h-2.5 w-2.5" />
+        </button>
+      );
+    }
+    if (msg._status === 'read' || msg.read_at) {
+      return <CheckCheck className="h-3 w-3 text-blue-200 shrink-0" />;
+    }
+    return <Check className="h-3 w-3 text-white/60 shrink-0" />;
   }
 
   const themeColor = otherUser?.theme_color || '#3b82f6';
@@ -515,10 +705,15 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
                   {LANG_LABELS[settings.translate_to]?.split(' ')[0]}
                 </span>
               )}
+              {settings.outbound_translate_to && (
+                <span className="flex items-center gap-0.5 text-white/70 text-[10px]">
+                  <Send className="h-2.5 w-2.5" />
+                  {LANG_FLAGS[settings.outbound_translate_to]}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Quick settings indicators */}
           <div className="flex items-center gap-1">
             {settings.sound_enabled ? (
               <Volume2 className="h-4 w-4 text-white/50" />
@@ -635,6 +830,7 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
                   const isTranslating = translatingIds.has(msg.id);
                   const showTrans = showTranslated.has(msg.id);
                   const canTranslate = msg.content && !isOrderCitation && !msg.image_url;
+                  const isError = msg._status === 'error';
 
                   return (
                     <div
@@ -672,13 +868,21 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
                           <div
                             className={`px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
                               isMine
-                                ? 'text-white rounded-br-sm'
+                                ? isError
+                                  ? 'bg-red-500/90 text-white rounded-br-sm'
+                                  : 'text-white rounded-br-sm'
                                 : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm shadow-sm'
                             }`}
-                            style={isMine ? { backgroundColor: themeColor } : {}}
+                            style={isMine && !isError ? { backgroundColor: themeColor } : {}}
                           >
                             {msg.content && (
                               <>
+                                {/* Show original (pre-translation) text for outbound translated messages */}
+                                {msg._originalContent && msg._translatedContent && (
+                                  <p className="opacity-50 text-xs mb-1 line-through">
+                                    {msg._originalContent}
+                                  </p>
+                                )}
                                 <p className={showTrans && hasTranslation && settings.show_original ? 'opacity-50 text-xs mb-1 line-through' : ''}>
                                   {msg.content}
                                 </p>
@@ -707,6 +911,8 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
                         )}
                         <div className={`flex items-center gap-1.5 mt-0.5 px-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
                           <span className="text-[10px] text-gray-400">{formatTime(msg.created_at)}</span>
+                          {/* Status icon for own messages */}
+                          {isMine && renderStatusIcon(msg)}
                           {canTranslate && (
                             <button
                               onClick={() => toggleTranslation(msg)}
@@ -766,6 +972,25 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
 
         {/* Input area */}
         <div className="px-3 pb-3 pt-2 border-t border-gray-100 dark:border-gray-800 shrink-0 bg-white dark:bg-gray-900">
+          {/* Outbound translation preview */}
+          {settings.outbound_translate_to && showOutboundPreview && outboundPreview && input.trim() && (
+            <div className="mb-2 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <div className="flex items-center justify-between mb-1">
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                  <Languages className="h-3 w-3" />
+                  {tr('Tradução', 'Translation', 'Traducción')} → {LANG_FLAGS[settings.outbound_translate_to]} {LANG_LABELS[settings.outbound_translate_to]}
+                </span>
+                <button
+                  onClick={() => setShowOutboundPreview(false)}
+                  className="text-blue-400 hover:text-blue-600 text-[10px]"
+                >
+                  {tr('ocultar', 'hide', 'ocultar')}
+                </button>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">{outboundPreview}</p>
+            </div>
+          )}
+
           {imageUrl && (
             <div className="relative mb-2">
               <img src={imageUrl} alt="Preview" className="rounded-xl max-h-28 w-full object-cover border border-gray-200 dark:border-gray-700" />
@@ -799,6 +1024,9 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
               className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 resize-none outline-none min-h-[24px] max-h-[120px] overflow-y-auto"
               style={{ lineHeight: '1.5' }}
             />
+            {outboundTranslating && (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400 mb-0.5 shrink-0" />
+            )}
             <button
               onClick={sendMessage}
               disabled={(!input.trim() && !imageUrl) || sending || isBlocked || blockedByOther}
@@ -827,7 +1055,6 @@ export function ChatModal({ otherUserId, onClose, orderContext, embedded, chatSe
           onClose={() => setShowSettingsModal(false)}
           settings={settings}
           onSave={(s) => {
-            // Settings are saved at inbox level; just close here
             setShowSettingsModal(false);
           }}
           isSaving={false}

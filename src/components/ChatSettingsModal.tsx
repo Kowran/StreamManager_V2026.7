@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   X, Languages, Bell, BellOff, Volume2, VolumeX,
   CornerDownLeft, CornerDownLeft as EnterIcon,
-  Eye, EyeOff, Check, Globe,
+  Eye, EyeOff, Check, Globe, Send,
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 
@@ -12,6 +12,7 @@ export interface ChatSettingsData {
   show_original: boolean;
   enter_to_send: boolean;
   sound_enabled: boolean;
+  outbound_translate_to: string | null;
 }
 
 interface ChatSettingsModalProps {
@@ -137,7 +138,7 @@ export function ChatSettingsModal({ isOpen, onClose, settings, onSave, isSaving 
 
             {/* Show original toggle */}
             {localSettings.auto_translate && (
-              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 mb-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
@@ -155,6 +156,51 @@ export function ChatSettingsModal({ isOpen, onClose, settings, onSave, isSaving 
                 </div>
               </div>
             )}
+
+            {/* Outbound translation */}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+                    <Send className="h-4 w-4 text-gray-400" />
+                    {tr('Traduzir ao Enviar', 'Translate on Send', 'Traducir al Enviar')}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    {tr('Traduz suas mensagens antes de enviá-las', 'Translate your messages before sending', 'Traduce tus mensajes antes de enviarlos')}
+                  </p>
+                </div>
+                <ToggleSwitch
+                  checked={localSettings.outbound_translate_to !== null}
+                  onChange={v => update('outbound_translate_to', v ? (localSettings.outbound_translate_to || 'en') : null)}
+                />
+              </div>
+              {localSettings.outbound_translate_to !== null && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                    {tr('Idioma de envio:', 'Send language:', 'Idioma de envío:')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto">
+                    {LANGUAGES.map(lang => (
+                      <button
+                        key={lang.code}
+                        onClick={() => update('outbound_translate_to', lang.code)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all ${
+                          localSettings.outbound_translate_to === lang.code
+                            ? 'bg-blue-500 text-white font-medium shadow-sm'
+                            : 'bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-500'
+                        }`}
+                      >
+                        <span className="text-xs font-mono opacity-70">{lang.flag}</span>
+                        <span className="truncate flex-1 text-left">{lang.label}</span>
+                        {localSettings.outbound_translate_to === lang.code && (
+                          <Check className="h-3.5 w-3.5 flex-shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Behavior Section */}

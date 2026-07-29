@@ -94,9 +94,9 @@ Deno.serve(async (req: Request) => {
 
     const { message_id, target_lang, text } = await req.json();
 
-    if (!message_id || !target_lang || !text) {
+    if (!target_lang || !text) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: message_id, target_lang, text" }),
+        JSON.stringify({ error: "Missing required fields: target_lang, text" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -108,7 +108,20 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if translation already cached
+    // Outbound translation mode: no message_id, just translate and return
+    if (!message_id) {
+      const result = await translateText(text, target_lang);
+      return new Response(
+        JSON.stringify({
+          translatedText: result.translatedText,
+          sourceLang: result.detectedSourceLang,
+          cached: false,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Inbound translation: check cache first
     const { data: cached } = await supabase
       .from("message_translations")
       .select("translated_text, source_lang")

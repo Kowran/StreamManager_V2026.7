@@ -31,6 +31,7 @@ interface ChatSettings {
   show_original: boolean;
   enter_to_send: boolean;
   sound_enabled: boolean;
+  outbound_translate_to: string | null;
 }
 
 const DEFAULT_SETTINGS: ChatSettings = {
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: ChatSettings = {
   show_original: true,
   enter_to_send: true,
   sound_enabled: true,
+  outbound_translate_to: null,
 };
 
 export function ChatInbox() {
@@ -101,6 +103,7 @@ export function ChatInbox() {
           show_original: data.show_original,
           enter_to_send: data.enter_to_send,
           sound_enabled: data.sound_enabled,
+          outbound_translate_to: data.outbound_translate_to ?? null,
         });
       }
     } catch {
@@ -121,6 +124,7 @@ export function ChatInbox() {
           show_original: newSettings.show_original,
           enter_to_send: newSettings.enter_to_send,
           sound_enabled: newSettings.sound_enabled,
+          outbound_translate_to: newSettings.outbound_translate_to,
           updated_at: new Date().toISOString(),
         });
 
