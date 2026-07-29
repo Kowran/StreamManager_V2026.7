@@ -162,6 +162,28 @@ export function UserPurchases() {
     }
   }, [user]);
 
+  // Listen for open-order-detail events from chat order reference cards
+  useEffect(() => {
+    const handleOpenOrderDetail = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail?.orderId) return;
+      // Find the user_purchase that matches this store order_id
+      const purchase = purchases.find(p => p.order_id === detail.orderId);
+      if (purchase) {
+        setDetailPageId(purchase.id);
+        setShowDetailPage(true);
+        window.history.pushState(null, '', `/purchases/${purchase.id}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      } else {
+        // If not found yet, store it and reload purchases to find it
+        sessionStorage.setItem('purchase_detail_id', detail.orderId);
+        if (user) loadUserPurchases();
+      }
+    };
+    window.addEventListener('open-order-detail', handleOpenOrderDetail as EventListener);
+    return () => window.removeEventListener('open-order-detail', handleOpenOrderDetail as EventListener);
+  }, [purchases, user]);
+
   useEffect(() => { setCurrentPage(1); }, [statusFilter, purchases.length]);
 
   async function loadHelpTicketStatuses(orderIds: string[]) {

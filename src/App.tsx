@@ -82,6 +82,7 @@ import { ChatInbox } from './components/ChatInbox';
 import { CartPage } from './components/CartPage';
 import { CartDrawer } from './components/CartDrawer';
 import { useCart } from './components/CartProvider';
+import { GlobalChat } from './components/GlobalChat';
 
 import { AdminProductCategoriesManager } from './components/AdminProductCategoriesManager';
 import { CategorySearchPage } from './components/CategorySearchPage';
@@ -238,6 +239,55 @@ function AppContent() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [user]);
+
+  // Global notification sound for new direct messages when no chat is open
+  useEffect(() => {
+    if (!user) return;
+    let audio: HTMLAudioElement | null = null;
+    try {
+      audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
+      audio.volume = 0.3;
+    } catch { /* ignore */ }
+    const channel = supabase
+      .channel('global-dm-sound-watch')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'direct_messages' },
+        (payload) => {
+          const msg = payload.new as { sender_id: string; chat_id: string };
+          if (msg.sender_id !== user.id) {
+            audio?.play().catch(() => {});
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
+  // Listen for open-order-detail event from chat order reference cards
+  useEffect(() => {
+    const handleOpenOrderDetail = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail?.orderId) return;
+      // For customers: navigate to purchases page and open the detail
+      // For sellers: navigate to seller-store (SellerOrdersManager has its own listener to open the order modal)
+      if (isSeller) {
+        if (activeTab !== 'seller-store') {
+          setActiveTab('seller-store');
+          window.history.pushState(null, '', '/seller-store');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }
+      } else {
+        setActiveTab('purchases');
+        sessionStorage.setItem('purchase_detail_id', detail.orderId);
+        window.history.pushState(null, '', `/purchases/${detail.orderId}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+    window.addEventListener('open-order-detail', handleOpenOrderDetail as EventListener);
+    return () => window.removeEventListener('open-order-detail', handleOpenOrderDetail as EventListener);
+  }, [isSeller, activeTab]);
 
   async function loadChatUnread() {
     if (!user) return;
@@ -1369,6 +1419,9 @@ function AppContent() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
+
+      {/* Global Chat - Rhoudz Oficial */}
+      <GlobalChat isAdmin={isAdmin} siteLogo={siteSettings?.header_logo_url || storeConfig?.store_logo_url || null} />
 
       {/* Expiring Items Chat */}
       <ExpiringItemsChat />
