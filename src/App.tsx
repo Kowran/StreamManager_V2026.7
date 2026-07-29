@@ -388,7 +388,7 @@ function AppContent() {
         window.history.pushState(null, '', targetPath ? `/${targetPath}` : '/');
       }
     }
-  }, [activeTab, user, loading]);
+  }, [activeTab, loading]);
 
   // Dynamic browser tab title based on current page
   const siteName = siteSettings?.site_name || storeConfig?.store_name || '';

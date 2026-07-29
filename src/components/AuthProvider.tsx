@@ -35,6 +35,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [isBanned, setIsBanned] = useState(false);
   const banReasonRef = useRef<string | null>(null);
+  const userRef = useRef<User | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Check banned status whenever user changes
   useEffect(() => {
@@ -118,20 +123,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-      
-      if (event === 'TOKEN_REFRESHED' && !session) {
-        // Handle failed token refresh
-        setSession(null);
-        setUser(null);
-        setLoading(false);
+
+      // Guard: skip state updates when the user hasn't actually changed.
+      // Supabase fires SIGNED_IN when the tab regains focus (revalidating
+      // the session from localStorage), which creates new object references
+      // and triggers cascading re-renders across the app. Comparing user IDs
+      // prevents unnecessary state updates.
+      const newUserId = session?.user?.id ?? null;
+      const currentUserId = userRef.current?.id ?? null;
+      if (newUserId === currentUserId && event === 'SIGNED_IN' && session) {
         return;
       }
-      
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      // Reset password recovery state when user is signed in normally
+
       if (session && event === 'SIGNED_IN') {
         setIsPasswordRecovery(false);
       }
