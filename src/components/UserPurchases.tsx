@@ -12,6 +12,7 @@ import { useCurrency } from './CurrencyProvider';
 import { PurchaseDetailPage } from './PurchaseDetailPage';
 import { ProductRatingModal } from './ProductRatingModal';
 import { PurchaseHelpModal } from './PurchaseHelpModal';
+import ProductImage from './ProductImage';
 
 interface UserPurchase {
   id: string;

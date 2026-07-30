@@ -50,7 +50,7 @@ function getLanguageFromCountry(countryCode: string): Language {
     'GQ': 'es',
   };
 
-  return countryToLanguage[countryCode] || 'en';
+  return countryToLanguage[countryCode] || 'pt';
 }
 
 async function detectLanguageFromIP(): Promise<Language> {
@@ -81,13 +81,13 @@ async function detectLanguageFromIP(): Promise<Language> {
   if (browserLang === 'pt') return 'pt';
   if (browserLang === 'es') return 'es';
 
-  return 'en';
+  return 'pt';
 }
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('streammanager-language');
-    return (saved as Language) || 'en'; // Default to English initially
+    return (saved as Language) || 'pt'; // Default to Portuguese initially
   });
 
   const [initialized, setInitialized] = useState(false);
