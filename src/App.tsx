@@ -1035,7 +1035,7 @@ function AppContent() {
       <AnnouncementBar />
 
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 transition-colors sticky top-0 z-30">
+      <header className="bg-white dark:bg-gray-800 shadow-sm transition-colors sticky top-0 z-30">
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3 sm:py-4 lg:py-6">
             <div className="flex items-center">
@@ -1364,7 +1364,7 @@ function AppContent() {
         </div>
       )}
 
-      <div className="flex-1 w-full mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 lg:py-8 w-full min-w-0">
+      <div className="flex-1 w-full mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 min-w-0">
         {activeTab === 'product-detail' && productDetailId ? (
           <ProductDetailPage
             productId={productDetailId}
@@ -1419,7 +1419,7 @@ function AppContent() {
                 {renderContent()}
               </AdminLayout>
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 lg:p-6 transition-colors min-w-0 overflow-x-hidden">
+              <div className="min-w-0 overflow-x-hidden">
                 {renderContent()}
               </div>
             )}
