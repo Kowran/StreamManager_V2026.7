@@ -8,11 +8,10 @@ interface SellerReputationProps {
   sellerName?: string;
 }
 
-interface SellerRating {
+interface UnifiedRating {
   id: string;
   rating: number;
   comment: string | null;
-  rater_id: string;
   created_at: string;
 }
 
@@ -36,7 +35,7 @@ function getTierFromRating(avg: number): ReputationTier {
 
 export function SellerReputation({ sellerId, sellerName }: SellerReputationProps) {
   const { language } = useLanguage();
-  const [ratings, setRatings] = useState<SellerRating[]>([]);
+  const [ratings, setRatings] = useState<UnifiedRating[]>([]);
   const [avgRating, setAvgRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showAllComments, setShowAllComments] = useState(false);
@@ -47,21 +46,44 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
   const loadRatings = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('user_ratings')
-        .select('id, rating, comment, rater_id, created_at')
-        .eq('rated_user_id', sellerId)
-        .eq('rater_role', 'customer')
-        .order('created_at', { ascending: false })
-        .limit(20);
-      if (data) {
-        setRatings(data as SellerRating[]);
-        if (data.length > 0) {
-          const sum = (data as SellerRating[]).reduce((acc, r) => acc + r.rating, 0);
-          setAvgRating(sum / data.length);
-        } else {
-          setAvgRating(0);
-        }
+      const [userRatingsResult, productRatingsResult] = await Promise.all([
+        supabase
+          .from('user_ratings')
+          .select('id, rating, comment, created_at')
+          .eq('rated_user_id', sellerId)
+          .eq('rater_role', 'customer')
+          .order('created_at', { ascending: false })
+          .limit(20),
+        supabase
+          .from('store_products')
+          .select('id')
+          .eq('seller_id', sellerId),
+      ]);
+
+      const userRatings = (userRatingsResult.data || []) as UnifiedRating[];
+      const productIds = (productRatingsResult.data || []).map((p: { id: string }) => p.id);
+
+      let productRatings: UnifiedRating[] = [];
+      if (productIds.length > 0) {
+        const { data: prData } = await supabase
+          .from('product_ratings')
+          .select('id, rating, comment, created_at')
+          .in('product_id', productIds)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        productRatings = (prData || []) as UnifiedRating[];
+      }
+
+      const combined = [...userRatings, ...productRatings].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setRatings(combined);
+      if (combined.length > 0) {
+        const sum = combined.reduce((acc, r) => acc + r.rating, 0);
+        setAvgRating(sum / combined.length);
+      } else {
+        setAvgRating(0);
       }
     } catch (err) {
       console.error('Error loading ratings:', err);
@@ -83,10 +105,11 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
   }
 
   const totalRatings = ratings.length;
+  const hasRatings = totalRatings > 0;
   const tier = getTierFromRating(avgRating);
   const tierConfig = TIER_CONFIG[tier];
   const displayRatings = showAllComments ? ratings : ratings.slice(0, 3);
-  const filledSegments = avgRating > 0 ? Math.ceil(avgRating) : 0;
+  const filledSegments = hasRatings ? Math.ceil(avgRating) : 0;
 
   const segments: ReputationTier[] = ['pessimo', 'ruim', 'medio', 'bom', 'muito_bom'];
 
@@ -100,90 +123,83 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
       </div>
 
       <div className="p-5">
-        {totalRatings > 0 ? (
-          <>
-            <div className="flex items-center gap-4 mb-5">
-              <div className={`relative w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0 ${tierConfig.bgColor}`}>
-                <span className="text-3xl font-bold" style={{ color: tierConfig.color }}>
-                  {avgRating.toFixed(1)}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-semibold ${tierConfig.textColor}`}>
-                  {tr(tierConfig.label.pt, tierConfig.label.en, tierConfig.label.es)}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  {tr(
+        <div className="flex items-center gap-4 mb-5">
+          <div className={`relative w-20 h-20 rounded-full flex items-center justify-center flex-shrink-0 ${hasRatings ? tierConfig.bgColor : 'bg-gray-100 dark:bg-gray-700'}`}>
+            <span className="text-3xl font-bold" style={{ color: hasRatings ? tierConfig.color : '#9ca3af' }}>
+              {hasRatings ? avgRating.toFixed(1) : '—'}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold ${hasRatings ? tierConfig.textColor : 'text-gray-500 dark:text-gray-400'}`}>
+              {hasRatings
+                ? tr(tierConfig.label.pt, tierConfig.label.en, tierConfig.label.es)
+                : tr('Sem Avaliações', 'No Reviews', 'Sin Reseñas')}
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {hasRatings
+                ? tr(
                     `${totalRatings} avaliações de clientes`,
                     `${totalRatings} customer reviews`,
                     `${totalRatings} reseñas de clientes`
+                  )
+                : tr(
+                    'Nenhuma avaliação ainda',
+                    'No reviews yet',
+                    'Aún no hay reseñas'
                   )}
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-5">
-              <div className="flex gap-1.5 h-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
-                {segments.map((seg, idx) => {
-                  const segConfig = TIER_CONFIG[seg];
-                  const isFilled = idx < filledSegments;
-                  return (
-                    <div
-                      key={seg}
-                      className="flex-1 rounded-sm transition-all duration-500"
-                      style={{
-                        backgroundColor: isFilled ? segConfig.color : 'transparent',
-                      }}
-                      title={tr(segConfig.label.pt, segConfig.label.en, segConfig.label.es)}
-                    />
-                  );
-                })}
-              </div>
-              <div className="flex justify-between mt-2 px-0.5">
-                {segments.map((seg, idx) => {
-                  const segConfig = TIER_CONFIG[seg];
-                  const isFilled = idx < filledSegments;
-                  return (
-                    <span
-                      key={seg}
-                      className={`text-[10px] font-medium transition-opacity ${isFilled ? 'opacity-100' : 'opacity-40'}`}
-                      style={{ color: isFilled ? segConfig.color : undefined }}
-                    >
-                      {idx + 1}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center gap-1.5 mb-1">
-                {Array.from({ length: 5 }).map((_, idx) => (
-                  <Star
-                    key={idx}
-                    className={`h-3.5 w-3.5 ${idx < Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
-                  />
-                ))}
-                <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                  {avgRating.toFixed(1)} / 5.0
-                </span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center gap-3 mb-5 p-3 bg-gray-50 dark:bg-gray-900/40 rounded-xl">
-            <Star className="h-8 w-8 text-gray-400 flex-shrink-0" />
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr(
-                'Este vendedor ainda não possui avaliações de clientes.',
-                'This seller has no customer reviews yet.',
-                'Este vendedor aún no tiene reseñas de clientes.'
-              )}
             </p>
           </div>
-        )}
+        </div>
 
-        {ratings.length > 0 && (
+        <div className="mb-5">
+          <div className="flex gap-1.5 h-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
+            {segments.map((seg, idx) => {
+              const segConfig = TIER_CONFIG[seg];
+              const isFilled = idx < filledSegments;
+              return (
+                <div
+                  key={seg}
+                  className="flex-1 rounded-sm transition-all duration-500"
+                  style={{
+                    backgroundColor: isFilled ? segConfig.color : 'transparent',
+                  }}
+                  title={tr(segConfig.label.pt, segConfig.label.en, segConfig.label.es)}
+                />
+              );
+            })}
+          </div>
+          <div className="flex justify-between mt-2 px-0.5">
+            {segments.map((seg, idx) => {
+              const segConfig = TIER_CONFIG[seg];
+              const isFilled = idx < filledSegments;
+              return (
+                <span
+                  key={seg}
+                  className={`text-[10px] font-medium transition-opacity ${isFilled ? 'opacity-100' : 'opacity-40'}`}
+                  style={{ color: isFilled ? segConfig.color : undefined }}
+                >
+                  {idx + 1}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center gap-1.5 mb-1">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <Star
+                key={idx}
+                className={`h-3.5 w-3.5 ${hasRatings && idx < Math.round(avgRating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
+              />
+            ))}
+            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+              {hasRatings ? `${avgRating.toFixed(1)} / 5.0` : tr('Sem avaliações', 'No ratings', 'Sin calificaciones')}
+            </span>
+          </div>
+        </div>
+
+        {hasRatings && ratings.some((r) => r.comment) && (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               {tr('Avaliações Recentes', 'Recent Reviews', 'Reseñas Recientes')}
@@ -201,14 +217,14 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{rating.comment}</p>
               </div>
             ))}
-            {ratings.length > 3 && (
+            {ratings.filter((r) => r.comment).length > 3 && (
               <button
                 onClick={() => setShowAllComments(!showAllComments)}
                 className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
               >
                 {showAllComments
                   ? tr('Ver menos', 'Show less', 'Ver menos')
-                  : tr(`Ver todos os ${ratings.length} comentários`, `Show all ${ratings.length} reviews`, `Ver las ${ratings.length} reseñas`)}
+                  : tr(`Ver todos os ${ratings.filter((r) => r.comment).length} comentários`, `Show all ${ratings.filter((r) => r.comment).length} reviews`, `Ver las ${ratings.filter((r) => r.comment).length} reseñas`)}
               </button>
             )}
           </div>
