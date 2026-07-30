@@ -490,7 +490,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
   const tabs: { id: 'info' | 'appearance' | 'security' | 'reviews'; label: string; icon: any }[] = [];
 
   return (
-    <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 space-y-0">
+    <div className="w-full space-y-0">
       {/* Hidden file inputs (self only) */}
       {isSelf && (
         <>
@@ -502,7 +502,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
       {/* Back button */}
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-3"
+        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-3 px-4 sm:px-6 lg:px-8"
       >
         <ArrowLeft className="h-4 w-4" />
         {lbl('Voltar', 'Back', 'Volver')}
@@ -828,7 +828,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
 
       {/* Feedback messages */}
       {success && (
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 flex items-center gap-2 mt-3">
+        <div className="mx-4 sm:mx-6 lg:mx-8 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 flex items-center gap-2 mt-3">
           <Check className="h-4 w-4 text-emerald-500 shrink-0" />
           <span className="text-sm text-emerald-700 dark:text-emerald-400">
             {lbl('Perfil atualizado com sucesso!', 'Profile updated successfully!', '¡Perfil actualizado con éxito!')}
@@ -836,7 +836,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         </div>
       )}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 flex items-center gap-2 mt-3">
+        <div className="mx-4 sm:mx-6 lg:mx-8 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 flex items-center gap-2 mt-3">
           <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
           <span className="text-sm text-red-700 dark:text-red-400">{error}</span>
         </div>
@@ -844,7 +844,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
 
       {/* Tabs (self only) */}
       {isSelf && tabs.length > 0 && (
-        <div className="mt-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="mt-4 mx-4 sm:mx-6 lg:mx-8 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="flex border-b border-gray-100 dark:border-gray-700">
             {tabs.map(tab => (
               <button

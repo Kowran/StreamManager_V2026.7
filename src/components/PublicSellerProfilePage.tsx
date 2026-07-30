@@ -359,10 +359,20 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
     return ['all', ...Array.from(cats)];
   }, [products]);
 
+  const PRODUCTS_PER_PAGE = 12;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const filteredProducts = useMemo(() => {
+    setCurrentPage(1);
     if (productFilter === 'all') return products;
     return products.filter(p => p.category === productFilter);
   }, [products, productFilter]);
+
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * PRODUCTS_PER_PAGE,
+    currentPage * PRODUCTS_PER_PAGE
+  );
 
   // Rating distribution for reviews tab
   const ratingDistribution = useMemo(() => {
@@ -410,20 +420,20 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
   ];
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+    <div className="w-full pb-12">
       {/* Back button */}
       <button
         onClick={onBack}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
+        className="mb-4 px-4 sm:px-6 lg:px-8 inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
       >
         <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
         {t.language === 'pt' ? 'Voltar para a loja' : t.language === 'en' ? 'Back to store' : 'Volver a la tienda'}
       </button>
 
       {/* Hero / Cover Card */}
-      <div className="relative rounded-3xl overflow-hidden shadow-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+      <div className="relative overflow-hidden shadow-sm bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
         {/* Cover */}
-        <div className="relative h-44 sm:h-56 md:h-64">
+        <div className="relative h-52 sm:h-64 md:h-80">
           {profile.cover_url ? (
             <img
               src={profile.cover_url}
@@ -452,7 +462,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         </div>
 
         {/* Avatar row — floats up to overlap the cover */}
-        <div className="px-5 sm:px-8 -mt-14 sm:-mt-16 relative z-10">
+        <div className="px-4 sm:px-6 lg:px-8 -mt-14 sm:-mt-16 relative z-10">
           <div className="flex items-end justify-between">
             {/* Avatar */}
             <div className="relative group flex-shrink-0">
@@ -558,7 +568,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           </div>
         </div>
 
-        <div className="px-5 sm:px-8 pb-6">
+        <div className="px-4 sm:px-6 lg:px-8 pb-6">
 
           {/* Followers stats */}
           <div className="mt-5 flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
@@ -609,7 +619,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       </div>
 
       {/* Tabs */}
-      <div className="mt-6 rounded-3xl shadow-sm bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="mt-4 bg-white dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="flex overflow-x-auto border-b border-gray-100 dark:border-gray-700 scrollbar-hide">
           {tabs.map(tab => (
             <button
@@ -637,7 +647,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           ))}
         </div>
 
-        <div className="p-5 sm:p-7">
+        <div className="p-4 sm:p-6 lg:p-8">
           {/* PRODUCTS TAB */}
           {activeTab === 'products' && (
             <div>
@@ -672,8 +682,8 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {filteredProducts.map((product) => {
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {paginatedProducts.map((product) => {
                       const available = (product as any).manual_delivery || product.stock_quantity > 0;
                       const hasPromo = product.promotion_active && product.promotional_price_usdt;
                       const price = hasPromo ? Number(product.promotional_price_usdt) : Number(product.price_usdt);
@@ -681,9 +691,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                         <div
                           key={product.id}
                           onClick={() => onProductClick?.(product)}
-                          className="group bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                          className="group bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                         >
-                          <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                          <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
                             {product.image_url ? (
                               <img
                                 src={product.image_url}
@@ -977,7 +987,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       </div>
 
       {/* Seller Reputation */}
-      <div className="mt-6">
+      <div className="mt-6 px-4 sm:px-6 lg:px-8">
         <SellerReputation sellerId={profile.id} sellerName={profile.full_name || profile.username || profile.seller_slug} />
       </div>
 
