@@ -80,7 +80,7 @@ export function CheckoutPage({ productId, variationId, quantity = 1, onBack, onS
 
       if (variationId) {
         const { data: vData } = await supabase
-          .from('product_variations')
+          .from('store_product_variations')
           .select('*')
           .eq('id', variationId)
           .maybeSingle();
