@@ -1,32 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users,
-  Settings,
-  MessageCircle,
-  DollarSign,
   ShoppingBag,
-  UserCheck,
+  DollarSign,
   Package,
   TrendingUp,
-  CreditCard,
-  BarChart3,
-  Server,
-  ShoppingCart,
-  Newspaper,
-  Store,
-  Mail,
-  Bell,
   AlertCircle,
-  Megaphone,
-  Image,
-  Tag,
-  Eye,
+  Bell,
   Wallet,
-  Globe,
+  Store,
+  MessageCircle,
   Scale,
-  Gamepad2,
-  Gavel,
-  Shield
+  Shield,
+  ArrowRight,
+  Activity,
+  UserCheck,
+  ShoppingCart,
+  type LucideIcon,
 } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -36,36 +26,29 @@ interface AdminDashboardProps {
   onNavigate: (tab: string) => void;
 }
 
+interface StatCard {
+  id: string;
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  color: string;
+  bgColor: string;
+  page: string;
+}
+
 export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
-  const [pendingRequests, setPendingRequests] = useState(0);
+  const [stats, setStats] = useState<Record<string, number>>({});
   const [allowedPages, setAllowedPages] = useState<Set<string> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const tr = (pt: string, en: string, es: string) => language === 'pt' ? pt : language === 'en' ? en : es;
 
   useEffect(() => {
-    loadPendingRequests();
     loadPermissions();
-
-    const channel = supabase
-      .channel('seller-requests-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'seller_requests' }, () => {
-        loadPendingRequests();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    loadStats();
   }, [user]);
-
-  const loadPendingRequests = async () => {
-    try {
-      const { count, error } = await supabase
-        .from('seller_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      if (error) throw error;
-      setPendingRequests(count || 0);
-    } catch { /* ignore */ }
-  };
 
   const loadPermissions = async () => {
     if (!user) return;
@@ -75,10 +58,8 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         .select('pages, is_super_admin')
         .eq('admin_user_id', user.id)
         .maybeSingle();
-
-      // No row = full access (backward compat for first admin)
       if (!data || data.is_super_admin) {
-        setAllowedPages(null); // null = all allowed
+        setAllowedPages(null);
       } else {
         setAllowedPages(new Set(data.pages));
       }
@@ -87,128 +68,173 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
     }
   };
 
+  const loadStats = async () => {
+    try {
+      const [users, products, sales, pendingPay, pendingReq, pendingSup, pendingDisp] = await Promise.all([
+        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        supabase.from('store_products').select('*', { count: 'exact', head: true }),
+        supabase.from('store_orders').select('*', { count: 'exact', head: true }),
+        supabase.from('store_orders').select('*', { count: 'exact', head: true }).eq('payment_status', 'pending'),
+        supabase.from('seller_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+        supabase.from('seller_support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'disputed'),
+      ]);
+
+      setStats({
+        users: users.count || 0,
+        products: products.count || 0,
+        sales: sales.count || 0,
+        pendingPayments: pendingPay.count || 0,
+        pendingRequests: pendingReq.count || 0,
+        pendingSupport: pendingSup.count || 0,
+        pendingDisputes: pendingDisp.count || 0,
+      });
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
   const isAllowed = (pageId: string) => allowedPages === null || allowedPages.has(pageId);
 
-  const adminSections = [
-    {
-      title: language === 'pt' ? 'Gestão de Usuários' : language === 'en' ? 'User Management' : 'Gestión de Usuarios',
-      items: [
-        { id: 'admin-users', name: language === 'pt' ? 'Gerenciar Usuários' : language === 'en' ? 'Manage Users' : 'Gestionar Usuarios', icon: Users, color: 'from-blue-500 to-blue-600', description: language === 'pt' ? 'Visualize e gerencie todos os usuários' : language === 'en' ? 'View and manage all users' : 'Ver y gestionar todos los usuarios' },
-        { id: 'admin-appeals', name: language === 'pt' ? 'Recursos de Banimento' : language === 'en' ? 'Ban Appeals' : 'Apelaciones de Ban', icon: Gavel, color: 'from-rose-500 to-red-600', description: language === 'pt' ? 'Revise recursos de usuários banidos' : language === 'en' ? 'Review banned user appeals' : 'Revisar apelaciones de usuarios baneados' },
-        { id: 'accounts-access', name: language === 'pt' ? 'Acessos de Contas' : language === 'en' ? 'Account Access' : 'Acceso a Cuentas', icon: UserCheck, color: 'from-purple-500 to-purple-600', description: language === 'pt' ? 'Gerencie acessos de contas' : language === 'en' ? 'Manage account access' : 'Gestionar acceso a cuentas' }
-      ]
-    },
-    {
-      title: language === 'pt' ? 'Gestão Financeira' : language === 'en' ? 'Financial Management' : 'Gestión Financiera',
-      items: [
-        { id: 'admin-payments', name: language === 'pt' ? 'Confirmar Pagamentos' : language === 'en' ? 'Confirm Payments' : 'Confirmar Pagos', icon: DollarSign, color: 'from-green-500 to-green-600', description: language === 'pt' ? 'Confirme pagamentos pendentes' : language === 'en' ? 'Confirm pending payments' : 'Confirmar pagos pendientes' },
-        { id: 'admin-credits', name: language === 'pt' ? 'Gerenciar Créditos' : language === 'en' ? 'Manage Credits' : 'Gestionar Créditos', icon: CreditCard, color: 'from-emerald-500 to-emerald-600', description: language === 'pt' ? 'Adicione ou remova créditos' : language === 'en' ? 'Add or remove credits' : 'Agregar o quitar créditos' },
-        { id: 'admin-sales', name: language === 'pt' ? 'Gerenciar Vendas' : language === 'en' ? 'Manage Sales' : 'Gestionar Ventas', icon: ShoppingBag, color: 'from-orange-500 to-orange-600', description: language === 'pt' ? 'Visualize e gerencie vendas' : language === 'en' ? 'View and manage sales' : 'Ver y gestionar ventas' },
-        { id: 'admin-withdrawals', name: language === 'pt' ? 'Gestão de Saques' : language === 'en' ? 'Withdrawal Management' : 'Gestión de Retiros', icon: Wallet, color: 'from-cyan-500 to-blue-600', description: language === 'pt' ? 'Aprove e processe saques de vendedores' : language === 'en' ? 'Approve and process seller withdrawals' : 'Aprobar y procesar retiros de vendedores' },
-        { id: 'admin-coupons', name: language === 'pt' ? 'Cupons de Desconto' : language === 'en' ? 'Discount Coupons' : 'Cupones de Descuento', icon: Tag, color: 'from-rose-500 to-rose-600', description: language === 'pt' ? 'Crie cupons de desconto para clientes' : language === 'en' ? 'Create discount coupons for customers' : 'Cree cupones de descuento para clientes' }
-      ]
-    },
-    {
-      title: language === 'pt' ? 'Gestão de Produtos' : language === 'en' ? 'Product Management' : 'Gestión de Productos',
-      items: [
-        { id: 'admin-products', name: language === 'pt' ? 'Gerenciar Produtos' : language === 'en' ? 'Manage Products' : 'Gestionar Productos', icon: Package, color: 'from-indigo-500 to-indigo-600', description: language === 'pt' ? 'Gerencie produtos da loja' : language === 'en' ? 'Manage store products' : 'Gestionar productos de la tienda' },
-        { id: 'admin-product-categories', name: language === 'pt' ? 'Categorias de Jogos' : language === 'en' ? 'Game Categories' : 'Categorías de Juegos', icon: Gamepad2, color: 'from-fuchsia-500 to-fuchsia-600', description: language === 'pt' ? 'Crie categorias (Clash, Fortnite, Minecraft)' : language === 'en' ? 'Create categories (Clash, Fortnite, Minecraft)' : 'Crea categorías (Clash, Fortnite, Minecraft)' },
-        { id: 'admin-smm-providers', name: language === 'pt' ? 'Provedores SMM' : language === 'en' ? 'SMM Providers' : 'Proveedores SMM', icon: Server, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Configure APIs e importe serviços' : language === 'en' ? 'Configure APIs and import services' : 'Configure APIs e importe servicios' },
-        { id: 'admin-smm', name: language === 'pt' ? 'Configurar Serviços SMM' : language === 'en' ? 'Configure SMM Services' : 'Configurar Servicios SMM', icon: TrendingUp, color: 'from-teal-500 to-teal-600', description: language === 'pt' ? 'Gerencie serviços e preços SMM' : language === 'en' ? 'Manage SMM services and prices' : 'Gestionar servicios y precios SMM' },
-        { id: 'admin-smm-orders', name: language === 'pt' ? 'Pedidos SMM' : language === 'en' ? 'SMM Orders' : 'Pedidos SMM', icon: ShoppingCart, color: 'from-violet-500 to-violet-600', description: language === 'pt' ? 'Visualize pedidos SMM dos usuários' : language === 'en' ? 'View user SMM orders' : 'Ver pedidos SMM de usuarios' },
-        { id: 'sellers', name: t.sellers, icon: UserCheck, color: 'from-cyan-500 to-cyan-600', description: language === 'pt' ? 'Gerencie vendedores' : language === 'en' ? 'Manage sellers' : 'Gestionar vendedores' },
-        { id: 'admin-sellers-stores', name: language === 'pt' ? 'Lojas de Vendedores' : language === 'en' ? 'Seller Stores' : 'Tiendas de Vendedores', icon: Store, color: 'from-red-500 to-rose-600', description: language === 'pt' ? 'Suspenda ou reative lojas de vendedores' : language === 'en' ? 'Suspend or reactivate seller stores' : 'Suspende o reactiva tiendas de vendedores' },
-        { id: 'services', name: t.services, icon: Settings, color: 'from-pink-500 to-pink-600', description: language === 'pt' ? 'Configure serviços disponíveis' : language === 'en' ? 'Configure available services' : 'Configurar servicios disponibles' },
-        { id: 'seller-requests', name: language === 'pt' ? 'Solicitações de Vendedores' : language === 'en' ? 'Seller Requests' : 'Solicitudes de Vendedores', icon: Store, color: 'from-blue-500 to-blue-600', description: language === 'pt' ? 'Aprove ou rejeite solicitações' : language === 'en' ? 'Approve or reject requests' : 'Aprobar o rechazar solicitudes' }
-      ]
-    },
-    {
-      title: language === 'pt' ? 'Suporte e Configurações' : language === 'en' ? 'Support & Settings' : 'Soporte y Configuración',
-      items: [
-        { id: 'admin-notifications', name: language === 'pt' ? 'Enviar Notificações' : language === 'en' ? 'Send Notifications' : 'Enviar Notificaciones', icon: Bell, color: 'from-purple-500 to-pink-600', description: language === 'pt' ? 'Envie notificações para usuários' : language === 'en' ? 'Send notifications to users' : 'Enviar notificaciones a usuarios' },
-        { id: 'admin-popups', name: language === 'pt' ? 'Gerenciar Pop-ups' : language === 'en' ? 'Manage Popups' : 'Gestionar Pop-ups', icon: AlertCircle, color: 'from-orange-500 to-red-600', description: language === 'pt' ? 'Crie alertas e pop-ups para usuários' : language === 'en' ? 'Create alerts and popups for users' : 'Crear alertas y pop-ups para usuarios' },
-        { id: 'admin-announcements', name: language === 'pt' ? 'Anúncios' : language === 'en' ? 'Announcements' : 'Anuncios', icon: Megaphone, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Crie barras de aviso acima do cabeçalho' : language === 'en' ? 'Create announcement bars above the header' : 'Cree barras de aviso sobre el encabezado' },
-        { id: 'admin-banners', name: language === 'pt' ? 'Banners' : language === 'en' ? 'Banners' : 'Banners', icon: Image, color: 'from-purple-500 to-pink-600', description: language === 'pt' ? 'Banners rotativos da página inicial' : language === 'en' ? 'Rotating banners on the landing page' : 'Banners rotativos de la página principal' },
-        { id: 'admin-flying-balloons', name: language === 'pt' ? 'Balões Voadores' : language === 'en' ? 'Flying Balloons' : 'Globos Voladores', icon: Eye, color: 'from-teal-500 to-emerald-600', description: language === 'pt' ? 'Balões flutuantes no canto da tela' : language === 'en' ? 'Floating balloons in the screen corner' : 'Globos flotantes en la esquina de la pantalla' },
-        { id: 'admin-community', name: language === 'pt' ? 'Gerenciar Comunidade' : language === 'en' ? 'Manage Community' : 'Gestionar Comunidad', icon: Newspaper, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Poste novidades para os usuários' : language === 'en' ? 'Post news for users' : 'Publicar novedades para usuarios' },
-        { id: 'admin-support', name: language === 'pt' ? 'Gerenciar Suporte' : language === 'en' ? 'Manage Support' : 'Gestionar Soporte', icon: MessageCircle, color: 'from-yellow-500 to-yellow-600', description: language === 'pt' ? 'Responda tickets de suporte' : language === 'en' ? 'Respond to support tickets' : 'Responder tickets de soporte' },
-        { id: 'admin-disputes', name: language === 'pt' ? 'Disputas e Mediação' : language === 'en' ? 'Disputes & Mediation' : 'Disputas y Mediación', icon: Scale, color: 'from-red-500 to-orange-600', description: language === 'pt' ? 'Medie disputas entre clientes e vendedores' : language === 'en' ? 'Mediate disputes between customers and sellers' : 'Mediar disputas entre clientes y vendedores' },
-        { id: 'admin-netflix-accounts', name: language === 'pt' ? 'Contas Netflix' : language === 'en' ? 'Netflix Accounts' : 'Cuentas Netflix', icon: Mail, color: 'from-red-500 to-red-600', description: language === 'pt' ? 'Configure contas para buscar códigos' : language === 'en' ? 'Configure accounts to find codes' : 'Configure cuentas para buscar códigos' },
-        { id: 'admin-settings', name: language === 'pt' ? 'Configurações' : language === 'en' ? 'Settings' : 'Configuraciones', icon: Settings, color: 'from-gray-500 to-gray-600', description: language === 'pt' ? 'Configure o sistema' : language === 'en' ? 'Configure the system' : 'Configurar el sistema' },
-        { id: 'admin-email-templates', name: language === 'pt' ? 'Modelos de Email' : language === 'en' ? 'Email Templates' : 'Plantillas de Email', icon: Mail, color: 'from-emerald-500 to-teal-600', description: language === 'pt' ? 'Edite os modelos HTML de email' : language === 'en' ? 'Edit email HTML templates' : 'Editar plantillas HTML de email' },
-        { id: 'admin-discord', name: language === 'pt' ? 'Discord' : language === 'en' ? 'Discord' : 'Discord', icon: MessageCircle, color: 'from-indigo-500 to-purple-600', description: language === 'pt' ? 'Configure o bot do Discord e notificações' : language === 'en' ? 'Configure Discord bot and notifications' : 'Configura el bot de Discord y notificaciones' },
-        { id: 'admin-site-settings', name: language === 'pt' ? 'Identidade do Site' : language === 'en' ? 'Site Identity' : 'Identidad del Sitio', icon: Globe, color: 'from-blue-500 to-cyan-600', description: language === 'pt' ? 'Logo, favicon, nome e aparência do site' : language === 'en' ? 'Logo, favicon, site name and appearance' : 'Logo, favicon, nombre del sitio y apariencia' },
-        { id: 'admin-security', name: language === 'pt' ? 'Centro de Segurança' : language === 'en' ? 'Security Center' : 'Centro de Seguridad', icon: Shield, color: 'from-emerald-500 to-teal-600', description: language === 'pt' ? 'Monitore e configure toda a segurança do banco de dados' : language === 'en' ? 'Monitor and configure all database security' : 'Monitore y configure toda la seguridad de la base de datos' }
-      ]
-    }
+  const statCards: StatCard[] = [
+    { id: 'users', label: tr('Usuários', 'Users', 'Usuarios'), value: stats.users, icon: Users, color: 'text-blue-600', bgColor: 'from-blue-500 to-blue-600', page: 'admin-users' },
+    { id: 'products', label: tr('Produtos', 'Products', 'Productos'), value: stats.products, icon: Package, color: 'text-indigo-600', bgColor: 'from-indigo-500 to-indigo-600', page: 'admin-products' },
+    { id: 'sales', label: tr('Vendas', 'Sales', 'Ventas'), value: stats.sales, icon: ShoppingBag, color: 'text-orange-600', bgColor: 'from-orange-500 to-orange-600', page: 'admin-sales' },
+    { id: 'payments', label: tr('Pagamentos Pendentes', 'Pending Payments', 'Pagos Pendientes'), value: stats.pendingPayments, icon: DollarSign, color: 'text-green-600', bgColor: 'from-green-500 to-green-600', page: 'admin-payments' },
   ];
 
+  const alerts = [
+    { id: 'req', label: tr('Solicitações de Vendedores', 'Seller Requests', 'Solicitudes de Vendedores'), value: stats.pendingRequests, icon: Store, page: 'seller-requests', color: 'amber' },
+    { id: 'sup', label: tr('Tickets de Suporte', 'Support Tickets', 'Tickets de Soporte'), value: stats.pendingSupport, icon: MessageCircle, page: 'admin-support', color: 'blue' },
+    { id: 'disp', label: tr('Disputas Abertas', 'Open Disputes', 'Disputas Abiertas'), value: stats.pendingDisputes, icon: Scale, page: 'admin-disputes', color: 'red' },
+  ].filter(a => a.value > 0 && isAllowed(a.page));
+
+  const quickActions: { id: string; name: string; icon: LucideIcon; color: string; page: string }[] = [
+    { id: 'admin-users', name: tr('Usuários', 'Users', 'Usuarios'), icon: Users, color: 'blue', page: 'admin-users' },
+    { id: 'admin-products', name: tr('Produtos', 'Products', 'Productos'), icon: Package, color: 'indigo', page: 'admin-products' },
+    { id: 'admin-sales', name: tr('Vendas', 'Sales', 'Ventas'), icon: ShoppingBag, color: 'orange', page: 'admin-sales' },
+    { id: 'admin-payments', name: tr('Pagamentos', 'Payments', 'Pagos'), icon: DollarSign, color: 'green', page: 'admin-payments' },
+    { id: 'admin-withdrawals', name: tr('Saques', 'Withdrawals', 'Retiros'), icon: Wallet, color: 'cyan', page: 'admin-withdrawals' },
+    { id: 'admin-notifications', name: tr('Notificações', 'Notifications', 'Notificaciones'), icon: Bell, color: 'purple', page: 'admin-notifications' },
+    { id: 'admin-support', name: tr('Suporte', 'Support', 'Soporte'), icon: MessageCircle, color: 'yellow', page: 'admin-support' },
+    { id: 'admin-security', name: tr('Segurança', 'Security', 'Seguridad'), icon: Shield, color: 'emerald', page: 'admin-security' },
+  ].filter(a => isAllowed(a.page));
+
+  const colorMap: Record<string, string> = {
+    blue: 'hover:border-blue-400 hover:shadow-blue-500/10 text-blue-600 bg-blue-50 dark:bg-blue-900/20',
+    indigo: 'hover:border-indigo-400 hover:shadow-indigo-500/10 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20',
+    orange: 'hover:border-orange-400 hover:shadow-orange-500/10 text-orange-600 bg-orange-50 dark:bg-orange-900/20',
+    green: 'hover:border-green-400 hover:shadow-green-500/10 text-green-600 bg-green-50 dark:bg-green-900/20',
+    cyan: 'hover:border-cyan-400 hover:shadow-cyan-500/10 text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20',
+    purple: 'hover:border-purple-400 hover:shadow-purple-500/10 text-purple-600 bg-purple-50 dark:bg-purple-900/20',
+    yellow: 'hover:border-yellow-400 hover:shadow-yellow-500/10 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20',
+    emerald: 'hover:border-emerald-400 hover:shadow-emerald-500/10 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
+    amber: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700/50',
+    red: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-700/50',
+  };
+
   return (
-    <div className="space-y-8">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
-              {language === 'pt' ? 'Dashboard Administrativa' : language === 'en' ? 'Admin Dashboard' : 'Panel Administrativo'}
-            </h1>
-            <p className="text-blue-100">
-              {language === 'pt' ? 'Gerencie todos os aspectos do sistema' : language === 'en' ? 'Manage all aspects of the system' : 'Gestionar todos los aspectos del sistema'}
-            </p>
+    <div className="space-y-6">
+      {/* Welcome banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-700 p-6 sm:p-8 text-white shadow-xl">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-24 -translate-x-24" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="h-5 w-5 text-blue-200" />
+            <span className="text-sm font-medium text-blue-100">{tr('Bem-vindo de volta', 'Welcome back', 'Bienvenido de nuevo')}</span>
           </div>
-          <div className="hidden sm:block">
-            <div className="bg-white bg-opacity-20 p-4 rounded-lg">
-              <BarChart3 className="h-10 w-10" />
-            </div>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+            {tr('Painel Administrativo', 'Admin Panel', 'Panel Administrativo')}
+          </h1>
+          <p className="text-blue-100 text-sm sm:text-base">
+            {tr('Acompanhe e gerencie todo o sistema em um só lugar', 'Track and manage the entire system in one place', 'Rastrea y gestiona todo el sistema en un solo lugar')}
+          </p>
         </div>
       </div>
 
-      {adminSections.map((section, sectionIndex) => {
-        const visibleItems = section.items.filter(item => isAllowed(item.id));
-        if (visibleItems.length === 0) return null;
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {statCards.map((card) => {
+          const Icon = card.icon;
+          if (!isAllowed(card.page)) return null;
+          return (
+            <button
+              key={card.id}
+              onClick={() => onNavigate(card.page)}
+              className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-5 text-left hover:shadow-lg hover:border-gray-300 dark:hover:border-gray-600 transition-all hover:-translate-y-0.5"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className={`bg-gradient-to-br ${card.bgColor} p-2.5 rounded-lg shadow-sm`}>
+                  <Icon className="h-5 w-5 text-white" />
+                </div>
+                <ArrowRight className="h-4 w-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 group-hover:translate-x-0.5 transition-all" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                {loading ? '...' : card.value.toLocaleString()}
+              </div>
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {card.label}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-        return (
-          <div key={sectionIndex} className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              {section.title}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visibleItems.map((item) => {
-                const IconComponent = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      onNavigate(item.id);
-                      window.history.pushState(null, '', `/${item.id}`);
-                    }}
-                    className="group bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-all duration-200 transform hover:scale-105 relative"
-                  >
-                    {item.id === 'seller-requests' && pendingRequests > 0 && (
-                      <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-lg animate-pulse">
-                        {pendingRequests}
-                      </div>
-                    )}
-                    <div className="flex items-start space-x-4">
-                      <div className={`bg-gradient-to-br ${item.color} p-3 rounded-lg group-hover:scale-110 transition-transform`}>
-                        <IconComponent className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                          {item.name}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {item.description}
-                        </p>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+      {/* Alerts */}
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            {tr('Atenção Necessária', 'Needs Attention', 'Requiere Atención')}
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {alerts.map((alert) => {
+              const Icon = alert.icon;
+              return (
+                <button
+                  key={alert.id}
+                  onClick={() => onNavigate(alert.page)}
+                  className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all hover:shadow-md ${colorMap[alert.color]}`}
+                >
+                  <div className={`p-2 rounded-lg ${colorMap[alert.color].split(' ').find(c => c.startsWith('bg-'))}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="text-lg font-bold leading-tight">{alert.value}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400 truncate">{alert.label}</div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          {tr('Acesso Rápido', 'Quick Access', 'Acceso Rápido')}
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            const colors = colorMap[action.color];
+            return (
+              <button
+                key={action.id}
+                onClick={() => onNavigate(action.id)}
+                className="group flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-lg hover:border-transparent transition-all hover:-translate-y-0.5"
+              >
+                <div className={`p-2.5 rounded-lg ${colors.split(' ').filter(c => c.startsWith('bg-') || c.startsWith('text-')).join(' ')}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">
+                  {action.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ import { CurrencyProvider } from './components/CurrencyProvider';
 import { UserMenu } from './components/UserMenu';
 import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationProvider } from './components/NotificationProvider';
+import { SaleToastProvider } from './components/SaleToastProvider';
 import { LoginForm } from './components/LoginForm';
 import { AccountsManager } from './components/AccountsManager';
 import { ClientsManager } from './components/ClientsManager';
@@ -49,6 +50,7 @@ import { AdminEmailVerifier } from './components/AdminEmailVerifier';
 import { FeesPage } from './components/FeesPage';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
+import { AdminLayout } from './components/AdminLayout';
 import { FeesPage } from './components/FeesPage';
 import { WorkWithUsPage } from './components/WorkWithUsPage';
 import { SMMPanel } from './components/SMMPanel';
@@ -637,6 +639,17 @@ function AppContent() {
     { id: 'affiliates', name: t.language === 'pt' ? 'Afiliados' : t.language === 'en' ? 'Affiliates' : 'Afiliados', icon: Users },
     { id: 'accounts', name: t.language === 'pt' ? 'Streaming' : t.language === 'en' ? 'Streaming' : 'Streaming', icon: Play },
   ];
+
+  const adminPageIds = new Set([
+    'admin-dashboard', 'admin-users', 'admin-appeals', 'accounts-access',
+    'admin-payments', 'admin-credits', 'admin-sales', 'admin-withdrawals', 'admin-coupons',
+    'admin-products', 'admin-product-categories', 'admin-smm-providers', 'admin-smm', 'admin-smm-orders',
+    'sellers', 'admin-sellers-stores', 'services', 'seller-requests',
+    'admin-notifications', 'admin-popups', 'admin-announcements', 'admin-banners', 'admin-flying-balloons', 'admin-community',
+    'admin-support', 'admin-disputes', 'admin-netflix-accounts',
+    'admin-settings', 'admin-email-templates', 'admin-discord', 'admin-site-settings', 'admin-security',
+  ]);
+  const isAdminPage = (tab: string) => adminPageIds.has(tab);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -1401,9 +1414,15 @@ function AppContent() {
         <div className="min-w-0">
           {/* Main Content - full width, no sidebar */}
           <main className="min-w-0 max-w-full">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 lg:p-6 transition-colors min-w-0 overflow-x-hidden">
-              {renderContent()}
-            </div>
+            {isAdminPage(activeTab) ? (
+              <AdminLayout activeTab={activeTab} onNavigate={navigateWithRecharge}>
+                {renderContent()}
+              </AdminLayout>
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-2 sm:p-4 lg:p-6 transition-colors min-w-0 overflow-x-hidden">
+                {renderContent()}
+              </div>
+            )}
           </main>
         </div>
         )}
@@ -1463,7 +1482,9 @@ export default function App() {
         <CurrencyProvider>
           <AuthProvider>
             <NotificationProvider>
-              <AppContent />
+              <SaleToastProvider>
+                <AppContent />
+              </SaleToastProvider>
             </NotificationProvider>
           </AuthProvider>
         </CurrencyProvider>

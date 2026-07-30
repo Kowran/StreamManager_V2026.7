@@ -78,6 +78,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const [activeCategory, setActiveCategory] = useState('all');
+  const [featuredOnly, setFeaturedOnly] = useState(false);
   const [showSecondaryFilters, setShowSecondaryFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductWithSeller | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
@@ -700,7 +701,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = activeCategory === 'all' || product.category === activeCategory;
-    return matchesSearch && matchesCategory;
+    const matchesFeatured = !featuredOnly || product.is_featured;
+    return matchesSearch && matchesCategory && matchesFeatured;
   });
 
   // Recommended products (shuffled random)
@@ -714,9 +716,15 @@ export function Store({ onNavigate }: StoreProps = {}) {
     return shuffled.slice(0, 20);
   }, [products]);
 
-  // Featured (Destaques) products
+  // Featured (Destaques) products — shuffled randomly, only is_featured items
   const featuredProducts = useMemo(() => {
-    return products.filter(p => p.is_featured && (p.manual_delivery || p.stock_quantity > 0)).slice(0, 12);
+    const available = products.filter(p => p.is_featured && (p.manual_delivery || p.stock_quantity > 0));
+    const shuffled = [...available];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
   }, [products]);
 
   // Recently viewed products
@@ -724,7 +732,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     return getRecentlyViewedProducts(products).slice(0, 20);
   }, [products, getRecentlyViewedProducts]);
 
-  const isFiltering = activeCategory !== 'all' || searchTerm;
+  const isFiltering = activeCategory !== 'all' || searchTerm || featuredOnly;
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     trackView(product);
@@ -1011,7 +1019,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
                   {categories.map(({ key, label, icon: Icon, color, count }) => (
                     <button
                       key={key}
-                      onClick={() => { setActiveCategory(key); setShowSecondaryFilters(false); }}
+                      onClick={() => { setActiveCategory(key); setFeaturedOnly(false); setShowSecondaryFilters(false); }}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         activeCategory === key
                           ? `${color.activeBg} ${color.activeText} shadow-sm`
@@ -1110,9 +1118,22 @@ export function Store({ onNavigate }: StoreProps = {}) {
                   {t.language === 'pt' ? 'Destaques' : t.language === 'en' ? 'Featured' : 'Destacados'}
                 </h2>
                 <div className="h-px flex-1 bg-gradient-to-r from-amber-200 to-transparent dark:from-amber-700/50" />
+                <button
+                  onClick={() => {
+                    setFeaturedOnly(true);
+                    setActiveCategory('all');
+                    setSearchTerm('');
+                    setCurrentPage(1);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  {t.language === 'pt' ? 'Ver tudo' : t.language === 'en' ? 'See all' : 'Ver todo'}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
-                {featuredProducts.map((product) => (
+                {featuredProducts.slice(0, 8).map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
@@ -1179,6 +1200,24 @@ export function Store({ onNavigate }: StoreProps = {}) {
         </div>
       ) : isFiltering ? (
       <>
+      {/* Featured filter banner */}
+      {featuredOnly && (
+        <div className="mb-4 flex items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-700/50">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
+              {t.language === 'pt' ? 'Mostrando apenas produtos em destaque' : t.language === 'en' ? 'Showing only featured products' : 'Mostrando solo productos destacados'}
+            </span>
+          </div>
+          <button
+            onClick={() => { setFeaturedOnly(false); setCurrentPage(1); }}
+            className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+            {t.language === 'pt' ? 'Limpar' : t.language === 'en' ? 'Clear' : 'Limpiar'}
+          </button>
+        </div>
+      )}
       {/* Products Grid */}
       <div className="products-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 min-w-0">
         {currentProducts.map((product) => (
@@ -1829,11 +1868,7 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
   return (
     <div
       onClick={() => onCardClick(product)}
-      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:-translate-y-1 min-w-0 ${
-        isFeatured
-          ? 'bg-gradient-to-br from-amber-50 via-white to-yellow-50 dark:from-amber-900/20 dark:via-gray-800 dark:to-yellow-900/20 border-2 border-amber-300 dark:border-amber-600/60 shadow-md hover:shadow-2xl hover:shadow-amber-500/20'
-          : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-2xl'
-      } ${!isAvailable ? 'opacity-75' : ''}`}
+      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:-translate-y-1 min-w-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-2xl ${!isAvailable ? 'opacity-75' : ''}`}
     >
       {/* Product Image */}
       <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
@@ -1850,11 +1885,7 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
             }}
           />
         ) : (
-          <div className={`w-full h-full flex items-center justify-center ${
-            isFeatured
-              ? 'bg-gradient-to-br from-amber-400 to-yellow-600'
-              : 'bg-gradient-to-br from-blue-500 to-cyan-600'
-          } ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
+          <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-600 ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
             <Package className="w-10 h-10 text-white" />
           </div>
         )}
@@ -1987,9 +2018,7 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
             disabled={isOwnProduct || !isAvailable || purchasing}
             className={`flex-1 px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
               !isOwnProduct && isAvailable && !purchasing
-                ? isFeatured
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white shadow-md hover:shadow-lg shadow-amber-500/30'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
+                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
                 : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
             }`}
           >
