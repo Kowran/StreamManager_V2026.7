@@ -425,7 +425,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       {/* Hero / Cover Card */}
       <div className="relative overflow-hidden shadow-sm bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
         {/* Cover */}
-        <div className="relative h-52 sm:h-64 md:h-80">
+        <div className="relative h-32 sm:h-40">
           {profile.cover_url ? (
             <img
               src={profile.cover_url}
@@ -462,19 +462,19 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         </div>
 
         {/* Avatar row — floats up to overlap the cover */}
-        <div className="px-4 sm:px-6 lg:px-8 -mt-14 sm:-mt-16 relative z-10">
+        <div className="px-4 sm:px-6 -mt-8 relative z-10">
           <div className="flex items-end justify-between">
             {/* Avatar */}
             <div className="relative group flex-shrink-0">
               <div
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl border-4 border-white dark:border-gray-800 shadow-xl overflow-hidden"
+                className="w-16 h-16 rounded-2xl border-2 border-white dark:border-gray-800 shadow-lg overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }}
               >
                 {profile.avatar_url ? (
                   <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-3xl sm:text-4xl font-bold text-white">
+                    <span className="text-2xl font-bold text-white">
                       {profile.full_name?.charAt(0).toUpperCase() || <User className="h-10 w-10 text-white" />}
                     </span>
                   </div>
@@ -482,10 +482,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               </div>
               {/* Verified badge */}
               <div
-                className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-1.5 border-2 border-white dark:border-gray-800 shadow-md cursor-help"
+                className="absolute -bottom-0.5 -right-0.5 bg-green-500 rounded-full p-1 border-2 border-white dark:border-gray-800 shadow cursor-help"
                 title={t.language === 'pt' ? 'Vendedor verificado: este vendedor passou por uma verificacao de identidade e e confiavel.' : t.language === 'en' ? 'Verified seller: this seller has passed identity verification and is trustworthy.' : 'Vendedor verificado: este vendedor ha pasado una verificacion de identidad y es confiable.'}
               >
-                <CheckCircle className="w-4 h-4 text-white" />
+                <CheckCircle className="w-3 h-3 text-white" />
               </div>
             </div>
 
@@ -520,9 +520,9 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           </div>
 
           {/* Name + badges — now below the avatar, always on white/dark bg */}
-          <div className="mt-3 pb-4 space-y-2">
+          <div className="mt-2 pb-3 space-y-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+              <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white tracking-tight">
                 {profile.full_name || 'Vendedor'}
               </h1>
             </div>
@@ -568,10 +568,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           </div>
         </div>
 
-        <div className="px-4 sm:px-6 lg:px-8 pb-6">
+        <div className="px-4 sm:px-6 pb-3">
 
           {/* Followers stats */}
-          <div className="mt-5 flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
+          <div className="mt-2 flex items-center gap-3 flex-wrap p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
             <FollowersStats
               targetUserId={profile.id}
               themeColor={themeColor}
@@ -581,7 +581,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
           {/* Bio */}
           {profile.bio && (
-            <div className="mt-5 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
+            <div className="mt-2 p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
               <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed italic">
                 "{profile.bio}"
               </p>
@@ -589,27 +589,27 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           )}
 
           {/* Stats grid */}
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="mt-2 grid grid-cols-4 gap-2">
             <StatCard
-              icon={<ShoppingBag className="h-5 w-5" />}
+              icon={<ShoppingBag className="h-4 w-4" />}
               value={stats?.total_sales || 0}
               label={t.language === 'pt' ? 'Vendas' : t.language === 'en' ? 'Sales' : 'Ventas'}
               color={themeColor}
             />
             <StatCard
-              icon={<Package className="h-5 w-5" />}
+              icon={<Package className="h-4 w-4" />}
               value={stats?.active_products || 0}
               label={t.language === 'pt' ? 'Produtos' : t.language === 'en' ? 'Products' : 'Productos'}
               color="#10b981"
             />
             <StatCard
-              icon={<Star className="h-5 w-5" />}
+              icon={<Star className="h-4 w-4" />}
               value={stats?.average_rating.toFixed(1) || '0.0'}
               label={t.language === 'pt' ? 'Avaliação' : t.language === 'en' ? 'Rating' : 'Calificación'}
               color="#f59e0b"
             />
             <StatCard
-              icon={<TrendingUp className="h-5 w-5" />}
+              icon={<TrendingUp className="h-4 w-4" />}
               value={stats?.total_reviews || 0}
               label={t.language === 'pt' ? 'Avaliações' : t.language === 'en' ? 'Reviews' : 'Reseñas'}
               color="#8b5cf6"
@@ -647,7 +647,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           ))}
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="p-3 sm:p-4">
           {/* PRODUCTS TAB */}
           {activeTab === 'products' && (
             <div>
@@ -708,7 +708,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                           )}
 
                           {/* Image */}
-                          <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
+                          <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800">
                             {product.image_url ? (
                               <img
                                 src={product.image_url}
@@ -854,10 +854,10 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               ) : (
                 <div className="space-y-4">
                   {/* Rating distribution */}
-                  <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center gap-4 mb-3">
+                  <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-3 mb-2">
                       <div className="text-center">
-                        <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.average_rating.toFixed(1) || '0.0'}</div>
+                        <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.average_rating.toFixed(1) || '0.0'}</div>
                         <div className="flex items-center gap-0.5 mt-1">
                           {Array.from({ length: 5 }).map((_, i) => (
                             <Star key={i} className={`h-3.5 w-3.5 ${i < Math.round(stats?.average_rating || 0) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`} />
@@ -1064,13 +1064,13 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
 function StatCard({ icon, value, label, color }: { icon: React.ReactNode; value: React.ReactNode; label: string; color: string }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">
-      <div className="absolute -top-4 -right-4 w-16 h-16 rounded-full opacity-10 blur-xl" style={{ background: color }} />
+    <div className="relative overflow-hidden rounded-xl p-2.5 bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">
+      <div className="absolute -top-3 -right-3 w-12 h-12 rounded-full opacity-10 blur-xl" style={{ background: color }} />
       <div className="relative">
-        <div className="inline-flex items-center justify-center h-9 w-9 rounded-xl mb-2" style={{ backgroundColor: `${color}1a`, color }}>
+        <div className="inline-flex items-center justify-center h-7 w-7 rounded-lg mb-1" style={{ backgroundColor: `${color}1a`, color }}>
           {icon}
         </div>
-        <div className="text-xl font-bold text-gray-900 dark:text-white">{value}</div>
+        <div className="text-sm font-bold text-gray-900 dark:text-white">{value}</div>
         <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
       </div>
     </div>

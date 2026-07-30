@@ -503,7 +503,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
       <div className="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 
         {/* Cover image area */}
-        <div className="relative h-48 sm:h-64 lg:h-72 group">
+        <div className="relative h-32 sm:h-40 group">
           {profile.cover_url ? (
             <img
               src={profile.cover_url}
@@ -574,19 +574,19 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         </div>
 
         {/* Avatar + name row */}
-        <div className="px-6 pb-5">
-          <div className="flex items-end justify-between -mt-10 mb-4">
+        <div className="px-4 pb-3">
+          <div className="flex items-end justify-between -mt-8 mb-3">
             {/* Avatar */}
             <div className="relative group">
               <div
-                className="w-20 h-20 rounded-2xl border-4 border-white dark:border-gray-800 shadow-lg overflow-hidden"
+                className="w-16 h-16 rounded-xl border-2 border-white dark:border-gray-800 shadow-md overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}
               >
                 {profile.avatar_url ? (
                   <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <User className="h-8 w-8 text-white" />
+                    <User className="h-6 w-6 text-white" />
                   </div>
                 )}
               </div>
@@ -650,7 +650,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
           </div>
 
           {/* Name + badge */}
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {editing ? (
               <input
                 type="text"
@@ -661,7 +661,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
               />
             ) : (
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                <h2 className="text-base font-bold text-gray-900 dark:text-white">
                   {profile.full_name || lbl('Usuário', 'User', 'Usuario')}
                 </h2>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -722,37 +722,37 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         </div>
 
         {/* Stats strip */}
-        <div className="px-6 pb-5">
-          <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 mb-4">
+        <div className="px-4 pb-3">
+          <div className="flex items-center gap-3 flex-wrap p-2.5 rounded-xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700 mb-2">
             <FollowersStats
               targetUserId={profile.id}
               themeColor={themeColor}
               onOpen={(mode) => setFollowersModal(mode)}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center">
-            <div className="text-lg font-bold text-gray-900 dark:text-white">{profile.login_count || 0}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{lbl('Logins', 'Logins', 'Logins')}</div>
+          <div className="grid grid-cols-3 gap-2">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center">
+            <div className="text-sm font-bold text-gray-900 dark:text-white">{profile.login_count || 0}</div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">{lbl('Logins', 'Logins', 'Logins')}</div>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center">
-            <div className="text-xs font-semibold text-gray-900 dark:text-white">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center">
+            <div className="text-[10px] font-semibold text-gray-900 dark:text-white">
               {formatDate(profile.created_at)}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{lbl('Membro desde', 'Member since', 'Miembro desde')}</div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">{lbl('Membro desde', 'Member since', 'Miembro desde')}</div>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 text-center">
-            <div className="text-xs font-semibold text-gray-900 dark:text-white">
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center">
+            <div className="text-[10px] font-semibold text-gray-900 dark:text-white">
               {profile.last_login_at ? formatDate(profile.last_login_at) : '-'}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{lbl('Último acesso', 'Last login', 'Último acceso')}</div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">{lbl('Último acesso', 'Last login', 'Último accesso')}</div>
           </div>
           </div>
         </div>
 
         {/* Level Progress (self only) */}
         {isSelf && (
-          <div className="px-6 pb-5 space-y-3">
+          <div className="px-4 pb-3 space-y-2">
             {profile.user_level != null && (
               <LevelProgressBar level={profile.user_level} xp={profile.user_xp || 0} type="user" language={language} />
             )}
@@ -763,15 +763,15 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         )}
 
         {/* Online status strip */}
-        <div className="px-6 pb-5">
-          <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl py-2.5">
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg py-2">
             <OnlineBadge lastSeenAt={profile.last_seen_at} language={language} showLabel size="md" />
           </div>
         </div>
 
         {/* Public actions (not self) */}
         {!isSelf && user && (
-          <div className="px-6 pb-5">
+          <div className="px-4 pb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <FollowButton targetUserId={profile.id} themeColor={themeColor} />
               <button
