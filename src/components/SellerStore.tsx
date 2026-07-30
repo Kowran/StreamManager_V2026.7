@@ -276,7 +276,7 @@ export function SellerStore() {
   const totalBadge = pendingOrdersCount + openTicketsCount + pendingQuestionsCount;
 
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-1 min-h-0 overflow-hidden bg-gray-50 dark:bg-gray-900">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />

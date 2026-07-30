@@ -934,8 +934,6 @@ function AppContent() {
             <AdminNetflixAccounts />
           </AdminGuard>
         );
-      case 'seller-store':
-        return <SellerStore />;
       case 'fees-page':
         return (
           <FeesPage
@@ -1351,6 +1349,10 @@ function AppContent() {
             }}
           />
         </div>
+      ) : activeTab === 'seller-store' ? (
+        <div className="flex-1 w-full min-w-0 flex flex-col">
+          <SellerStore />
+        </div>
       ) : activeTab === 'user-profile' && profileIdentifier ? (
         <div className="flex-1 w-full min-w-0">
           <PublicProfilePage
@@ -1431,6 +1433,7 @@ function AppContent() {
       )}
 
       {/* Footer */}
+      {activeTab !== 'seller-store' && (
       <Footer
         navigationLinks={footerNavigation}
         onNavigate={(id) => {
@@ -1439,6 +1442,7 @@ function AppContent() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
+      )}
 
       {/* Expiring Items Chat */}
       <ExpiringItemsChat />
