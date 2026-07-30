@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  TrendingUp, DollarSign, Shield, Zap, Users, Award, Crown,
-  Gem, Medal, Sprout, Star, CheckCircle, ArrowRight, Store,
+  TrendingUp, DollarSign, Shield, Zap, Users, Award,
+  Star, CheckCircle, ArrowRight, Store,
   Headphones, Lock, Sparkles, BarChart3, Wallet, Globe, ChevronRight
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
 import { Footer } from './Footer';
+import { LevelIcon, type TierName } from './LevelIcon';
 
 interface LevelBenefit {
   id: string;
@@ -20,13 +21,30 @@ interface LevelBenefit {
   sort_order: number;
 }
 
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Sprout: Sprout,
-  Award: Award,
-  Medal: Medal,
-  Crown: Crown,
-  Gem: Gem,
+const TIER_NAME_MAP: Record<string, TierName> = {
+  Iniciante: 'Iniciante',
+  Beginner: 'Iniciante',
+  Principiante: 'Iniciante',
+  Bronze: 'Bronze',
+  Bronce: 'Bronze',
+  Prata: 'Prata',
+  Silver: 'Prata',
+  Plata: 'Prata',
+  Ouro: 'Ouro',
+  Gold: 'Ouro',
+  Oro: 'Ouro',
+  Diamante: 'Diamante',
+  Diamond: 'Diamante',
+  Sprout: 'Iniciante',
+  Award: 'Bronze',
+  Medal: 'Prata',
+  Crown: 'Ouro',
+  Gem: 'Diamante',
 };
+
+function getTierKey(name: string): TierName {
+  return TIER_NAME_MAP[name] || 'Iniciante';
+}
 
 export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () => void; onBecomeSeller: () => void }) {
   const { language } = useLanguage();
@@ -248,7 +266,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {benefits.map((benefit, idx) => {
-              const Icon = ICON_MAP[benefit.icon] || Award;
+              const tierKey = getTierKey(benefit.tier_name || benefit.icon);
               const isTop = idx === benefits.length - 1;
               return (
                 <div
@@ -270,7 +288,7 @@ export function SellerRecruitmentPage({ onBack, onBecomeSeller }: { onBack: () =
                         className="p-2.5 rounded-xl"
                         style={{ backgroundColor: `${benefit.color}20`, color: benefit.color }}
                       >
-                        <Icon className="h-6 w-6" />
+                        <LevelIcon tier={tierKey} className="h-6 w-6" />
                       </div>
                       <div>
                         <h3 className="font-bold text-lg">{benefit.tier_name}</h3>

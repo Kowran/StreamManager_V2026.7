@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Zap, Star, Crown, Shield, Award, Flame, ShoppingBag, X, Info, TrendingUp } from 'lucide-react';
+import { X, Info, TrendingUp } from 'lucide-react';
+import { LevelIcon, tierIcons, type TierName } from './LevelIcon';
 
 export type LevelType = 'user' | 'seller';
 
@@ -12,12 +13,19 @@ interface LevelBadgeProps {
   language?: string;
 }
 
-export function getLevelTier(level: number): { name: string; icon: typeof Star; color: string; bgColor: string; textColor: string } {
-  if (level >= 100) return { name: 'Diamante', icon: Crown, color: '#3b82f6', bgColor: 'bg-blue-100 dark:bg-blue-900/30', textColor: 'text-blue-700 dark:text-blue-400' };
-  if (level >= 50) return { name: 'Ouro', icon: Award, color: '#f59e0b', bgColor: 'bg-amber-100 dark:bg-amber-900/30', textColor: 'text-amber-700 dark:text-amber-400' };
-  if (level >= 25) return { name: 'Prata', icon: Shield, color: '#94a3b8', bgColor: 'bg-slate-100 dark:bg-slate-900/30', textColor: 'text-slate-700 dark:text-slate-400' };
-  if (level >= 10) return { name: 'Bronze', icon: Zap, color: '#cd7f32', bgColor: 'bg-orange-100 dark:bg-orange-900/30', textColor: 'text-orange-700 dark:text-orange-400' };
-  return { name: 'Iniciante', icon: Star, color: '#10b981', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-400' };
+interface TierInfo {
+  name: TierName;
+  color: string;
+  bgColor: string;
+  textColor: string;
+}
+
+export function getLevelTier(level: number): TierInfo {
+  if (level >= 100) return { name: 'Diamante', color: '#1f6fd6', bgColor: 'bg-blue-100 dark:bg-blue-900/30', textColor: 'text-blue-700 dark:text-blue-400' };
+  if (level >= 50) return { name: 'Ouro', color: '#e0a012', bgColor: 'bg-amber-100 dark:bg-amber-900/30', textColor: 'text-amber-700 dark:text-amber-400' };
+  if (level >= 25) return { name: 'Prata', color: '#8a8a8a', bgColor: 'bg-slate-100 dark:bg-slate-900/30', textColor: 'text-slate-700 dark:text-slate-400' };
+  if (level >= 10) return { name: 'Bronze', color: '#a05a1c', bgColor: 'bg-orange-100 dark:bg-orange-900/30', textColor: 'text-orange-700 dark:text-orange-400' };
+  return { name: 'Iniciante', color: '#8a8a8a', bgColor: 'bg-emerald-100 dark:bg-emerald-900/30', textColor: 'text-emerald-700 dark:text-emerald-400' };
 }
 
 export function getLevelProgress(level: number, xp: number): { current: number; needed: number; percent: number } {
@@ -31,9 +39,9 @@ export function getLevelProgress(level: number, xp: number): { current: number; 
 
 const sizeMap = {
   xs: { badge: 'text-[10px] px-1.5 py-0.5 gap-0.5', icon: 'h-2.5 w-2.5', text: 'text-[10px]' },
-  sm: { badge: 'text-xs px-2 py-0.5 gap-1', icon: 'h-3 w-3', text: 'text-xs' },
-  md: { badge: 'text-sm px-2.5 py-1 gap-1', icon: 'h-4 w-4', text: 'text-sm' },
-  lg: { badge: 'text-base px-3 py-1.5 gap-1.5', icon: 'h-5 w-5', text: 'text-base' },
+  sm: { badge: 'text-xs px-2 py-0.5 gap-1', icon: 'h-3.5 w-3.5', text: 'text-xs' },
+  md: { badge: 'text-sm px-2.5 py-1 gap-1', icon: 'h-5 w-5', text: 'text-sm' },
+  lg: { badge: 'text-base px-3 py-1.5 gap-1.5', icon: 'h-6 w-6', text: 'text-base' },
 };
 
 const typeLabels: Record<LevelType, { pt: string; en: string; es: string }> = {
@@ -41,12 +49,12 @@ const typeLabels: Record<LevelType, { pt: string; en: string; es: string }> = {
   seller: { pt: 'Vendedor', en: 'Seller', es: 'Vendedor' },
 };
 
-const ALL_TIERS = [
-  { name: 'Iniciante', icon: Star, color: '#10b981', min: 1 },
-  { name: 'Bronze', icon: Zap, color: '#cd7f32', min: 10 },
-  { name: 'Prata', icon: Shield, color: '#94a3b8', min: 25 },
-  { name: 'Ouro', icon: Award, color: '#f59e0b', min: 50 },
-  { name: 'Diamante', icon: Crown, color: '#3b82f6', min: 100 },
+const ALL_TIERS: { name: TierName; color: string; min: number }[] = [
+  { name: 'Iniciante', color: '#8a8a8a', min: 1 },
+  { name: 'Bronze', color: '#a05a1c', min: 10 },
+  { name: 'Prata', color: '#8a8a8a', min: 25 },
+  { name: 'Ouro', color: '#e0a012', min: 50 },
+  { name: 'Diamante', color: '#1f6fd6', min: 100 },
 ];
 
 function LevelInfoModal({
@@ -69,9 +77,7 @@ function LevelInfoModal({
           </button>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${tier.color}25` }}>
-              {type === 'seller'
-                ? <ShoppingBag className="h-6 w-6" style={{ color: tier.color }} />
-                : <tier.icon className="h-6 w-6" style={{ color: tier.color }} />}
+              <LevelIcon tier={tier.name} className="h-7 w-7" />
             </div>
             <div>
               <h3 className="text-base font-bold text-gray-900 dark:text-white">
@@ -96,12 +102,12 @@ function LevelInfoModal({
                 ? lbl(
                   'Vendedores ganham XP a cada venda concluída. Quanto mais vendas, mais XP e níveis mais altos desbloqueiam benefícios como menor comissão, destaque na loja e selo de reputação.',
                   'Sellers earn XP for each completed sale. More sales mean more XP, and higher levels unlock benefits like lower commission, store prominence, and a reputation seal.',
-                  'Los vendedores gannan XP por cada venta completada. Más ventas, más XP, y los niveles más altos desbloquean beneficios como menor comisión, destacado en la tienda y un sello de reputación.'
+                  'Los vendedores ganhan XP por cada venta completada. Más ventas, más XP, y los niveles más altos desbloquean beneficios como menor comisión, destacado en la tienda y un sello de reputación.'
                 )
                 : lbl(
                   'Compradores ganham XP a cada compra. Subir de nível desbloqueia benefícios como cashback maior, descontos exclusivos e selos de prestígio.',
                   'Buyers earn XP for each purchase. Leveling up unlocks benefits like higher cashback, exclusive discounts, and prestige badges.',
-                  'Los compradores gannan XP por cada compra. Subir de nivel desbloquea beneficios como mayor cashback, descuentos exclusivos y sellos de prestigio.'
+                  'Los compradores ganhan XP por cada compra. Subir de nivel desbloquea beneficios como mayor cashback, descuentos exclusivos y selos de prestigio.'
                 )}
             </p>
           </div>
@@ -127,7 +133,7 @@ function LevelInfoModal({
                     style={isCurrent ? { borderColor: `${t.color}80` } : {}}
                   >
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: isReached ? `${t.color}22` : 'transparent', opacity: isReached ? 1 : 0.4 }}>
-                      <t.icon className="h-4 w-4" style={{ color: t.color }} />
+                      <LevelIcon tier={t.name} className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-semibold ${isReached ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-500'}`}>{t.name}</p>
@@ -154,12 +160,11 @@ function LevelInfoModal({
 export function LevelBadge({ level, type = 'user', size = 'sm', showLabel = false, clickable = false, language = 'pt' }: LevelBadgeProps) {
   const [showInfo, setShowInfo] = useState(false);
   const tier = getLevelTier(level);
-  const Icon = tier.icon;
   const s = sizeMap[size];
 
   const content = (
     <>
-      {type === 'seller' ? <ShoppingBag className={s.icon} style={{ color: tier.color }} /> : <Icon className={s.icon} style={{ color: tier.color }} />}
+      <LevelIcon tier={tier.name} className={s.icon} />
       <span>Nv {level}</span>
       {showLabel && <span className="opacity-70">· {tier.name}</span>}
     </>
@@ -205,7 +210,6 @@ interface LevelProgressBarProps {
 
 export function LevelProgressBar({ level, xp, type = 'user', language = 'pt' }: LevelProgressBarProps) {
   const tier = getLevelTier(level);
-  const Icon = tier.icon;
   const progress = getLevelProgress(level, xp);
   const isMax = level >= 100;
   const typeLabel = language === 'pt' ? typeLabels[type].pt : typeLabels[type].en;
@@ -215,10 +219,7 @@ export function LevelProgressBar({ level, xp, type = 'user', language = 'pt' }: 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg" style={{ backgroundColor: `${tier.color}20` }}>
-            {type === 'seller'
-              ? <ShoppingBag className="h-4 w-4" style={{ color: tier.color }} />
-              : <Icon className="h-4 w-4" style={{ color: tier.color }} />
-            }
+            <LevelIcon tier={tier.name} className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
@@ -252,3 +253,5 @@ export function LevelProgressBar({ level, xp, type = 'user', language = 'pt' }: 
     </div>
   );
 }
+
+export { LevelIcon, tierIcons };

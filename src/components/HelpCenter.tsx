@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import {
   MessageCircle, TrendingUp, Shield, BookOpen, DollarSign,
-  Ticket, Award, Lock, Zap, Store, Users, Crown, Gem, Medal, Sprout,
+  Ticket, Award, Lock, Zap, Store, Users,
   Truck, AlertTriangle, CheckCircle, Info, ArrowLeft
 } from 'lucide-react';
 import { SupportSystem } from './SupportSystem';
 import { FeesPage } from './FeesPage';
 import { useLanguage } from './LanguageProvider';
 import { useTheme } from './ThemeProvider';
+import { LevelIcon, type TierName } from './LevelIcon';
 
 type HelpTab = 'tickets' | 'levels' | 'sales' | 'security' | 'tutorials' | 'fees';
 
@@ -85,20 +86,20 @@ export function HelpCenter() {
 
 // ─── LEVELS TAB ───
 function LevelsContent({ tr, isDark }: { tr: (pt: string, en: string, es: string) => string; isDark: boolean }) {
-  const buyerTiers = [
-    { name: tr('Iniciante', 'Beginner', 'Principiante'), icon: Sprout, color: '#10b981', min: 1, desc: tr('Nível inicial para novos compradores', 'Starting level for new buyers', 'Nivel inicial para nuevos compradores') },
-    { name: tr('Bronze', 'Bronze', 'Bronce'), icon: Zap, color: '#cd7f32', min: 10, desc: tr('Compre mais para subir de nível', 'Buy more to level up', 'Compra más para subir de nivel') },
-    { name: tr('Prata', 'Silver', 'Plata'), icon: Medal, color: '#94a3b8', min: 25, desc: tr('Desbloqueia benefícios exclusivos', 'Unlocks exclusive benefits', 'Desbloquea beneficios exclusivos') },
-    { name: tr('Ouro', 'Gold', 'Oro'), icon: Award, color: '#f59e0b', min: 50, desc: tr('Cashback maior e descontos', 'Higher cashback and discounts', 'Mayor cashback y descuentos') },
-    { name: tr('Diamante', 'Diamond', 'Diamante'), icon: Crown, color: '#3b82f6', min: 100, desc: tr('Nível máximo com todos os benefícios', 'Max level with all benefits', 'Nivel máximo con todos los beneficios') },
+  const buyerTiers: { name: string; tierKey: TierName; color: string; min: number; desc: string }[] = [
+    { name: tr('Iniciante', 'Beginner', 'Principiante'), tierKey: 'Iniciante', color: '#8a8a8a', min: 1, desc: tr('Nível inicial para novos compradores', 'Starting level for new buyers', 'Nivel inicial para nuevos compradores') },
+    { name: tr('Bronze', 'Bronze', 'Bronce'), tierKey: 'Bronze', color: '#a05a1c', min: 10, desc: tr('Compre mais para subir de nível', 'Buy more to level up', 'Compra más para subir de nivel') },
+    { name: tr('Prata', 'Silver', 'Plata'), tierKey: 'Prata', color: '#8a8a8a', min: 25, desc: tr('Desbloqueia benefícios exclusivos', 'Unlocks exclusive benefits', 'Desbloquea beneficios exclusivos') },
+    { name: tr('Ouro', 'Gold', 'Oro'), tierKey: 'Ouro', color: '#e0a012', min: 50, desc: tr('Cashback maior e descontos', 'Higher cashback and discounts', 'Mayor cashback y descuentos') },
+    { name: tr('Diamante', 'Diamond', 'Diamante'), tierKey: 'Diamante', color: '#1f6fd6', min: 100, desc: tr('Nível máximo com todos os benefícios', 'Max level with all benefits', 'Nivel máximo con todos los beneficios') },
   ];
 
-  const sellerTiers = [
-    { name: tr('Iniciante', 'Beginner', 'Principiante'), icon: Sprout, color: '#10b981', min: 1, commission: '5%', desc: tr('Comece a vender com 5% de taxa', 'Start selling with 5% fee', 'Comienza a vender con 5% de comisión') },
-    { name: tr('Bronze', 'Bronze', 'Bronce'), icon: Zap, color: '#cd7f32', min: 10, commission: '4%', desc: tr('Reduza sua taxa para 4%', 'Reduce your fee to 4%', 'Reduce tu comisión a 4%') },
-    { name: tr('Prata', 'Silver', 'Plata'), icon: Medal, color: '#94a3b8', min: 25, commission: '3.5%', desc: tr('Taxa de 3.5% conforme vende mais', '3.5% fee as you sell more', 'Comisión del 3.5% a medida que vendes más') },
-    { name: tr('Ouro', 'Gold', 'Oro'), icon: Award, color: '#f59e0b', min: 50, commission: '3%', desc: tr('Taxa reduzida para 3%', 'Fee reduced to 3%', 'Comisión reducida a 3%') },
-    { name: tr('Diamante', 'Diamond', 'Diamante'), icon: Crown, color: '#3b82f6', min: 100, commission: '2.5%', desc: tr('Menor taxa do mercado: 2.5%', 'Lowest fee in market: 2.5%', 'La comisión más baja: 2.5%') },
+  const sellerTiers: { name: string; tierKey: TierName; color: string; min: number; commission: string; desc: string }[] = [
+    { name: tr('Iniciante', 'Beginner', 'Principiante'), tierKey: 'Iniciante', color: '#8a8a8a', min: 1, commission: '5%', desc: tr('Comece a vender com 5% de taxa', 'Start selling with 5% fee', 'Comienza a vender con 5% de comisión') },
+    { name: tr('Bronze', 'Bronze', 'Bronce'), tierKey: 'Bronze', color: '#a05a1c', min: 10, commission: '4%', desc: tr('Reduza sua taxa para 4%', 'Reduce your fee to 4%', 'Reduce tu comisión a 4%') },
+    { name: tr('Prata', 'Silver', 'Plata'), tierKey: 'Prata', color: '#8a8a8a', min: 25, commission: '3.5%', desc: tr('Taxa de 3.5% conforme vende mais', '3.5% fee as you sell more', 'Comisión del 3.5% a medida que vendes más') },
+    { name: tr('Ouro', 'Gold', 'Oro'), tierKey: 'Ouro', color: '#e0a012', min: 50, commission: '3%', desc: tr('Taxa reduzida para 3%', 'Fee reduced to 3%', 'Comisión reducida a 3%') },
+    { name: tr('Diamante', 'Diamond', 'Diamante'), tierKey: 'Diamante', color: '#1f6fd6', min: 100, commission: '2.5%', desc: tr('Menor taxa do mercado: 2.5%', 'Lowest fee in market: 2.5%', 'La comisión más baja: 2.5%') },
   ];
 
   return (
@@ -112,8 +113,8 @@ function LevelsContent({ tr, isDark }: { tr: (pt: string, en: string, es: string
           {buyerTiers.map((tier, i) => (
             <div key={i} className={`rounded-xl p-4 border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
               <div className="flex items-center gap-2 mb-2">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: `${tier.color}20` }}>
-                  <tier.icon className="h-5 w-5" style={{ color: tier.color }} />
+                <div className="p-2 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${tier.color}20` }}>
+                  <LevelIcon tier={tier.tierKey} className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{tier.name}</p>
@@ -135,8 +136,8 @@ function LevelsContent({ tr, isDark }: { tr: (pt: string, en: string, es: string
           {sellerTiers.map((tier, i) => (
             <div key={i} className={`rounded-xl p-4 border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
               <div className="flex items-center gap-2 mb-2">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: `${tier.color}20` }}>
-                  <tier.icon className="h-5 w-5" style={{ color: tier.color }} />
+                <div className="p-2 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${tier.color}20` }}>
+                  <LevelIcon tier={tier.tierKey} className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{tier.name}</p>
