@@ -609,7 +609,7 @@ export function PurchaseConfirmModal({
             </button>
             {remainingBalance < 0 && onCheckout ? (
               <button
-                onClick={() => onCheckout(quantity, variationId ?? null)}
+                onClick={() => onCheckout(quantity, modalSelectedVariation?.id || variationId || null)}
                 disabled={isLoading}
                 className="flex-1 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
