@@ -503,7 +503,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
       <div className="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 
         {/* Cover image area */}
-        <div className="relative h-32 sm:h-40 group">
+        <div className="relative h-44 sm:h-56 group">
           {profile.cover_url ? (
             <img
               src={profile.cover_url}
@@ -575,11 +575,11 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
 
         {/* Avatar + name row */}
         <div className="px-4 pb-3">
-          <div className="flex items-end justify-between -mt-8 mb-3">
+          <div className="flex items-end justify-between -mt-12 mb-3">
             {/* Avatar */}
             <div className="relative group">
               <div
-                className="w-16 h-16 rounded-xl border-2 border-white dark:border-gray-800 shadow-md overflow-hidden"
+                className="w-24 h-24 rounded-xl border-2 border-white dark:border-gray-800 shadow-md overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}
               >
                 {profile.avatar_url ? (

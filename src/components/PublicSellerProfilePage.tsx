@@ -425,7 +425,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
       {/* Hero / Cover Card */}
       <div className="relative overflow-hidden shadow-sm bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
         {/* Cover */}
-        <div className="relative h-32 sm:h-40">
+        <div className="relative h-44 sm:h-56">
           {profile.cover_url ? (
             <img
               src={profile.cover_url}
@@ -462,12 +462,12 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
         </div>
 
         {/* Avatar row — floats up to overlap the cover */}
-        <div className="px-4 sm:px-6 -mt-8 relative z-10">
+        <div className="px-4 sm:px-6 -mt-12 relative z-10">
           <div className="flex items-end justify-between">
             {/* Avatar */}
             <div className="relative group flex-shrink-0">
               <div
-                className="w-16 h-16 rounded-2xl border-2 border-white dark:border-gray-800 shadow-lg overflow-hidden"
+                className="w-24 h-24 rounded-2xl border-2 border-white dark:border-gray-800 shadow-lg overflow-hidden"
                 style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }}
               >
                 {profile.avatar_url ? (
@@ -489,34 +489,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               </div>
             </div>
 
-            {/* Action buttons — aligned to bottom of avatar row */}
-            {user && user.id !== profile.id && (
-              <div className="flex items-center gap-2 flex-wrap justify-end pb-1">
-                <FollowButton targetUserId={profile.id} themeColor={themeColor} variant="compact" />
-                <button
-                  onClick={() => setChatOpen(true)}
-                  disabled={isBlocked}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-                  style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  {t.language === 'pt' ? 'Enviar mensagem' : t.language === 'en' ? 'Send message' : 'Enviar mensaje'}
-                </button>
-                <button
-                  onClick={toggleBlock}
-                  disabled={blockLoading}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl border transition-colors ${
-                    isBlocked
-                      ? 'border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
-                      : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                  title={isBlocked ? (t.language === 'pt' ? 'Desbloquear' : 'Unblock') : (t.language === 'pt' ? 'Bloquear' : 'Block')}
-                >
-                  <Ban className="h-4 w-4" />
-                </button>
-                <ReportButton targetUserId={profile.id} targetUserName={profile.username || profile.full_name || profile.id} />
-              </div>
-            )}
+
           </div>
 
           {/* Name + badges — now below the avatar, always on white/dark bg */}
@@ -566,6 +539,35 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
               )}
             </div>
           </div>
+
+          {/* Action buttons */}
+          {user && user.id !== profile.id && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <FollowButton targetUserId={profile.id} themeColor={themeColor} variant="compact" />
+              <button
+                onClick={() => setChatOpen(true)}
+                disabled={isBlocked}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl text-white shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }}
+              >
+                <MessageCircle className="h-4 w-4" />
+                {t.language === 'pt' ? 'Enviar mensagem' : t.language === 'en' ? 'Send message' : 'Enviar mensaje'}
+              </button>
+              <button
+                onClick={toggleBlock}
+                disabled={blockLoading}
+                className={`inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-xl border transition-colors ${
+                  isBlocked
+                    ? 'border-green-200 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+                    : 'border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+                title={isBlocked ? (t.language === 'pt' ? 'Desbloquear' : 'Unblock') : (t.language === 'pt' ? 'Bloquear' : 'Block')}
+              >
+                <Ban className="h-4 w-4" />
+              </button>
+              <ReportButton targetUserId={profile.id} targetUserName={profile.username || profile.full_name || profile.id} />
+            </div>
+          )}
         </div>
 
         <div className="px-4 sm:px-6 pb-3">
