@@ -69,6 +69,7 @@ interface SellerProduct {
   account_recharge?: boolean;
   delivery_time?: string;
   slug?: string;
+  is_featured?: boolean;
 }
 
 interface ProductRating {
@@ -359,7 +360,7 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
     return ['all', ...Array.from(cats)];
   }, [products]);
 
-  const PRODUCTS_PER_PAGE = 12;
+  const PRODUCTS_PER_PAGE = 4;
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredProducts = useMemo(() => {
@@ -421,15 +422,6 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
 
   return (
     <div className="w-full pb-12">
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="mb-4 px-4 sm:px-6 lg:px-8 inline-flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors group"
-      >
-        <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-        {t.language === 'pt' ? 'Voltar para a loja' : t.language === 'en' ? 'Back to store' : 'Volver a la tienda'}
-      </button>
-
       {/* Hero / Cover Card */}
       <div className="relative overflow-hidden shadow-sm bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
         {/* Cover */}
@@ -459,6 +451,14 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
           )}
           {/* Gradient overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          {/* Back button inside cover */}
+          <button
+            onClick={onBack}
+            className="absolute top-4 left-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-white bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-all group z-10"
+          >
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
+            {t.language === 'pt' ? 'Voltar para a loja' : t.language === 'en' ? 'Back to store' : 'Volver a la tienda'}
+          </button>
         </div>
 
         {/* Avatar row — floats up to overlap the cover */}
@@ -682,90 +682,109 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {paginatedProducts.map((product) => {
-                      const available = (product as any).manual_delivery || product.stock_quantity > 0;
                       const hasPromo = product.promotion_active && product.promotional_price_usdt;
                       const price = hasPromo ? Number(product.promotional_price_usdt) : Number(product.price_usdt);
+                      const isFeatured = (product as any).is_featured === true;
                       return (
                         <div
                           key={product.id}
                           onClick={() => onProductClick?.(product)}
-                          className="group bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+                          className={`group bg-white dark:bg-gray-900 rounded-xl overflow-hidden border transition-all duration-300 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 ${
+                            isFeatured
+                              ? 'border-amber-300 dark:border-amber-600 ring-1 ring-amber-300/50 dark:ring-amber-600/30'
+                              : 'border-gray-200 dark:border-gray-700'
+                          }`}
                         >
-                          <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-700">
+                          {/* Featured banner */}
+                          {isFeatured && (
+                            <div className="flex items-center gap-1 px-2.5 py-1 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700">
+                              <Sparkles className="h-3 w-3 text-amber-500" />
+                              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+                                {t.language === 'pt' ? 'Destaque' : t.language === 'en' ? 'Featured' : 'Destacado'}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Image */}
+                          <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
                             {product.image_url ? (
                               <img
                                 src={product.image_url}
                                 alt={product.name}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                 onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
-                                <Package className="h-12 w-12 text-gray-300 dark:text-gray-600" />
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Package className="h-8 w-8 text-gray-300 dark:text-gray-600" />
                               </div>
                             )}
-                            {/* Category badge */}
-                            <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-black/50 backdrop-blur-sm text-white capitalize">
-                              {product.category}
-                            </span>
-                            {/* Availability badge */}
-                            {!available ? (
-                              <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500 text-white">
-                                {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
-                              </span>
-                            ) : (
-                              <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-green-500 text-white">
-                                {t.language === 'pt' ? 'Disponível' : t.language === 'en' ? 'Available' : 'Disponible'}
+                            {hasPromo && (
+                              <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white">
+                                {t.language === 'pt' ? 'Promo' : 'Promo'}
                               </span>
                             )}
-                            {/* Delivery type badge */}
-                            <div className="absolute bottom-2.5 left-2.5">
+                          </div>
+
+                          <div className="p-2.5">
+                            {/* Seller info */}
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <div
+                                className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-white text-[9px] font-bold"
+                                style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }}
+                              >
+                                {profile.avatar_url ? (
+                                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  profile.full_name?.charAt(0).toUpperCase() || 'S'
+                                )}
+                              </div>
+                              <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                                {profile.username ? `@${profile.username}` : profile.full_name || 'Seller'}
+                              </span>
+                            </div>
+
+                            <h3 className="font-semibold text-xs text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                              {product.name}
+                            </h3>
+
+                            {/* Rating */}
+                            <div className="mb-1.5">
+                              <ProductRatingsDisplay productId={product.id} showTitle={false} compact={true} />
+                            </div>
+
+                            {/* Delivery type */}
+                            <div className="mb-2">
                               {(product as any).manual_delivery ? (
                                 (product as any).account_recharge ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/90 backdrop-blur-sm text-white">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                                     <Zap className="h-2.5 w-2.5" />
                                     {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-blue-500/90 backdrop-blur-sm text-white">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
                                     <Truck className="h-2.5 w-2.5" />
                                     {t.language === 'pt' ? 'Manual' : t.language === 'en' ? 'Manual' : 'Manual'}
                                   </span>
                                 )
                               ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-emerald-500/90 backdrop-blur-sm text-white">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
                                   <Zap className="h-2.5 w-2.5" />
                                   {t.language === 'pt' ? 'Automático' : t.language === 'en' ? 'Automatic' : 'Automático'}
                                 </span>
                               )}
                             </div>
-                          </div>
-
-                          <div className="p-4">
-                            <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-1.5 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {product.name}
-                            </h3>
-                            {product.description && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-3 leading-relaxed">
-                                {product.description}
-                              </p>
-                            )}
-
-                            {/* Rating */}
-                            <div className="mb-3">
-                              <ProductRatingsDisplay productId={product.id} showTitle={false} compact={true} />
-                            </div>
 
                             {/* Price */}
-                            <div className="flex items-baseline gap-2">
+                            <div className="flex items-baseline gap-1.5">
                               {hasPromo && (
-                                <span className="text-xs text-gray-400 line-through">
+                                <span className="text-[10px] text-gray-400 line-through">
                                   {formatPrice(Number(product.price_usdt))}
                                 </span>
                               )}
-                              <span className="text-lg font-bold text-gray-900 dark:text-white">
+                              <span className="text-sm font-bold text-gray-900 dark:text-white">
                                 {formatPrice(price)}
                               </span>
                             </div>
@@ -774,6 +793,40 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                       );
                     })}
                   </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-6">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4 rotate-180" />
+                      </button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                            currentPage === page
+                              ? 'text-white shadow-sm'
+                              : 'border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                          style={currentPage === page ? { backgroundColor: themeColor } : {}}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
 
                   {filteredProducts.length === 0 && (
                     <EmptyState

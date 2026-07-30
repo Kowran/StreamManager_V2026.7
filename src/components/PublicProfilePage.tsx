@@ -499,15 +499,6 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
         </>
       )}
 
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors mb-3 px-4 sm:px-6 lg:px-8"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {lbl('Voltar', 'Back', 'Volver')}
-      </button>
-
       {/* Profile Card - full width, edge-to-edge */}
       <div className="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 
@@ -562,6 +553,15 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
               )}
             </div>
           )}
+
+          {/* Back button inside cover */}
+          <button
+            onClick={onBack}
+            className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1.5 bg-black/40 hover:bg-black/60 text-white text-xs font-medium rounded-lg transition-colors backdrop-blur-sm z-10"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {lbl('Voltar', 'Back', 'Volver')}
+          </button>
 
           {/* Share button */}
           <button
