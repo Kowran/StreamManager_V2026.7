@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Package, Calendar, Clock, AlertTriangle, ChevronLeft, ChevronRight,
-  Star, RefreshCw, HelpCircle, DollarSign, Truck, CheckCircle, X,
+  Star, HelpCircle, DollarSign, Truck, CheckCircle,
   ExternalLink, ShieldAlert, Layers, ShoppingBag, CreditCard,
   Loader2, Tag,
 } from 'lucide-react';
@@ -63,19 +63,6 @@ function getDaysRemaining(purchaseDate: string): number {
   return Math.ceil((calculateExpiryDate(purchaseDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-function isOlderThan30Days(purchaseDate: string): boolean {
-  return Date.now() - new Date(purchaseDate).getTime() > THIRTY_DAYS_MS;
-}
-
-function canRenewPurchase(purchase: UserPurchase): boolean {
-  if (purchase.store_orders?.status === 'paid' ||
-      purchase.store_orders?.status === 'delivered' ||
-      purchase.store_orders?.status === 'completed' ||
-      isCancelled(purchase)) return false;
-  if (isOlderThan30Days(purchase.purchase_date)) return false;
-  return true;
-}
-
 type ExpiryStatus = {
   status: 'expired' | 'expiring' | 'warning' | 'active';
   label: string;
@@ -123,10 +110,7 @@ export function UserPurchases() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [selectedPurchaseForRating, setSelectedPurchaseForRating] = useState<UserPurchase | null>(null);
   const [userRatings, setUserRatings] = useState<Record<string, boolean>>({});
-  const [renewalLoading, setRenewalLoading] = useState<string | null>(null);
-  const [showRenewalModal, setShowRenewalModal] = useState(false);
-  const [selectedPurchaseForRenewal, setSelectedPurchaseForRenewal] = useState<UserPurchase | null>(null);
-  const [showHelpModal, setShowHelpModal] = useState(false);
+const [showHelpModal, setShowHelpModal] = useState(false);
   const [selectedPurchaseForHelp, setSelectedPurchaseForHelp] = useState<UserPurchase | null>(null);
   const [sellerIdForHelp, setSellerIdForHelp] = useState<string | null>(null);
   const [helpTicketStatuses, setHelpTicketStatuses] = useState<Record<string, { status: string; escalated: boolean }>>({});
@@ -266,46 +250,7 @@ export function UserPurchases() {
     loadUserPurchases();
   }
 
-  function handleRenewPurchase(purchase: UserPurchase) {
-    setSelectedPurchaseForRenewal(purchase);
-    setShowRenewalModal(true);
-  }
-
-  async function processRenewal(purchase: UserPurchase) {
-    if (!user) return;
-    setRenewalLoading(purchase.id);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-purchase-renewal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionData.session?.access_token}`,
-        },
-        body: JSON.stringify({
-          purchase_id: purchase.id,
-          product_id: purchase.product_id,
-          product_name: purchase.product_name,
-          product_price: purchase.purchase_price,
-        }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        alert(tr('Compra renovada com sucesso!', 'Purchase renewed successfully!', '¡Compra renovada con éxito!'));
-        setShowRenewalModal(false);
-        setSelectedPurchaseForRenewal(null);
-        loadUserPurchases();
-      } else {
-        alert(result.error || tr('Erro ao renovar compra', 'Error renewing purchase', 'Error al renovar compra'));
-      }
-    } catch {
-      alert(tr('Erro ao renovar compra', 'Error renewing purchase', 'Error al renovar compra'));
-    } finally {
-      setRenewalLoading(null);
-    }
-  }
-
-  function handleViewDetails(purchase: UserPurchase) {
+function handleViewDetails(purchase: UserPurchase) {
     setDetailPageId(purchase.id);
     setShowDetailPage(true);
     window.history.pushState(null, '', `/purchases/${purchase.id}`);
@@ -410,7 +355,6 @@ export function UserPurchases() {
               const expiryStatus = getExpiryStatus(purchase.purchase_date, lang);
               const hasRating = userRatings[`${purchase.product_id}-${purchase.order_id}`] || userRatings[purchase.product_id];
               const helpStatus = helpTicketStatuses[purchase.order_id];
-              const canRenew = canRenewPurchase(purchase);
 
               const statusMeta = cancelled
                 ? { label: tr('Cancelado', 'Cancelled', 'Cancelado'), color: 'text-red-500', dot: 'bg-red-500' }
@@ -427,128 +371,117 @@ export function UserPurchases() {
               return (
                 <div
                   key={purchase.id}
-                  className={`group flex items-center gap-3 sm:gap-4 bg-white dark:bg-gray-800 rounded-xl border px-3 sm:px-4 py-3 transition-all hover:shadow-md ${
+                  className={`group bg-white dark:bg-gray-800 rounded-xl border transition-all hover:shadow-md ${
                     cancelled ? 'border-red-200 dark:border-red-900/40' : disputed ? 'border-orange-200 dark:border-orange-900/40' : 'border-gray-200 dark:border-gray-700'
                   }`}
                 >
-                  {/* Thumbnail */}
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
-                    {purchase.store_products?.image_url ? (
-                      <img
-                        src={purchase.store_products.image_url}
-                        alt={purchase.product_name}
-                        className={`w-full h-full object-cover ${cancelled || expired ? 'grayscale opacity-50' : ''}`}
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
-                        <Package className="w-5 h-5 text-white/40" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className={`text-sm font-semibold truncate ${cancelled || expired ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
-                        {purchase.product_name}
-                      </h3>
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-400 dark:text-gray-500">
-                      <span className={`flex items-center gap-1 font-medium ${statusMeta.color}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
-                        {statusMeta.label}
-                      </span>
-                      {purchase.credentials?.variation_name && (
-                        <span className="hidden sm:flex items-center gap-0.5 text-purple-500">
-                          <Layers className="w-3 h-3" />
-                          {purchase.credentials.variation_name}
-                        </span>
-                      )}
-                      <span className="flex items-center gap-0.5">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(purchase.purchase_date).toLocaleDateString(lang === 'pt' ? 'pt-BR' : lang === 'en' ? 'en-US' : 'es-ES', { day: '2-digit', month: 'short' })}
-                      </span>
-                      {!cancelled && !disputed && (
-                        <span className={`flex items-center gap-0.5 ${expiryStatus.textColor}`}>
-                          <Clock className="w-3 h-3" />
-                          {expiryStatus.label}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Price */}
-                  <div className="hidden sm:block text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      {formatPrice(purchase.purchase_price)}
-                    </p>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {canRenew && (
-                      <button
-                        onClick={() => handleRenewPurchase(purchase)}
-                        disabled={renewalLoading === purchase.id}
-                        className="p-2 rounded-lg text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50"
-                        title={tr('Renovar', 'Renew', 'Renovar')}
-                      >
-                        {renewalLoading === purchase.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3">
+                    {/* Thumbnail + Info */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {/* Thumbnail */}
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
+                        {purchase.store_products?.image_url ? (
+                          <img
+                            src={purchase.store_products.image_url}
+                            alt={purchase.product_name}
+                            className={`w-full h-full object-cover ${cancelled || expired ? 'grayscale opacity-50' : ''}`}
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
                         ) : (
-                          <RefreshCw className="w-4 h-4" />
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
+                            <Package className="w-5 h-5 text-white/40" />
+                          </div>
                         )}
-                      </button>
-                    )}
+                      </div>
 
-                    {!cancelled && !expired && (
-                      <button
-                        onClick={() => handleRateProduct(purchase)}
-                        disabled={hasRating}
-                        className={`p-2 rounded-lg transition-colors ${
-                          hasRating
-                            ? 'text-amber-400 cursor-default'
-                            : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
-                        }`}
-                        title={hasRating ? tr('Avaliado', 'Rated', 'Calificado') : tr('Avaliar', 'Rate', 'Calificar')}
-                      >
-                        <Star className={`w-4 h-4 ${hasRating ? 'fill-current' : ''}`} />
-                      </button>
-                    )}
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`text-sm font-semibold truncate ${cancelled || expired ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-white'}`}>
+                          {purchase.product_name}
+                        </h3>
+                        <div className="flex items-center gap-2 sm:gap-3 text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex-wrap">
+                          <span className={`flex items-center gap-1 font-medium ${statusMeta.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`} />
+                            {statusMeta.label}
+                          </span>
+                          {purchase.credentials?.variation_name && (
+                            <span className="hidden sm:flex items-center gap-0.5 text-purple-500">
+                              <Layers className="w-3 h-3" />
+                              {purchase.credentials.variation_name}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-0.5">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(purchase.purchase_date).toLocaleDateString(lang === 'pt' ? 'pt-BR' : lang === 'en' ? 'en-US' : 'es-ES', { day: '2-digit', month: 'short' })}
+                          </span>
+                          {!cancelled && !disputed && (
+                            <span className={`flex items-center gap-0.5 ${expiryStatus.textColor}`}>
+                              <Clock className="w-3 h-3" />
+                              {expiryStatus.label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
-                    <button
-                      onClick={() => handleHelpClick(purchase)}
-                      className={`p-2 rounded-lg transition-colors relative ${
-                        helpStatus?.escalated
-                          ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                          : helpStatus?.status === 'resolved'
-                          ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
-                          : helpStatus
-                          ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
-                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                      }`}
-                      title={tr('Ajuda', 'Help', 'Ayuda')}
-                    >
-                      <HelpCircle className="w-4 h-4" />
-                      {helpStatus && !helpStatus.escalated && helpStatus.status !== 'resolved' && (
-                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-                      )}
-                    </button>
+                    {/* Price + Actions */}
+                    <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-gray-700">
+                      {/* Price */}
+                      <p className="text-sm font-bold text-gray-900 dark:text-white sm:text-right">
+                        {formatPrice(purchase.purchase_price)}
+                      </p>
 
-                    <button
-                      onClick={() => handleViewDetails(purchase)}
-                      className={`flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-                        cancelled
-                          ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
-                          : expired
-                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-                          : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200'
-                      }`}
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">{tr('Detalhes', 'Details', 'Detalles')}</span>
-                    </button>
+                      {/* Actions */}
+                      <div className="flex items-center gap-1.5">
+                        {!cancelled && !expired && (
+                          <button
+                            onClick={() => handleRateProduct(purchase)}
+                            disabled={hasRating}
+                            className={`p-2 rounded-lg transition-colors ${
+                              hasRating
+                                ? 'text-amber-400 cursor-default'
+                                : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                            }`}
+                            title={hasRating ? tr('Avaliado', 'Rated', 'Calificado') : tr('Avaliar', 'Rate', 'Calificar')}
+                          >
+                            <Star className={`w-4 h-4 ${hasRating ? 'fill-current' : ''}`} />
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleHelpClick(purchase)}
+                          className={`p-2 rounded-lg transition-colors relative ${
+                            helpStatus?.escalated
+                              ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
+                              : helpStatus?.status === 'resolved'
+                              ? 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
+                              : helpStatus
+                              ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                              : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                          title={tr('Ajuda', 'Help', 'Ayuda')}
+                        >
+                          <HelpCircle className="w-4 h-4" />
+                          {helpStatus && !helpStatus.escalated && helpStatus.status !== 'resolved' && (
+                            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleViewDetails(purchase)}
+                          className={`flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                            cancelled
+                              ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
+                              : expired
+                              ? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                              : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-700 dark:hover:bg-gray-200'
+                          }`}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">{tr('Detalhes', 'Details', 'Detalles')}</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               );
@@ -608,16 +541,6 @@ export function UserPurchases() {
         />
       )}
 
-      {showRenewalModal && selectedPurchaseForRenewal && (
-        <RenewalConfirmationModal
-          isOpen={showRenewalModal}
-          onClose={() => { setShowRenewalModal(false); setSelectedPurchaseForRenewal(null); }}
-          purchase={selectedPurchaseForRenewal}
-          onConfirm={() => processRenewal(selectedPurchaseForRenewal)}
-          isProcessing={renewalLoading === selectedPurchaseForRenewal.id}
-        />
-      )}
-
       <PurchaseHelpModal
         isOpen={showHelpModal}
         onClose={() => {
@@ -633,102 +556,4 @@ export function UserPurchases() {
   );
 }
 
-interface RenewalConfirmationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  purchase: UserPurchase;
-  onConfirm: () => void;
-  isProcessing: boolean;
-}
 
-function RenewalConfirmationModal({ isOpen, onClose, purchase, onConfirm, isProcessing }: RenewalConfirmationModalProps) {
-  const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
-  const lang = t.language;
-  const tr = (pt: string, en: string, es: string) => lang === 'pt' ? pt : lang === 'en' ? en : es;
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-5 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                <RefreshCw className="w-5 h-5" />
-              </div>
-              <h2 className="text-lg font-bold">
-                {tr('Renovar Compra', 'Renew Purchase', 'Renovar Compra')}
-              </h2>
-            </div>
-            <button onClick={onClose} disabled={isProcessing} className="p-1 rounded-lg hover:bg-white/20 transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-5 space-y-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              {tr(
-                `Deseja renovar sua compra de ${purchase.product_name}?`,
-                `Do you want to renew your purchase of ${purchase.product_name}?`,
-                `¿Desea renovar su compra de ${purchase.product_name}?`
-              )}
-            </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-              {tr(
-                `Será cobrado ${formatPrice(purchase.purchase_price)} por mais 30 dias.`,
-                `You will be charged ${formatPrice(purchase.purchase_price)} for 30 more days.`,
-                `Se le cobrará ${formatPrice(purchase.purchase_price)} por 30 días más.`
-              )}
-            </p>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">{tr('Produto:', 'Product:', 'Producto:')}</span>
-              <span className="font-medium text-gray-900 dark:text-white truncate ml-2">{purchase.product_name}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">{tr('Duração:', 'Duration:', 'Duración:')}</span>
-              <span className="font-medium text-gray-900 dark:text-white">{tr('30 dias', '30 days', '30 días')}</span>
-            </div>
-            <div className="flex justify-between text-sm pt-2 border-t border-gray-200 dark:border-gray-600">
-              <span className="text-gray-500 dark:text-gray-400">{tr('Valor:', 'Amount:', 'Valor:')}</span>
-              <span className="font-bold text-gray-900 dark:text-white">{formatPrice(purchase.purchase_price)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-3 p-5 pt-0">
-          <button
-            onClick={onClose}
-            disabled={isProcessing}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium disabled:opacity-50"
-          >
-            {tr('Não', 'No', 'No')}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isProcessing}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-medium text-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {tr('Renovando...', 'Renewing...', 'Renovando...')}
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-4 h-4" />
-                {tr('Sim, Renovar', 'Yes, Renew', 'Sí, Renovar')}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
