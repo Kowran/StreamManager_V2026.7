@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle,
+import { Star, Package, Calendar, ShoppingBag, TrendingUp, Award, CheckCircle,
   ArrowLeft, MessageCircle, User, Store, Ban, MapPin, Clock, Zap,
-  Truck, ChevronRight, Sparkles, BadgeCheck, ThumbsUp,
-} from 'lucide-react';
+  Truck, ChevronRight, Sparkles, BadgeCheck, ThumbsUp } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { supabase } from '../lib/supabase';
 import { fetchSellerBySlug, fetchSellerInfo } from '../lib/sellerInfo';
 import { useLanguage } from './LanguageProvider';
@@ -710,19 +709,8 @@ export function PublicSellerProfilePage({ sellerSlug, onBack, onProductClick }: 
                           )}
 
                           {/* Image */}
-                          <div className="relative aspect-square overflow-hidden bg-gray-100 dark:bg-gray-800">
-                            {product.image_url ? (
-                              <img
-                                src={product.image_url}
-                                alt={product.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="h-8 w-8 text-gray-300 dark:text-gray-600" />
-                              </div>
-                            )}
+                          <div className="relative">
+                            <ProductImage src={product.image_url} alt={product.name} hoverScale rounded="rounded-none" className="rounded-none ring-0" />
                             {hasPromo && (
                               <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white">
                                 {t.language === 'pt' ? 'Promo' : 'Promo'}

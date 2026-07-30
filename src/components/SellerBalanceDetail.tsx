@@ -4,6 +4,7 @@ import {
   ChevronDown, ChevronUp, Package, Calendar, DollarSign, Snowflake,
   Unlock, Lock, ArrowUpCircle, Eye, X
 } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
@@ -283,7 +284,9 @@ export function SellerBalanceDetail() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {c.product_image ? (
-                          <img src={c.product_image} alt={c.product_name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border border-gray-200 dark:border-gray-600" />
+                          <div className="w-8 h-8 flex-shrink-0">
+                            <ProductImage src={c.product_image} alt={c.product_name} rounded="rounded-lg" />
+                          </div>
                         ) : (
                           <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                             <Package className="h-4 w-4 text-blue-500 dark:text-blue-400" />
@@ -324,7 +327,9 @@ export function SellerBalanceDetail() {
               <div key={c.id} className="p-4">
                 <div className="flex items-start gap-3 mb-3">
                   {c.product_image ? (
-                    <img src={c.product_image} alt={c.product_name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-gray-200 dark:border-gray-600" />
+                    <div className="w-10 h-10 flex-shrink-0">
+                      <ProductImage src={c.product_image} alt={c.product_name} rounded="rounded-lg" />
+                    </div>
                   ) : (
                     <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                       <Package className="h-5 w-5 text-blue-500 dark:text-blue-400" />
@@ -451,7 +456,9 @@ export function SellerBalanceDetail() {
                         {w.commissions.map(c => (
                           <div key={c.id} className="px-3 py-2.5 flex items-center gap-3">
                             {c.product_image ? (
-                              <img src={c.product_image} alt="" className="w-7 h-7 rounded object-cover flex-shrink-0" />
+                              <div className="w-7 h-7 flex-shrink-0">
+                                <ProductImage src={c.product_image} alt="" rounded="rounded" />
+                              </div>
                             ) : (
                               <div className="w-7 h-7 rounded bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                                 <Package className="h-3.5 w-3.5 text-blue-400" />

@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { AdminSaleCancellationModal } from './AdminSaleCancellationModal';
+import ProductImage from './ProductImage';
 
 interface Sale {
   id: string;
@@ -702,13 +703,8 @@ export function AdminSalesManager() {
                   <tr key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                     <td className="px-5 py-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-12 h-12 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                          {sale.store_products?.image_url ? (
-                            <img src={sale.store_products.image_url} alt={sale.product_name} className="w-full h-full object-cover" loading="lazy"
-                              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-5 w-5 text-gray-400" /></div>
-                          )}
+                        <div className="flex-shrink-0 w-12 h-12">
+                          <ProductImage src={sale.store_products?.image_url} alt={sale.product_name} rounded="rounded-xl" />
                         </div>
                         <div className="min-w-0 max-w-[220px]">
                           <div className="flex items-center gap-1.5">
@@ -821,13 +817,8 @@ export function AdminSalesManager() {
           return (
             <div key={sale.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3 mb-3">
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                  {sale.store_products?.image_url ? (
-                    <img src={sale.store_products.image_url} alt={sale.product_name} className="w-full h-full object-cover" loading="lazy"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center"><ImageIcon className="h-6 w-6 text-gray-400" /></div>
-                  )}
+                <div className="flex-shrink-0 w-14 h-14">
+                  <ProductImage src={sale.store_products?.image_url} alt={sale.product_name} rounded="rounded-xl" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -996,13 +987,8 @@ export function AdminSalesManager() {
             <div className="p-5 space-y-5">
               {/* Product Hero */}
               <div className="flex items-start gap-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700/50 dark:to-gray-700/30 rounded-2xl p-4">
-                <div className="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
-                  {selectedSale.store_products?.image_url ? (
-                    <img src={selectedSale.store_products.image_url} alt={selectedSale.product_name} className="w-full h-full object-cover"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Package className="h-8 w-8 text-gray-400" /></div>
-                  )}
+                <div className="flex-shrink-0 w-20 h-20">
+                  <ProductImage src={selectedSale.store_products?.image_url} alt={selectedSale.product_name} rounded="rounded-xl" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-base font-bold text-gray-900 dark:text-white">{selectedSale.product_name}</h4>

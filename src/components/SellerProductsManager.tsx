@@ -7,6 +7,7 @@ import {
   ShieldCheck, Star, Sparkles
 } from 'lucide-react';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES, ProductVariation } from '../lib/supabase';
+import ProductImage from './ProductImage';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
@@ -291,14 +292,8 @@ export function SellerProductsManager() {
               >
                 {/* Product info with image */}
                 <div className="col-span-4 flex items-center gap-4">
-                  <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600 flex items-center justify-center">
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="max-w-full max-h-full object-contain" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="h-5 w-5 text-gray-400" />
-                      </div>
-                    )}
+                  <div className="w-14 h-14 flex-shrink-0">
+                    <ProductImage src={product.image_url} alt={product.name} rounded="rounded-xl" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate flex items-center gap-1.5">
@@ -412,14 +407,8 @@ export function SellerProductsManager() {
         {filteredProducts.map((product) => (
           <div key={product.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex items-start gap-3">
-              <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0 ring-1 ring-gray-200 dark:ring-gray-600 flex items-center justify-center">
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="max-w-full max-h-full object-contain" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-                )}
+              <div className="w-16 h-16 flex-shrink-0">
+                <ProductImage src={product.image_url} alt={product.name} rounded="rounded-xl" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate flex items-center gap-1.5">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Trash2, Minus, Plus, ShoppingCart, ArrowRight } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { useCart } from './CartProvider';
 import { useLanguage } from './LanguageProvider';
 
@@ -59,14 +60,8 @@ export function CartDrawer({ onCheckout }: { onCheckout: () => void }) {
                   key={`${item.productId}-${item.variationId || ''}`}
                   className="flex gap-3 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30"
                 >
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ShoppingCart className="h-6 w-6 text-gray-400" />
-                      </div>
-                    )}
+                  <div className="w-16 h-16 flex-shrink-0">
+                    <ProductImage src={item.image_url} alt={item.name} rounded="rounded-lg" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>

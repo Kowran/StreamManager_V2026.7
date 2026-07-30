@@ -6,6 +6,7 @@ import {
   Wallet, Check, X, Clock, Download, Search, ChevronLeft, ChevronRight,
   DollarSign, ChevronDown, ChevronUp, Package, Eye
 } from 'lucide-react';
+import ProductImage from './ProductImage';
 
 interface WithdrawalRequest {
   id: string;
@@ -397,7 +398,9 @@ export function AdminWithdrawalManager() {
                                   {commissions.map(c => (
                                     <div key={c.id} className="px-3 py-2.5 flex items-center gap-3">
                                       {c.product_image ? (
-                                        <img src={c.product_image} alt="" className="w-8 h-8 rounded-lg object-cover flex-shrink-0" />
+                                        <div className="w-8 h-8 flex-shrink-0">
+                                          <ProductImage src={c.product_image} alt="" rounded="rounded-lg" />
+                                        </div>
                                       ) : (
                                         <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
                                           <Package className="h-4 w-4 text-blue-400" />

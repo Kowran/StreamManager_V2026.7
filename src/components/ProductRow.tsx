@@ -18,6 +18,7 @@ interface ProductWithSellerInfo extends StoreProduct {
 }
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
+import ProductImage from './ProductImage';
 
 interface ProductRowProps {
   title: string;
@@ -117,19 +118,14 @@ export function ProductRow({ title, subtitle, products, onProductClick, emptyMes
               className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1.5 flex-shrink-0 w-[200px] sm:w-[250px] snap-start"
             >
               {/* Image */}
-              <div className="relative aspect-[16/11] overflow-hidden bg-gray-100 dark:bg-gray-700">
-                {product.image_url ? (
-                  <img
-                    src={product.image_url}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
-                    <Package className="w-10 h-10 text-gray-300 dark:text-gray-600" />
-                  </div>
-                )}
+              <div className="relative">
+                <ProductImage
+                  src={product.image_url}
+                  alt={product.name}
+                  hoverScale
+                  rounded="rounded-none"
+                  className="rounded-none ring-0"
+                />
                 {/* Promo badge stays on image */}
                 {hasPromo && discountPct > 0 && (
                   <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-500 text-white shadow-sm">

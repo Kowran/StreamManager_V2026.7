@@ -4,6 +4,7 @@ import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
 import { ProductRatingsDisplay } from './ProductRatingsDisplay';
+import ProductImage from './ProductImage';
 
 interface SearchResultsPageProps {
   query: string;
@@ -612,21 +613,15 @@ export function SearchResultsPage({ query, onBack, onProductClick, onViewSellerP
                 }`}
               >
                 {/* Product Image — clean, no tags */}
-                <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${
-                        !isAvailable ? 'grayscale opacity-60' : ''
-                      }`}
-                      onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                    />
-                  ) : (
-                    <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-600 ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
-                      <Package className="w-10 h-10 text-white" />
-                    </div>
-                  )}
+                <div className="relative">
+                  <ProductImage
+                    src={product.image_url}
+                    alt={product.name}
+                    hoverScale
+                    grayscale={!isAvailable}
+                    rounded="rounded-none"
+                    className="rounded-none ring-0"
+                  />
 
                   {/* Out of Stock Overlay */}
                   {!isAvailable && (

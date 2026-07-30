@@ -8,6 +8,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
+import ProductImage from './ProductImage';
 
 interface DisputeTicket {
   id: string;
@@ -515,7 +516,9 @@ export function AdminDisputeManager() {
                 </p>
                 <div className="flex items-center gap-3">
                   {selectedTicket.order.product_image && (
-                    <img src={selectedTicket.order.product_image} alt="" className="w-12 h-12 rounded-lg object-cover border border-gray-200 dark:border-gray-600" />
+                    <div className="w-12 h-12 flex-shrink-0">
+                      <ProductImage src={selectedTicket.order.product_image} alt="" rounded="rounded-lg" />
+                    </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-blue-800 dark:text-blue-200 truncate">{selectedTicket.order.product_name || '—'}</p>

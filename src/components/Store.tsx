@@ -19,6 +19,7 @@ import { ProductRatingModal } from './ProductRatingModal';
 import { SellerRequestForm } from './SellerRequestForm';
 import { SMMPanel } from './SMMPanel';
 import { ProductRow } from './ProductRow';
+import ProductImage from './ProductImage';
 import { LoginModal } from './LoginModal';
 import { BlogPreview } from './Blog';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
@@ -1871,24 +1872,15 @@ function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick
       className={`group relative rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:-translate-y-1 min-w-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-2xl ${!isAvailable ? 'opacity-75' : ''}`}
     >
       {/* Product Image */}
-      <div className="relative aspect-video bg-gray-100 dark:bg-gray-700 overflow-hidden">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${
-              !isAvailable ? 'grayscale opacity-60' : ''
-            }`}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.opacity = '0';
-            }}
-          />
-        ) : (
-          <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-600 ${!isAvailable ? 'grayscale opacity-60' : ''}`}>
-            <Package className="w-10 h-10 text-white" />
-          </div>
-        )}
+      <div className="relative">
+        <ProductImage
+          src={product.image_url}
+          alt={product.name}
+          hoverScale
+          grayscale={!isAvailable}
+          rounded="rounded-none"
+          className="rounded-none ring-0"
+        />
 
         {/* Out of Stock Overlay */}
         {!isAvailable && (
@@ -2215,23 +2207,12 @@ function ProductDetailsModal({ product, userCredit, onClose, onPurchase, purchas
 
         <div className="space-y-4 sm:space-y-6">
           {/* Product Image */}
-          <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-            ) : null}
-            <div className={`flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 ${product.image_url ? 'hidden' : ''}`}>
-              <Package className="h-16 w-16 text-white" />
-            </div>
-          </div>
+          <ProductImage
+            src={product.image_url}
+            alt={product.name}
+            rounded="rounded-lg"
+            className="rounded-lg"
+          />
 
           {/* Product Info */}
           <div>

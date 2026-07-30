@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronLeft, Search, Package, Loader, Truck, Zap } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { supabase, StoreProduct, ProductCategory } from '../lib/supabase';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
@@ -229,14 +230,8 @@ export function CategorySearchPage({ slug, onBack, onProductClick }: CategorySea
                 onClick={() => handleProductClick(product)}
                 className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1"
               >
-                <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }} />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-8 h-8 text-gray-300 dark:text-gray-600" />
-                    </div>
-                  )}
+                <div className="relative">
+                  <ProductImage src={product.image_url} alt={product.name} hoverScale rounded="rounded-none" className="rounded-none ring-0" />
                   {!available && (
                     <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/80 backdrop-blur-sm text-white">
                       {language === 'pt' ? 'Esgotado' : 'Sold Out'}

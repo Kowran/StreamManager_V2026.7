@@ -19,6 +19,7 @@ import { ProductRatingModal } from './ProductRatingModal';
 import { buildProductUrl } from '../lib/productUrl';
 import { SellerReputation } from './SellerReputation';
 import { ProductQABlock } from './ProductQABlock';
+import ProductImage from './ProductImage';
 
 interface ProductWithSeller extends StoreProduct {
   seller_info?: {
@@ -538,26 +539,13 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
               <div className="lg:sticky lg:top-20 space-y-4">
                 {/* Main image card */}
                 <div className="relative group rounded-3xl overflow-hidden bg-white dark:bg-gray-900 shadow-xl shadow-gray-200/50 dark:shadow-black/30 border border-gray-200 dark:border-gray-800">
-                  <div className="relative aspect-[4/3] sm:aspect-[16/10] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
-                    {!imageLoaded && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Loader className="h-8 w-8 animate-spin text-gray-400" />
-                      </div>
-                    )}
-                    {product.image_url ? (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        onLoad={() => setImageLoaded(true)}
-                        className={`w-full h-full object-contain sm:object-cover transition-transform duration-700 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; setImageLoaded(true); }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 via-blue-600 to-cyan-500">
-                        <Package className="h-20 w-20 text-white/40" />
-                      </div>
-                    )}
-                  </div>
+                  <ProductImage
+                    src={product.image_url}
+                    alt={product.name}
+                    rounded="rounded-none"
+                    className="rounded-none ring-0"
+                    imgClassName="group-hover:scale-105 transition-transform duration-700"
+                  />
 
                   {/* Floating badges */}
                   <div className="absolute top-4 left-4 flex flex-col gap-2">
@@ -1137,17 +1125,14 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
                       onClick={() => navigateToProduct(rp.id, rp.name)}
                       className="group relative bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-800 hover:-translate-y-1"
                     >
-                      <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-800">
-                        {rp.image_url ? (
-                          <img src={rp.image_url} alt={rp.name}
-                            className="w-full h-full object-contain sm:object-cover group-hover:scale-110 transition-transform duration-500"
-                            onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-cyan-500">
-                            <Package className="w-8 h-8 text-white/40" />
-                          </div>
-                        )}
+                      <div className="relative">
+                        <ProductImage
+                          src={rp.image_url}
+                          alt={rp.name}
+                          hoverScale
+                          rounded="rounded-none"
+                          className="rounded-none ring-0"
+                        />
                         {!rpAvail && (
                           <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/90 backdrop-blur-sm text-white">
                             {tr.soldOut}

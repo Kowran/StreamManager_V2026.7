@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, X, ShoppingCart, Check, Tag, Loader, Percent, DollarSign, Mail, Lock, FileText, Zap, ChevronDown, Minus, Plus, CreditCard } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { useLanguage } from './LanguageProvider';
 import { useCurrency } from './CurrencyProvider';
 import { supabase, ProductVariation } from '../lib/supabase';
@@ -262,18 +263,9 @@ export function PurchaseConfirmModal({
           </div>
 
           <div className="space-y-4 mb-6">
-            {product.image_url && (
-              <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
+            <div className="mb-6">
+              <ProductImage src={product.image_url} alt={product.name} rounded="rounded-lg" />
+            </div>
 
             {/* Account Recharge Form */}
             {isAccountRecharge && (

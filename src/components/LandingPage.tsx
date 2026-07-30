@@ -10,6 +10,7 @@ import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
 import { ProductRow } from './ProductRow';
 import { Shuffle, TrendingUp, Eye } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { buildProductUrl } from '../lib/productUrl';
 
@@ -770,18 +771,8 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                       return (
                         <div key={product.id} onClick={() => handleProductClick(product)}
                           className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1">
-                          <div className="relative aspect-video overflow-hidden bg-gray-100 dark:bg-gray-700">
-                            {product.image_url ? (
-                              <img src={product.image_url} alt={product.name}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                loading="lazy"
-                                onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0'; }}
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-10 h-10 text-gray-300 dark:text-gray-600" />
-                              </div>
-                            )}
+                          <div className="relative">
+                            <ProductImage src={product.image_url} alt={product.name} hoverScale rounded="rounded-none" className="rounded-none ring-0" />
                             <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">{product.category}</span>
                             {!available && (
                               <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/80 backdrop-blur-sm text-white">

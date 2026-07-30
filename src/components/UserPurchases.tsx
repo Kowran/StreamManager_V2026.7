@@ -379,19 +379,13 @@ function handleViewDetails(purchase: UserPurchase) {
                     {/* Thumbnail + Info */}
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {/* Thumbnail */}
-                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-700">
-                        {purchase.store_products?.image_url ? (
-                          <img
-                            src={purchase.store_products.image_url}
-                            alt={purchase.product_name}
-                            className={`w-full h-full object-cover ${cancelled || expired ? 'grayscale opacity-50' : ''}`}
-                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600">
-                            <Package className="w-5 h-5 text-white/40" />
-                          </div>
-                        )}
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
+                        <ProductImage
+                          src={purchase.store_products?.image_url}
+                          alt={purchase.product_name}
+                          rounded="rounded-lg"
+                          grayscale={cancelled || expired}
+                        />
                       </div>
 
                       {/* Info */}

@@ -3,6 +3,7 @@ import {
   X, Star, Package, ShoppingBag, TrendingUp,
   Award, CheckCircle, User, MessageCircle, Calendar, Shield, Ban
 } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 import { useAuth } from './AuthProvider';
@@ -442,15 +443,7 @@ export function PublicSellerProfile({ sellerId, onClose, onProductClick }: Publi
                       onClick={() => { onProductClick?.(product); onClose(); }}
                       className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all cursor-pointer group"
                     >
-                      <div className="aspect-video bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                        {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${themeColor}55, ${themeColor}aa)` }}>
-                            <Package className="h-10 w-10 text-white" />
-                          </div>
-                        )}
-                      </div>
+                      <ProductImage src={product.image_url} alt={product.name} rounded="rounded-none" className="rounded-none ring-0" imgClassName="group-hover:scale-105 transition-transform duration-300" />
                       <div className="p-3">
                         <h3 className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1">{product.name}</h3>
                         {product.description && (

@@ -10,6 +10,7 @@ import { useAuth } from './AuthProvider';
 import { useCurrency } from './CurrencyProvider';
 import { useLanguage } from './LanguageProvider';
 import { navigateToUserProfile } from '../lib/userProfile';
+import ProductImage from './ProductImage';
 
 interface SellerOrder {
   id: string;
@@ -583,13 +584,9 @@ export function SellerOrdersManager() {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
-                      {order.product_image ? (
-                        <img src={order.product_image} alt={order.product_name} className="w-9 h-9 rounded-lg object-contain flex-shrink-0 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50" />
-                      ) : (
-                        <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
-                          <Package className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                        </div>
-                      )}
+                      <div className="w-9 h-9 flex-shrink-0">
+                        <ProductImage src={order.product_image} alt={order.product_name} rounded="rounded-lg" />
+                      </div>
                       <div className="min-w-0">
                         <div className="font-medium text-gray-900 dark:text-white truncate max-w-[180px]">{order.product_name}</div>
                         {order.variation_name && (
@@ -657,13 +654,9 @@ export function SellerOrdersManager() {
               {/* Card Body */}
               <div className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
-                  {order.product_image ? (
-                    <img src={order.product_image} alt={order.product_name} className="w-11 h-11 rounded-lg object-contain flex-shrink-0 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50" />
-                  ) : (
-                    <div className="w-11 h-11 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
-                      <Package className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-                    </div>
-                  )}
+                  <div className="w-11 h-11 flex-shrink-0">
+                    <ProductImage src={order.product_image} alt={order.product_name} rounded="rounded-lg" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">{order.product_name}</h3>
                     {order.variation_name && (
@@ -746,7 +739,9 @@ export function SellerOrdersManager() {
 
               {selectedOrder.product_image && (
                 <div className="flex items-center gap-3 py-2">
-                  <img src={selectedOrder.product_image} alt={selectedOrder.product_name} className="w-14 h-14 rounded-xl object-contain border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50" />
+                  <div className="w-14 h-14 flex-shrink-0">
+                    <ProductImage src={selectedOrder.product_image} alt={selectedOrder.product_name} rounded="rounded-xl" />
+                  </div>
                   <div>
                     <span className="text-sm text-gray-500 dark:text-gray-400">{lbl('Produto', 'Product', 'Producto')}</span>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedOrder.product_name}</p>

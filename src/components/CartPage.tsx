@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Minus, Plus, ShoppingCart, ArrowLeft, Loader, CheckCircle2, AlertCircle, ShieldCheck, Headphones as HeadphonesIcon, Lock, Mail, Zap, FileText, X } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { useCart } from './CartProvider';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -192,14 +193,8 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
                 return (
                   <div key={key} className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ShoppingCart className="h-5 w-5 text-gray-400" />
-                          </div>
-                        )}
+                      <div className="w-10 h-10 flex-shrink-0">
+                        <ProductImage src={item.image_url} alt={item.name} rounded="rounded-lg" />
                       </div>
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>
                     </div>
@@ -336,14 +331,8 @@ export function CartPage({ onBack, onSuccess }: CartPageProps) {
                 key={`${item.productId}-${item.variationId || ''}`}
                 className="flex gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
               >
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-                  {item.image_url ? (
-                    <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ShoppingCart className="h-8 w-8 text-gray-400" />
-                    </div>
-                  )}
+                <div className="w-20 h-20 flex-shrink-0">
+                  <ProductImage src={item.image_url} alt={item.name} rounded="rounded-xl" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>

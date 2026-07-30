@@ -3,6 +3,7 @@ import {
   ArrowLeft, CreditCard, Check, Lock, Shield, Loader, AlertCircle,
   CheckCircle, Package, ChevronRight, FileText, Wallet
 } from 'lucide-react';
+import ProductImage from './ProductImage';
 import { supabase, StoreProduct, ProductVariation } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
@@ -298,14 +299,8 @@ export function CheckoutPage({ productId, variationId, quantity = 1, onBack, onS
               {t.language === 'pt' ? 'Produto' : t.language === 'en' ? 'Product' : 'Producto'}
             </h2>
             <div className="flex gap-4">
-              <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-                {product?.image_url ? (
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Package className="h-8 w-8 text-gray-400" />
-                  </div>
-                )}
+              <div className="w-20 h-20 flex-shrink-0">
+                <ProductImage src={product?.image_url} alt={product?.name || ''} rounded="rounded-lg" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 dark:text-white truncate">{product?.name}</h3>
