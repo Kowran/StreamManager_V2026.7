@@ -821,19 +821,6 @@ function AppContent() {
         );
       case 'profile':
         return <UserProfile onNavigate={navigateWithRecharge} />;
-      case 'user-profile':
-        if (!profileIdentifier) return <Store onNavigate={navigateWithRecharge} />;
-        return (
-          <PublicProfilePage
-            identifier={profileIdentifier}
-            onBack={() => {
-              setActiveTab('store');
-              setProfileIdentifier(null);
-              window.history.pushState(null, '', '/');
-            }}
-            onNavigate={navigateWithRecharge}
-          />
-        );
       case 'admin-payments':
         return (
           <AdminGuard page="admin-payments">
@@ -964,23 +951,6 @@ function AppContent() {
             onBack={() => {
               setActiveTab('store');
               window.history.pushState(null, '', '/');
-            }}
-          />
-        );
-      case 'seller-profile':
-        if (!sellerSlug) return <Store onNavigate={navigateWithRecharge} />;
-        return (
-          <PublicSellerProfilePage
-            sellerSlug={sellerSlug}
-            onBack={() => {
-              setActiveTab('store');
-              setSellerSlug(null);
-              window.history.pushState(null, '', '/');
-            }}
-            onProductClick={(product: any) => {
-              setProductDetailId(product.id);
-              setActiveTab('product-detail');
-              window.history.pushState(null, '', `/product/${product.id}`);
             }}
           />
         );
@@ -1364,6 +1334,37 @@ function AppContent() {
         </div>
       )}
 
+      {activeTab === 'seller-profile' && sellerSlug ? (
+        <div className="flex-1 w-full min-w-0">
+          <PublicSellerProfilePage
+            sellerSlug={sellerSlug}
+            onBack={() => {
+              setActiveTab('store');
+              setSellerSlug(null);
+              window.history.pushState(null, '', '/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onProductClick={(product: any) => {
+              setProductDetailId(product.id);
+              setActiveTab('product-detail');
+              window.history.pushState(null, '', `/product/${product.id}`);
+            }}
+          />
+        </div>
+      ) : activeTab === 'user-profile' && profileIdentifier ? (
+        <div className="flex-1 w-full min-w-0">
+          <PublicProfilePage
+            identifier={profileIdentifier}
+            onBack={() => {
+              setActiveTab('store');
+              setProfileIdentifier(null);
+              window.history.pushState(null, '', '/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onNavigate={navigateWithRecharge}
+          />
+        </div>
+      ) : (
       <div className="flex-1 w-full mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6 min-w-0">
         {activeTab === 'product-detail' && productDetailId ? (
           <ProductDetailPage
@@ -1427,6 +1428,7 @@ function AppContent() {
         </div>
         )}
       </div>
+      )}
 
       {/* Footer */}
       <Footer

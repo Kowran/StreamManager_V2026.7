@@ -509,7 +509,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
       </button>
 
       {/* Profile Card - full width, edge-to-edge */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 
         {/* Cover image area */}
         <div className="relative h-48 sm:h-64 lg:h-72 group">
