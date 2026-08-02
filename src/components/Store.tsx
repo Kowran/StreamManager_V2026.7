@@ -112,6 +112,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [sectionSpacing, setSectionSpacing] = useState(40);
   const [recentRatings, setRecentRatings] = useState<any[]>([]);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [forceShowGrid, setForceShowGrid] = useState(false);
   const categoriesScrollRef = useRef<HTMLDivElement>(null);
   const ratingsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -764,7 +765,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
     return getRecentlyViewedProducts(products).slice(0, 20);
   }, [products, getRecentlyViewedProducts]);
 
-  const isFiltering = activeCategory !== 'all' || searchTerm || featuredOnly;
+  const isFiltering = activeCategory !== 'all' || searchTerm || featuredOnly || forceShowGrid;
 
   const handleProductClick = useCallback((product: StoreProduct) => {
     trackView(product);
@@ -1017,7 +1018,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
             {searchInput && (
               <button
                 type="button"
-                onClick={() => { setSearchInput(''); setSearchTerm(''); }}
+                onClick={() => { setSearchInput(''); setSearchTerm(''); setForceShowGrid(false); setCurrentPage(1); }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -1051,7 +1052,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
                   {categories.map(({ key, label, icon: Icon, color, count }) => (
                     <button
                       key={key}
-                      onClick={() => { setActiveCategory(key); setFeaturedOnly(false); setShowSecondaryFilters(false); }}
+                      onClick={() => { setActiveCategory(key); setFeaturedOnly(false); setShowSecondaryFilters(false); setForceShowGrid(false); setCurrentPage(1); }}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         activeCategory === key
                           ? `${color.activeBg} ${color.activeText} shadow-sm`
@@ -1155,6 +1156,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
                     setFeaturedOnly(true);
                     setActiveCategory('all');
                     setSearchTerm('');
+                    setForceShowGrid(false);
                     setCurrentPage(1);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
@@ -1193,25 +1195,25 @@ export function Store({ onNavigate }: StoreProps = {}) {
           <ProductRow
             title={t.language === 'pt' ? 'Recomendados para Você' : t.language === 'en' ? 'Recommended for You' : 'Recomendados para Ti'}
             subtitle={t.language === 'pt' ? 'Produtos selecionados aleatoriamente' : t.language === 'en' ? 'Randomly selected products' : 'Productos seleccionados al azar'}
-            products={recommendedProducts}
+            products={recommendedProducts.slice(0, 8)}
             onProductClick={handleProductClick}
             icon={<Shuffle className="w-5 h-5 text-blue-500" />}
-            onViewAll={() => { setActiveCategory('all'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            onViewAll={() => { setActiveCategory('all'); setSearchTerm(''); setFeaturedOnly(false); setForceShowGrid(true); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           />
           {bestSellers.length > 0 && (
             <ProductRow
               title={t.language === 'pt' ? 'Mais Vendidos' : t.language === 'en' ? 'Best Sellers' : 'Más Vendidos'}
               subtitle={t.language === 'pt' ? 'Os produtos mais populares' : t.language === 'en' ? 'Most popular products' : 'Los productos más populares'}
-              products={bestSellers}
+              products={bestSellers.slice(0, 8)}
               onProductClick={handleProductClick}
               icon={<TrendingUp className="w-5 h-5 text-emerald-500" />}
-              onViewAll={() => { setActiveCategory('all'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onViewAll={() => { setActiveCategory('all'); setSearchTerm(''); setFeaturedOnly(false); setForceShowGrid(true); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             />
           )}
           {recentlyViewedProducts.length > 0 && (
             <ProductRow
               title={t.language === 'pt' ? 'Vistos Recentemente' : t.language === 'en' ? 'Recently Viewed' : 'Vistos Recientemente'}
-              products={recentlyViewedProducts}
+              products={recentlyViewedProducts.slice(0, 8)}
               onProductClick={handleProductClick}
               icon={<Eye className="w-5 h-5 text-purple-500" />}
             />
@@ -1221,6 +1223,25 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
       {/* Products grid */}
       <div>
+
+      {/* forceShowGrid banner */}
+      {forceShowGrid && !featuredOnly && activeCategory === 'all' && !searchTerm && (
+        <div className="mb-4 flex items-center justify-between gap-3 p-3 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-700/50">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+              {t.language === 'pt' ? 'Todos os produtos' : t.language === 'en' ? 'All products' : 'Todos los productos'}
+            </span>
+          </div>
+          <button
+            onClick={() => { setForceShowGrid(false); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+            {t.language === 'pt' ? 'Voltar' : t.language === 'en' ? 'Back' : 'Volver'}
+          </button>
+        </div>
+      )}
 
       {/* SMM Panel - shown when Social Media category is active */}
       {activeCategory === 'smm' ? (

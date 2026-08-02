@@ -204,5 +204,3 @@ export function StandardProductCard({
     </div>
   );
 }
-
-export { StandardProductCard }
