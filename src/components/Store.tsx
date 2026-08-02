@@ -400,6 +400,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
             .sort((a, b) => (b as any)._sales - (a as any)._sales)
             .slice(0, 20);
           setBestSellers(ranked);
+        } else {
+          // Fallback: use sales_count field already on the product
+          const ranked = [...sortedProducts]
+            .filter(p => ((p as any).sales_count || 0) > 0)
+            .sort((a, b) => ((b as any).sales_count || 0) - ((a as any).sales_count || 0))
+            .slice(0, 20);
+          setBestSellers(ranked);
         }
       } catch { /* ignore */ }
 
@@ -1149,7 +1156,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 <button
                   key={cat.id}
                   onClick={() => { window.history.pushState(null, '', `/category/${cat.slug}`); window.dispatchEvent(new PopStateEvent('popstate')); }}
-                  className="group relative flex-shrink-0 w-[100px] sm:w-[120px] aspect-[3/5] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
+                  className="group relative flex-shrink-0 w-[110px] sm:w-[130px] h-[160px] sm:h-[180px] rounded-xl overflow-hidden bg-gradient-to-br from-gray-800 to-gray-900 shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200"
                 >
                   {cat.image_url ? (
                     <img src={cat.image_url} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-opacity" />
@@ -1174,54 +1181,34 @@ export function Store({ onNavigate }: StoreProps = {}) {
         <div className="mb-8">
           {/* Featured Products Section */}
           {featuredProducts.length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
+            <ProductRow
+              title={t.language === 'pt' ? 'Destaques' : t.language === 'en' ? 'Featured' : 'Destacados'}
+              products={featuredProducts.slice(0, 8)}
+              onProductClick={handleProductClick}
+              onAddToCart={handleAddToCart}
+              onViewSellerProfile={(sellerId, sellerSlug) => {
+                if (sellerSlug) {
+                  window.history.pushState(null, '', `/seller/${sellerSlug}`);
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                } else {
+                  setSelectedSellerId(sellerId);
+                  setShowSellerProfile(true);
+                }
+              }}
+              icon={
                 <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 shadow-lg shadow-amber-500/30">
-                  <Sparkles className="h-5 w-5 text-white" />
+                  <Sparkles className="h-4 w-4 text-white" />
                 </div>
-                <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 dark:from-amber-400 dark:to-yellow-400 bg-clip-text text-transparent">
-                  {t.language === 'pt' ? 'Destaques' : t.language === 'en' ? 'Featured' : 'Destacados'}
-                </h2>
-                <div className="h-px flex-1 bg-gradient-to-r from-amber-200 to-transparent dark:from-amber-700/50" />
-                <button
-                  onClick={() => {
-                    setFeaturedOnly(true);
-                    setActiveCategory('all');
-                    setSearchTerm('');
-                    setForceShowGrid(false);
-                    setCurrentPage(1);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors whitespace-nowrap"
-                >
-                  {t.language === 'pt' ? 'Ver tudo' : t.language === 'en' ? 'See all' : 'Ver todo'}
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
-                {featuredProducts.slice(0, 8).map((product) => (
-                  <StandardProductCard
-                    key={product.id}
-                    product={product}
-                    onCardClick={() => {
-                      window.history.pushState(null, '', buildProductUrl(product.name, product.id));
-                      window.dispatchEvent(new PopStateEvent('popstate'));
-                    }}
-                    onAddToCart={handleAddToCart}
-                    onPurchase={handlePurchase}
-                    onViewSellerProfile={(sellerId, sellerSlug) => {
-                      if (sellerSlug) {
-                        window.history.pushState(null, '', `/seller/${sellerSlug}`);
-                        window.dispatchEvent(new PopStateEvent('popstate'));
-                      } else {
-                        setSelectedSellerId(sellerId);
-                        setShowSellerProfile(true);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+              }
+              onViewAll={() => {
+                setFeaturedOnly(true);
+                setActiveCategory('all');
+                setSearchTerm('');
+                setForceShowGrid(false);
+                setCurrentPage(1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           )}
 
           <ProductRow
