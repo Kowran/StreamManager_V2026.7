@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, SlidersHorizontal, ChevronDown, Shuffle, Info, Wallet, Quote, Plus, Sparkles, type LucideIcon } from 'lucide-react';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, SlidersHorizontal, ChevronDown, Shuffle, Info, Wallet, Quote, Plus, Sparkles, Flame, Clock, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCart } from './CartProvider';
@@ -67,6 +67,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const { formatPrice } = useCurrency();
   const [products, setProducts] = useState<ProductWithSeller[]>([]);
   const [bestSellers, setBestSellers] = useState<ProductWithSeller[]>([]);
+  const [bestSellersToday, setBestSellersToday] = useState<ProductWithSeller[]>([]);
   const [userCredit, setUserCredit] = useState<UserCredit | null>(null);
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -399,6 +400,30 @@ export function Store({ onNavigate }: StoreProps = {}) {
             .sort((a, b) => (b as any)._sales - (a as any)._sales)
             .slice(0, 20);
           setBestSellers(ranked);
+        }
+      } catch { /* ignore */ }
+
+      // Load best sellers today (orders in the last 24 hours)
+      try {
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: todayOrders } = await supabase
+          .from('store_orders')
+          .select('product_id, created_at')
+          .in('status', ['delivered', 'paid', 'completed'])
+          .gte('created_at', oneDayAgo);
+        if (todayOrders && todayOrders.length > 0) {
+          const todayCounts: Record<string, number> = {};
+          todayOrders.forEach(o => {
+            if (o.product_id) todayCounts[o.product_id] = (todayCounts[o.product_id] || 0) + 1;
+          });
+          const rankedToday = sortedProducts
+          .map(p => ({ ...p, _salesToday: todayCounts[p.id] || 0 }))
+          .filter(p => (p as any)._salesToday > 0)
+          .sort((a, b) => (b as any)._salesToday - (a as any)._salesToday)
+          .slice(0, 20);
+          setBestSellersToday(rankedToday);
+        } else {
+          setBestSellersToday([]);
         }
       } catch { /* ignore */ }
     } catch (error) {
@@ -737,6 +762,13 @@ export function Store({ onNavigate }: StoreProps = {}) {
     const matchesFeatured = !featuredOnly || product.is_featured;
     return matchesSearch && matchesCategory && matchesFeatured;
   });
+
+  // Recently added products (sorted by creation date)
+  const recentlyAddedProducts = useMemo(() => {
+    return [...products]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 20);
+  }, [products]);
 
   // Recommended products (shuffled random)
   const recommendedProducts = useMemo(() => {
@@ -1113,7 +1145,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               </>
             )}
             <div ref={categoriesScrollRef} className="flex gap-3 overflow-x-auto scroll-smooth scrollbar-hide pb-2">
-              {productCategories.map(cat => (
+              {productCategories.slice(0, 8).map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => { window.history.pushState(null, '', `/category/${cat.slug}`); window.dispatchEvent(new PopStateEvent('popstate')); }}
@@ -1200,6 +1232,16 @@ export function Store({ onNavigate }: StoreProps = {}) {
             icon={<Shuffle className="w-5 h-5 text-blue-500" />}
             onViewAll={() => { setActiveCategory('all'); setSearchTerm(''); setFeaturedOnly(false); setForceShowGrid(true); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           />
+          {bestSellersToday.length > 0 && (
+            <ProductRow
+              title={t.language === 'pt' ? 'Mais Vendidos do Dia' : t.language === 'en' ? 'Today\'s Best Sellers' : 'Más Vendidos del Día'}
+              subtitle={t.language === 'pt' ? 'Os produtos mais vendidos nas últimas 24 horas' : t.language === 'en' ? 'Most sold products in the last 24 hours' : 'Los productos más vendidos en las últimas 24 horas'}
+              products={bestSellersToday.slice(0, 8)}
+              onProductClick={handleProductClick}
+              icon={<Flame className="w-5 h-5 text-orange-500" />}
+              onViewAll={() => { setActiveCategory('all'); setSearchTerm(''); setFeaturedOnly(false); setForceShowGrid(true); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            />
+          )}
           {bestSellers.length > 0 && (
             <ProductRow
               title={t.language === 'pt' ? 'Mais Vendidos' : t.language === 'en' ? 'Best Sellers' : 'Más Vendidos'}
@@ -1210,6 +1252,14 @@ export function Store({ onNavigate }: StoreProps = {}) {
               onViewAll={() => { setActiveCategory('all'); setSearchTerm(''); setFeaturedOnly(false); setForceShowGrid(true); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             />
           )}
+          <ProductRow
+            title={t.language === 'pt' ? 'Adicionados Recentemente' : t.language === 'en' ? 'Recently Added' : 'Añadidos Recientemente'}
+            subtitle={t.language === 'pt' ? 'Os produtos mais novos da loja' : t.language === 'en' ? 'The newest products in the store' : 'Los productos más nuevos de la tienda'}
+            products={recentlyAddedProducts.slice(0, 8)}
+            onProductClick={handleProductClick}
+            icon={<Clock className="w-5 h-5 text-sky-500" />}
+            onViewAll={() => { setActiveCategory('all'); setSearchTerm(''); setFeaturedOnly(false); setForceShowGrid(true); setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          />
           {recentlyViewedProducts.length > 0 && (
             <ProductRow
               title={t.language === 'pt' ? 'Vistos Recentemente' : t.language === 'en' ? 'Recently Viewed' : 'Vistos Recientemente'}
