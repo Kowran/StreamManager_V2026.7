@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Package, UserCheck, Search, LayoutGrid, Gamepad2, Gift, Headphones, Smartphone, Server, Zap, Star, Tag, Store, Coins, type LucideIcon } from 'lucide-react';
+import { CreditCard, ArrowRight, CheckCircle, Globe, MessageCircle, Mail, Phone, MapPin, LogIn, Sun, Moon, Menu, X, ChevronLeft, ChevronRight, ChevronDown, Package, UserCheck, Search, LayoutGrid, Gamepad2, Gift, Headphones, Smartphone, Server, Zap, Tag, Store, Coins, type LucideIcon } from 'lucide-react';
 import { useLanguage } from './LanguageProvider';
-import { useCurrency } from './CurrencyProvider';
 import { LanguageSelector } from './LanguageSelector';
 import { useTheme } from './ThemeProvider';
 import { supabase, StoreProduct, PrimaryCategory, PRIMARY_CATEGORIES } from '../lib/supabase';
@@ -10,7 +9,7 @@ import { LoginModal } from './LoginModal';
 import { Footer } from './Footer';
 import { ProductRow } from './ProductRow';
 import { Shuffle, TrendingUp, Eye } from 'lucide-react';
-import ProductImage from './ProductImage';
+import { StandardProductCard } from './StandardProductCard';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { buildProductUrl } from '../lib/productUrl';
 
@@ -88,7 +87,6 @@ interface StoreProduct {
 
 export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPageProps) {
   const { t, language } = useLanguage();
-  const { formatPrice } = useCurrency();
   // Rendered before rest of component when a product is selected
   // (see early return below)
   const { theme, toggleTheme } = useTheme();
@@ -351,6 +349,36 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
         average_rating: ratingMap[p.id]?.avg || 0,
         rating_count: ratingMap[p.id]?.count || 0,
       }));
+
+      // Load variation data for all products
+      try {
+        const productIds = enriched.map(p => p.id);
+        if (productIds.length > 0) {
+          const { data: variations } = await supabase
+            .from('product_variations')
+            .select('product_id, price_usdt, active')
+            .eq('active', true)
+            .in('product_id', productIds);
+
+          if (variations && variations.length > 0) {
+            const variationMap: Record<string, { has: boolean; minPrice: number }> = {};
+            for (const v of variations) {
+              if (!variationMap[v.product_id]) {
+                variationMap[v.product_id] = { has: true, minPrice: Number(v.price_usdt) };
+              } else {
+                variationMap[v.product_id].minPrice = Math.min(variationMap[v.product_id].minPrice, Number(v.price_usdt));
+              }
+            }
+            enriched.forEach(p => {
+              const v = variationMap[p.id];
+              if (v) {
+                (p as any).has_variations = true;
+                (p as any).min_variation_price = v.minPrice;
+              }
+            });
+          }
+        }
+      } catch { /* ignore */ }
 
       const sorted = enriched.sort((a, b) => {
         const aAvail = a.manual_delivery || a.stock_quantity > 0;
@@ -766,78 +794,12 @@ export function LandingPage({ onGetStarted, onSellerRecruitment }: LandingPagePr
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
                     {filtered.map(product => {
-                      const available = product.manual_delivery || product.stock_quantity > 0;
-                      const hasPromo = product.promotion_active && product.promotional_price_usdt;
                       return (
-                        <div key={product.id} onClick={() => handleProductClick(product)}
-                          className="group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1">
-                          <div className="relative">
-                            <ProductImage src={product.image_url} alt={product.name} hoverScale rounded="rounded-none" className="rounded-none ring-0" />
-                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-xs font-medium bg-black/50 backdrop-blur-sm text-white capitalize">{product.category}</span>
-                            {!available && (
-                              <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-red-500/80 backdrop-blur-sm text-white">
-                                {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
-                              </span>
-                            )}
-                            {available && product.stock_quantity > 0 && product.stock_quantity <= 5 && (
-                              <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md text-xs font-medium bg-orange-500/80 backdrop-blur-sm text-white">
-                                {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-                              </span>
-                            )}
-                          </div>
-                          <div className="p-3 lg:p-4">
-                            <h3 className="font-bold text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1">{product.name}</h3>
-                            {product.description && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 line-clamp-2">{product.description}</p>
-                            )}
-                            <div className="flex items-baseline gap-2">
-                              {hasPromo ? (
-                                <>
-                                  <span className="text-lg lg:text-xl font-bold text-red-500">{formatPrice(Number(product.promotional_price_usdt))}</span>
-                                  <span className="text-xs text-gray-400 line-through">{formatPrice(Number(product.price_usdt))}</span>
-                                </>
-                              ) : (
-                                <span className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">{formatPrice(Number(product.price_usdt))}</span>
-                              )}
-                            </div>
-                            {product.seller_name && (
-                              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                                {product.seller_avatar ? (
-                                  <img src={product.seller_avatar} alt={product.seller_name} className="h-4 w-4 rounded-full object-cover flex-shrink-0" />
-                                ) : (
-                                  <div className="h-4 w-4 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
-                                    <Store className="h-2.5 w-2.5 text-white" />
-                                  </div>
-                                )}
-                                <span className="truncate">{product.seller_name}</span>
-                                {product.seller_rating_count > 0 && (
-                                  <span className="inline-flex items-center gap-0.5 ml-auto flex-shrink-0">
-                                    <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                                    <span className="font-semibold text-gray-700 dark:text-gray-300">{product.seller_rating.toFixed(1)}</span>
-                                    <span className="text-gray-400">({product.seller_rating_count})</span>
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {product.sales_count > 0 && (
-                              <div className="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" />
-                                {product.sales_count} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
-                              </div>
-                            )}
-                            {product.rating_count > 0 && product.average_rating > 0 && (
-                              <div className="mt-1 flex items-center gap-1">
-                                <div className="flex items-center gap-0.5">
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <Star key={i} className={`h-3 w-3 ${i < Math.round(product.average_rating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`} />
-                                  ))}
-                                </div>
-                                <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">{product.average_rating.toFixed(1)}</span>
-                                <span className="text-[9px] text-gray-400">({product.rating_count})</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                        <StandardProductCard
+                          key={product.id}
+                          product={product}
+                          onCardClick={handleProductClick}
+                        />
                       );
                     })}
                   </div>

@@ -20,6 +20,7 @@ import { SellerRequestForm } from './SellerRequestForm';
 import { SMMPanel } from './SMMPanel';
 import { ProductRow } from './ProductRow';
 import ProductImage from './ProductImage';
+import { StandardProductCard } from './StandardProductCard';
 import { LoginModal } from './LoginModal';
 import { BlogPreview } from './Blog';
 import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
@@ -347,6 +348,36 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
         return b.stock_quantity - a.stock_quantity;
       });
+
+      // Load variation data for all products
+      try {
+        const productIds = sortedProducts.map(p => p.id);
+        if (productIds.length > 0) {
+          const { data: variations } = await supabase
+            .from('product_variations')
+            .select('product_id, price_usdt, active')
+            .eq('active', true)
+            .in('product_id', productIds);
+
+          if (variations && variations.length > 0) {
+            const variationMap: Record<string, { has: boolean; minPrice: number }> = {};
+            for (const v of variations) {
+              if (!variationMap[v.product_id]) {
+                variationMap[v.product_id] = { has: true, minPrice: Number(v.price_usdt) };
+              } else {
+                variationMap[v.product_id].minPrice = Math.min(variationMap[v.product_id].minPrice, Number(v.price_usdt));
+              }
+            }
+            sortedProducts.forEach(p => {
+              const v = variationMap[p.id];
+              if (v) {
+                (p as any).has_variations = true;
+                (p as any).min_variation_price = v.minPrice;
+              }
+            });
+          }
+        }
+      } catch { /* ignore */ }
 
       setProducts(sortedProducts);
 
@@ -833,8 +864,8 @@ export function Store({ onNavigate }: StoreProps = {}) {
 
   return (
     <div className="min-w-0 overflow-x-clip" style={{ display: 'flex', flexDirection: 'column', gap: `${sectionSpacing}px` }}>
-      {/* Hero Section - Buy & Sell text + How it works */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 dark:from-slate-900 dark:via-blue-950 dark:to-black p-6 sm:p-10 shadow-xl">
+      {/* Hero Section - Buy & Sell text + How it works — full width, touches header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 dark:from-slate-900 dark:via-blue-950 dark:to-black px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500 rounded-full blur-3xl" />
@@ -1135,17 +1166,15 @@ export function Store({ onNavigate }: StoreProps = {}) {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6">
                 {featuredProducts.slice(0, 8).map((product) => (
-                  <ProductCard
+                  <StandardProductCard
                     key={product.id}
                     product={product}
-                    userCredit={userCredit}
-                    onPurchase={handlePurchase}
-                    onAddToCart={handleAddToCart}
                     onCardClick={() => {
                       window.history.pushState(null, '', buildProductUrl(product.name, product.id));
                       window.dispatchEvent(new PopStateEvent('popstate'));
                     }}
-                    purchasing={purchasing}
+                    onAddToCart={handleAddToCart}
+                    onPurchase={handlePurchase}
                     onViewSellerProfile={(sellerId, sellerSlug) => {
                       if (sellerSlug) {
                         window.history.pushState(null, '', `/seller/${sellerSlug}`);
@@ -1155,7 +1184,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
                         setShowSellerProfile(true);
                       }
                     }}
-                    currentUserId={user?.id}
                   />
                 ))}
               </div>
@@ -1222,17 +1250,15 @@ export function Store({ onNavigate }: StoreProps = {}) {
       {/* Products Grid */}
       <div className="products-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 lg:gap-6 min-w-0">
         {currentProducts.map((product) => (
-          <ProductCard
+          <StandardProductCard
             key={product.id}
             product={product}
-            userCredit={userCredit}
-            onPurchase={handlePurchase}
-            onAddToCart={handleAddToCart}
             onCardClick={() => {
               window.history.pushState(null, '', buildProductUrl(product.name, product.id));
               window.dispatchEvent(new PopStateEvent('popstate'));
             }}
-            purchasing={purchasing}
+            onAddToCart={handleAddToCart}
+            onPurchase={handlePurchase}
             onViewSellerProfile={(sellerId, sellerSlug) => {
               if (sellerSlug) {
                 window.history.pushState(null, '', `/seller/${sellerSlug}`);
@@ -1242,7 +1268,6 @@ export function Store({ onNavigate }: StoreProps = {}) {
                 setShowSellerProfile(true);
               }
             }}
-            currentUserId={user?.id}
           />
         ))}
       </div>
@@ -1833,211 +1858,6 @@ function PurchaseSuccessModal({ isOpen, onClose, productName, price, orderId, on
             >
               <Eye className="w-4 h-4" />
               {t.language === 'pt' ? 'Ver Compra' : t.language === 'en' ? 'View Purchase' : 'Ver Compra'}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-interface ProductCardProps {
-  product: ProductWithSeller;
-  userCredit: UserCredit | null;
-  onPurchase: (product: ProductWithSeller) => void;
-  onAddToCart: (product: ProductWithSeller) => void;
-  onCardClick: (product: ProductWithSeller) => void;
-  purchasing: boolean;
-  onViewSellerProfile: (sellerId: string | null, sellerSlug?: string) => void;
-  currentUserId?: string;
-}
-
-function ProductCard({ product, userCredit, onPurchase, onAddToCart, onCardClick, purchasing, onViewSellerProfile, currentUserId }: ProductCardProps) {
-  const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
-  const isOwnProduct = !!(currentUserId && product.seller_id && currentUserId === product.seller_id);
-  const isAvailable = product.manual_delivery || (product as any).account_recharge || product.stock_quantity > 0;
-  const canAfford = userCredit ? userCredit.balance >= Number(product.price_usdt) : false;
-  const hasPromo = product.promotion_active && product.promotional_price_usdt;
-  const discountPct = hasPromo
-    ? Math.round((1 - Number(product.promotional_price_usdt) / Number(product.price_usdt)) * 100)
-    : 0;
-  const salesCount = (product as any).seller_info?.sales_count || 0;
-  const lowStock = !product.manual_delivery && !(product as any).account_recharge && product.stock_quantity > 0 && product.stock_quantity <= 5;
-  const isFeatured = !!product.is_featured;
-
-  return (
-    <div
-      onClick={() => onCardClick(product)}
-      className={`group relative rounded-2xl overflow-hidden transition-all duration-300 cursor-pointer hover:-translate-y-1 min-w-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-2xl ${!isAvailable ? 'opacity-75' : ''}`}
-    >
-      {/* Product Image */}
-      <div className="relative">
-        <ProductImage
-          src={product.image_url}
-          alt={product.name}
-          hoverScale
-          grayscale={!isAvailable}
-          rounded="rounded-none"
-          className="rounded-none ring-0"
-        />
-
-        {/* Out of Stock Overlay */}
-        {!isAvailable && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-500/80 backdrop-blur-sm text-white">
-              {t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado'}
-            </span>
-          </div>
-        )}
-
-      </div>
-
-      {/* Product Info */}
-      <div className="p-2.5 sm:p-3 lg:p-4">
-        <h3 className="font-bold text-xs sm:text-sm lg:text-base text-gray-900 dark:text-white mb-1 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          {product.name}
-        </h3>
-
-        {product.seller_info && (
-          <div className="mb-2 flex items-center gap-1.5 min-w-0">
-            {product.seller_info.avatar_url ? (
-              <img
-                src={product.seller_info.avatar_url}
-                alt={product.seller_info.business_name}
-                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover flex-shrink-0 border border-gray-200 dark:border-gray-600"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ) : (
-              <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center flex-shrink-0">
-                <span className="text-[8px] sm:text-[9px] font-bold text-white uppercase">
-                  {product.seller_info.business_name?.charAt(0) || '?'}
-                </span>
-              </div>
-            )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onViewSellerProfile(product.seller_id || null, product.seller_info?.seller_slug);
-              }}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium truncate max-w-[120px]"
-            >
-              {product.seller_info.business_name}
-            </button>
-            <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-              · {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
-            </span>
-          </div>
-        )}
-
-        {/* Tags row (moved below the photo) */}
-        <div className="mb-2.5 flex flex-wrap gap-1 sm:gap-1.5">
-          {isFeatured && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
-              <Sparkles className="h-2.5 w-2.5" />
-              {t.language === 'pt' ? 'Destaque' : t.language === 'en' ? 'Featured' : 'Destacado'}
-            </span>
-          )}
-          <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 capitalize">
-            {product.category}
-          </span>
-          {hasPromo && discountPct > 0 && (
-            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-bold bg-red-500 text-white shadow-sm">
-              -{discountPct}%
-            </span>
-          )}
-          {product.manual_delivery ? (
-            (product as any).account_recharge ? (
-              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                {t.language === 'pt' ? 'Recarga' : t.language === 'en' ? 'Recharge' : 'Recarga'}
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                <Truck className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                {t.language === 'pt' ? 'Manual' : t.language === 'en' ? 'Manual' : 'Manual'}
-              </span>
-            )
-          ) : (
-            <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-              {t.language === 'pt' ? 'Auto' : t.language === 'en' ? 'Auto' : 'Auto'}
-            </span>
-          )}
-          {lowStock && (
-            <span className="px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-              {t.language === 'pt' ? `Restam ${product.stock_quantity}` : t.language === 'en' ? `${product.stock_quantity} left` : `Quedan ${product.stock_quantity}`}
-            </span>
-          )}
-          {salesCount > 0 && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 sm:px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              <TrendingUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-              {salesCount} {t.language === 'pt' ? 'vendidos' : t.language === 'en' ? 'sold' : 'vendidos'}
-            </span>
-          )}
-        </div>
-
-        {/* Product Rating */}
-        <div className="mb-3">
-          <ProductRatingsDisplay productId={product.id} showTitle={false} compact={true} />
-        </div>
-
-        {/* Price */}
-        <div className="flex items-baseline gap-1.5 sm:gap-2 mb-2 sm:mb-3">
-          {hasPromo ? (
-            <>
-              <span className="text-base sm:text-lg lg:text-xl font-bold text-red-500">
-                {formatPrice(Number(product.promotional_price_usdt))}
-              </span>
-              <span className="text-xs sm:text-sm text-gray-400 line-through">
-                {formatPrice(Number(product.price_usdt))}
-              </span>
-            </>
-          ) : (
-            <span className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
-              {formatPrice(Number(product.price_usdt))}
-            </span>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onPurchase(product);
-            }}
-            disabled={isOwnProduct || !isAvailable || purchasing}
-            className={`flex-1 px-2 sm:px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-semibold ${
-              !isOwnProduct && isAvailable && !purchasing
-                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {purchasing ? (
-              <Loader className="h-4 w-4 animate-spin" />
-            ) : (
-              <ShoppingCart className="h-4 w-4" />
-            )}
-            <span>
-              {isOwnProduct ?
-                (t.language === 'pt' ? 'Seu Produto' : t.language === 'en' ? 'Your Product' : 'Tu Producto') :
-                !isAvailable ?
-                (t.language === 'pt' ? 'Esgotado' : t.language === 'en' ? 'Sold Out' : 'Agotado') :
-                (t.language === 'pt' ? 'Comprar' : t.language === 'en' ? 'Buy' : 'Comprar')
-              }
-            </span>
-          </button>
-          {isAvailable && !isOwnProduct && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToCart(product);
-              }}
-              title={t.language === 'pt' ? 'Adicionar ao carrinho' : t.language === 'en' ? 'Add to cart' : 'Añadir al carrito'}
-              className="px-2.5 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all flex items-center justify-center"
-            >
-              <Plus className="h-4 w-4" />
             </button>
           )}
         </div>
