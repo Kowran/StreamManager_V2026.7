@@ -20,9 +20,6 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // This function should be called periodically (e.g., via cron job)
-    // to check for expiring accounts and send notifications
-
     let totalNotifications = 0;
 
     // Check for expiring streaming accounts
@@ -52,20 +49,24 @@ Deno.serve(async (req: Request) => {
       .rpc('cleanup_expired_notifications');
 
     if (cleanupError) {
-      console.error('Error cleaning up notifications:', cleanupError);
+      console.error('Error cleaning up expired notifications:', cleanupError);
     } else {
       console.log(`Cleaned up ${cleanedUp || 0} expired notifications`);
     }
 
-    // Check for low credit balances (optional)
+    // Check for low credit balances
     await checkLowCreditBalances(supabaseAdmin);
+
+    // Process Discord notification queue
+    const discordSent = await processDiscordQueue(supabaseAdmin);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Notification scheduler completed',
         notifications_sent: totalNotifications,
-        expired_cleaned: cleanedUp || 0
+        expired_cleaned: cleanedUp || 0,
+        discord_sent: discordSent,
       }),
       {
         status: 200,
@@ -76,9 +77,9 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error in notification scheduler:', error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Internal server error',
-        details: error.message 
+        details: error.message
       }),
       {
         status: 500,
@@ -90,7 +91,6 @@ Deno.serve(async (req: Request) => {
 
 async function checkLowCreditBalances(supabase: any) {
   try {
-    // Find users with low credit balances (less than $1)
     const { data: lowCreditUsers, error } = await supabase
       .from('user_credits')
       .select(`
@@ -102,12 +102,11 @@ async function checkLowCreditBalances(supabase: any) {
         )
       `)
       .lt('balance', 1.0)
-      .gt('balance', 0); // Only users who have used the system
+      .gt('balance', 0);
 
     if (error) throw error;
 
     for (const user of lowCreditUsers || []) {
-      // Check if we already sent a low credit notification in the last 7 days
       const { data: existingNotification } = await supabase
         .from('notifications')
         .select('id')
@@ -117,7 +116,6 @@ async function checkLowCreditBalances(supabase: any) {
         .maybeSingle();
 
       if (!existingNotification) {
-        // Create low credit notification
         await supabase.rpc('create_notification', {
           p_user_id: user.user_id,
           p_type: 'credit_low',
@@ -137,4 +135,89 @@ async function checkLowCreditBalances(supabase: any) {
   } catch (error) {
     console.error('Error checking low credit balances:', error);
   }
+}
+
+async function processDiscordQueue(supabase: any): Promise<number> {
+  let sent = 0;
+  try {
+    // Fetch pending queue items (max 50 per run)
+    const { data: queueItems, error } = await supabase
+      .from('discord_notification_queue')
+      .select('id, notification_id, user_id, event_type, variables, attempts')
+      .eq('status', 'pending')
+      .lt('attempts', 3)
+      .order('created_at', { ascending: true })
+      .limit(50);
+
+    if (error) throw error;
+    if (!queueItems || queueItems.length === 0) return 0;
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    for (const item of queueItems) {
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/discord-bot`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({
+            action: 'send_notification',
+            user_id: item.user_id,
+            event_type: item.event_type,
+            variables: item.variables || {},
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            await supabase
+              .from('discord_notification_queue')
+              .update({ status: 'sent', processed_at: new Date().toISOString() })
+              .eq('id', item.id);
+            sent++;
+          } else {
+            // User has no Discord link or disabled this notification type — mark as skipped
+            await supabase
+              .from('discord_notification_queue')
+              .update({
+                status: 'skipped',
+                error_message: result.message || result.error || 'Skipped',
+                processed_at: new Date().toISOString()
+              })
+              .eq('id', item.id);
+          }
+        } else {
+          // Increment attempts, keep pending if under 3
+          const newAttempts = item.attempts + 1;
+          await supabase
+            .from('discord_notification_queue')
+            .update({
+              attempts: newAttempts,
+              error_message: `HTTP ${response.status}`,
+              status: newAttempts >= 3 ? 'failed' : 'pending'
+            })
+            .eq('id', item.id);
+        }
+      } catch (err) {
+        const newAttempts = item.attempts + 1;
+        await supabase
+          .from('discord_notification_queue')
+          .update({
+            attempts: newAttempts,
+            error_message: err.message,
+            status: newAttempts >= 3 ? 'failed' : 'pending'
+          })
+          .eq('id', item.id);
+      }
+    }
+
+    console.log(`Processed Discord queue: ${sent} sent out of ${queueItems.length} pending`);
+  } catch (error) {
+    console.error('Error processing Discord queue:', error);
+  }
+  return sent;
 }

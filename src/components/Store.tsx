@@ -1152,7 +1152,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
               </>
             )}
             <div ref={categoriesScrollRef} className="flex gap-3 overflow-x-auto scroll-smooth scrollbar-hide pb-2">
-              {productCategories.slice(0, 8).map(cat => (
+              {productCategories.slice(0, 10).map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => { window.history.pushState(null, '', `/category/${cat.slug}`); window.dispatchEvent(new PopStateEvent('popstate')); }}

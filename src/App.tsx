@@ -919,7 +919,7 @@ function AppContent() {
           </AdminGuard>
         );
       case 'messages':
-        return <ChatInbox isAdmin={isAdmin} siteLogo={siteSettings?.header_logo_url || storeConfig?.store_logo_url || null} />;
+        return user ? <ChatInbox isAdmin={isAdmin} siteLogo={siteSettings?.header_logo_url || storeConfig?.store_logo_url || null} /> : null;
       case 'notifications':
         return <NotificationsPage />;
       case 'seller-requests':
@@ -1301,7 +1301,8 @@ function AppContent() {
 
             <nav className="mt-4 px-4">
               <div className="space-y-1 max-h-[calc(100vh-280px)] overflow-y-auto scrollbar-hide">
-                {/* Messages */}
+                {/* Messages - only for authenticated users */}
+                {user && (
                 <button
                   onClick={() => {
                     setActiveTab('messages');
@@ -1325,6 +1326,7 @@ function AppContent() {
                     </span>
                   )}
                 </button>
+                )}
               </div>
             </nav>
 

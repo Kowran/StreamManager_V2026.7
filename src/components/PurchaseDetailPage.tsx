@@ -678,23 +678,7 @@ export function PurchaseDetailPage({ purchaseId, onBack }: PurchaseDetailProps) 
               <InfoRow icon={DollarSign} label={lbl('Valor Pago', 'Amount Paid', 'Monto Pagado')}>
                 <p className="font-bold text-green-600 dark:text-green-400">{formatPrice(purchase.purchase_price)}</p>
               </InfoRow>
-              {purchase.store_products?.is_featured && (
-                <div className="mt-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400">
-                      {lbl('Produto Destaque', 'Featured Product', 'Producto Destacado')}
-                    </p>
-                  </div>
-                  <p className="text-xs text-amber-600 dark:text-amber-500 leading-relaxed">
-                    {lbl(
-                      'Este produto é Destaque. A taxa da plataforma aplicada sobre esta venda inclui um adicional de 4% pelo destaque VIP na loja.',
-                      'This is a Featured product. The platform fee applied to this sale includes an additional 4% for VIP featured placement in the store.',
-                      'Este producto es Destacado. La tarifa de la plataforma aplicada a esta venta incluye un adicional del 4% por la destacación VIP en la tienda.'
-                    )}
-                  </p>
-                </div>
-              )}
+
               {order?.discount_amount > 0 && (
                 <InfoRow icon={Tag} label={lbl('Desconto Cupom', 'Coupon Discount', 'Descuento Cupón')}>
                   <p className="font-semibold text-emerald-600 dark:text-emerald-400">-{formatPrice(order.discount_amount)}</p>

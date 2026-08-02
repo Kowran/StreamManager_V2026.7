@@ -66,7 +66,7 @@ export function StandardProductCard({
   return (
     <div
       onClick={() => onCardClick(product)}
-      className={`group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border border-gray-200 dark:border-gray-700 hover:-translate-y-1.5 min-w-0 ${!isAvailable ? 'opacity-75' : ''} ${widthClass}`}
+      className={`group relative bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-300 cursor-pointer border ${product.is_featured ? 'border-2 border-amber-400 shadow-amber-500/20 shadow-md' : 'border-gray-200 dark:border-gray-700'} hover:-translate-y-1.5 min-w-0 ${!isAvailable ? 'opacity-75' : ''} ${widthClass}`}
     >
       {/* Product Image */}
       <div className="relative">
