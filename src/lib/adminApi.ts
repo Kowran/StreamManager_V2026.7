@@ -20,9 +20,16 @@ interface ActivityTrackingData {
 
 export class AdminAPI {
   private static async getAuthHeaders() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session }, error } = await supabase.auth.getSession();
     if (!session?.access_token) {
-      throw new Error('No authentication token available');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData.session?.access_token) {
+        throw new Error('No authentication token available');
+      }
+      return {
+        'Authorization': `Bearer ${refreshData.session.access_token}`,
+        'Content-Type': 'application/json',
+      };
     }
 
     return {
