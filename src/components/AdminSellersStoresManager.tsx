@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { AdminAPI } from '../lib/adminApi';
 import { useAuth } from './AuthProvider';
 import { useLanguage } from './LanguageProvider';
+import { SellerDetailModal } from './SellerDetailModal';
 
 interface SellerProfile {
   id: string;
@@ -94,6 +95,7 @@ export function AdminSellersStoresManager() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [statsMap, setStatsMap] = useState<Record<string, SellerStats>>({});
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [detailModal, setDetailModal] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const lbl = useCallback((pt: string, en: string, es: string) =>
@@ -472,6 +474,14 @@ export function AdminSellersStoresManager() {
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <button
+                            onClick={() => setDetailModal(seller.id)}
+                            disabled={actionLoading === seller.id}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50 transition-colors"
+                            title={lbl('Ver Detalhes', 'View Details', 'Ver Detalles')}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          <button
                             onClick={() => { setHistoryModal(seller); loadPenaltyHistory(seller.id); }}
                             disabled={actionLoading === seller.id}
                             className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
@@ -829,6 +839,11 @@ export function AdminSellersStoresManager() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Seller Detail Modal */}
+      {detailModal && (
+        <SellerDetailModal sellerId={detailModal} onClose={() => setDetailModal(null)} />
       )}
 
       {/* Toast */}
