@@ -51,8 +51,8 @@ import { FeesPage } from './components/FeesPage';
 import { Footer } from './components/Footer';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLayout } from './components/AdminLayout';
-import { FeesPage } from './components/FeesPage';
 import { WorkWithUsPage } from './components/WorkWithUsPage';
+import { SiteMapPage } from './components/SiteMapPage';
 import { SMMPanel } from './components/SMMPanel';
 import { AdminSMMManager } from './components/AdminSMMManager';
 import { AdminSMMProviders } from './components/AdminSMMProviders';
@@ -94,7 +94,7 @@ import { PlusCircle } from 'lucide-react';
 import { useOnlineHeartbeat } from './hooks/useOnlineStatus';
 import { parseProductIdFromUrl } from './lib/productUrl';
 
-type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'admin-discord' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us';
+type ActiveTab = 'store' | 'accounts' | 'clients' | 'sellers' | 'admin-sellers-stores' | 'services' | 'admin-products' | 'admin-product-categories' | 'purchases' | 'admin-users' | 'admin-appeals' | 'admin-settings' | 'admin-site-settings' | 'admin-security' | 'accounts-access' | 'support' | 'admin-support' | 'admin-disputes' | 'profile' | 'credits' | 'admin-payments' | 'admin-credits' | 'affiliates' | 'admin-sales' | 'admin-withdrawals' | 'admin-coupons' | 'email-verifier' | 'admin-dashboard' | 'smm' | 'admin-smm' | 'admin-smm-providers' | 'admin-smm-orders' | 'community' | 'admin-community' | 'blog' | 'game-categories' | 'seller-recruitment' | 'seller-requests' | 'admin-netflix-accounts' | 'admin-notifications' | 'admin-popups' | 'admin-announcements' | 'admin-banners' | 'admin-flying-balloons' | 'admin-email-templates' | 'admin-discord' | 'notifications' | 'seller-store' | 'seller-profile' | 'messages' | 'product-detail' | 'checkout' | 'cart' | 'user-profile' | 'category-search' | 'search-results' | 'fees-page' | 'work-with-us' | 'site-map';
 
 interface StoreConfig {
   store_name?: string;
@@ -408,6 +408,8 @@ function AppContent() {
         setActiveTab('fees-page');
       } else if (path.startsWith('work-with-us') || path.startsWith('careers')) {
         setActiveTab('work-with-us');
+      } else if (path.startsWith('site-map') || path.startsWith('sitemap')) {
+        setActiveTab('site-map');
       } else if (path.startsWith('blog/')) {
         setActiveTab('blog');
       } else if (path.startsWith('seller-store/')) {
@@ -502,6 +504,7 @@ function AppContent() {
       'seller-store': tr('Minha Loja', 'My Store', 'Mi Tienda'),
       'fees-page': tr('Taxas', 'Fees', 'Tarifas'),
       'work-with-us': tr('Trabalhe Conosco', 'Work With Us', 'Trabaja con Nosotros'),
+      'site-map': tr('Mapa do Site', 'Site Map', 'Mapa del Sitio'),
     };
 
     const setStaticTitle = () => {
@@ -946,6 +949,15 @@ function AppContent() {
       case 'work-with-us':
         return (
           <WorkWithUsPage
+            onBack={() => {
+              setActiveTab('store');
+              window.history.pushState(null, '', '/');
+            }}
+          />
+        );
+      case 'site-map':
+        return (
+          <SiteMapPage
             onBack={() => {
               setActiveTab('store');
               window.history.pushState(null, '', '/');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Instagram, Youtube, MessageCircle, Mail, Globe, Heart, Twitter, Send, Music2, X, Cookie, HelpCircle, FileText, ShoppingCart, Shield, Info, ChevronDown, ChevronRight, Sun, Moon, DollarSign, Briefcase } from 'lucide-react';
+import { Instagram, Youtube, MessageCircle, Mail, Globe, Heart, Twitter, Send, Music2, X, Cookie, HelpCircle, FileText, ShoppingCart, Shield, Info, ChevronDown, ChevronRight, Sun, Moon, DollarSign, Briefcase, Map } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from './LanguageProvider';
 import { useTheme } from './ThemeProvider';
@@ -148,6 +148,8 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
     { key: 'careers', label: tr('Trabalhe Conosco', 'Work With Us', 'Trabaja con Nosotros'), icon: Briefcase },
     { key: 'about', label: tr('Sobre Nós', 'About Us', 'Sobre Nosotros'), icon: Info },
   ];
+
+  const sitemapLink = { label: tr('Mapa do Site', 'Site Map', 'Mapa del Sitio'), icon: Map };
 
   const faqItems = [
     {
@@ -530,6 +532,19 @@ export function Footer({ navigationLinks = [], onNavigate }: FooterProps) {
                     </li>
                   );
                 })}
+                <li>
+                  <button
+                    onClick={() => {
+                      window.history.pushState(null, '', '/site-map');
+                      window.dispatchEvent(new PopStateEvent('popstate'));
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white transition-colors group"
+                  >
+                    <Map className="h-3.5 w-3.5 text-gray-500 group-hover:text-cyan-400 transition-colors" />
+                    <span>{sitemapLink.label}</span>
+                  </button>
+                </li>
               </ul>
             </div>
 

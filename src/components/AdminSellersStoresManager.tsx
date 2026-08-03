@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Store, Search, Ban, CheckCircle, Loader2, AlertTriangle, X,
-  ShoppingBag, Eye, ChevronDown, ChevronUp
+  ShoppingBag, Eye, ChevronDown, ChevronUp, ShieldAlert, Gavel,
+  RotateCcw, FileText, Clock
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AdminAPI } from '../lib/adminApi';
@@ -16,6 +17,8 @@ interface SellerProfile {
   avatar_url: string | null;
   role: string;
   store_suspended: boolean | null;
+  store_permanently_suspended: boolean | null;
+  penalty_count: number | null;
   seller_slug: string | null;
   seller_level: number | null;
   created_at: string;
@@ -27,16 +30,68 @@ interface SellerStats {
   totalSales: number;
 }
 
+interface PenaltyRecord {
+  id: string;
+  penalty_level: number;
+  reason: string | null;
+  applied_by: string | null;
+  applied_at: string;
+  reverted_by: string | null;
+  reverted_at: string | null;
+  revert_reason: string | null;
+  is_active: boolean;
+}
+
+const PENALTY_CONFIG: Record<number, {
+  label: { pt: string; en: string; es: string };
+  shortLabel: { pt: string; en: string; es: string };
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  icon: typeof AlertTriangle;
+}> = {
+  1: {
+    label: { pt: 'Advertência', en: 'Warning', es: 'Advertencia' },
+    shortLabel: { pt: 'Aviso', en: 'Warning', es: 'Aviso' },
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+    borderColor: 'border-amber-300 dark:border-amber-700',
+    icon: AlertTriangle,
+  },
+  2: {
+    label: { pt: 'Suspensão', en: 'Suspension', es: 'Suspensión' },
+    shortLabel: { pt: 'Suspenso', en: 'Suspended', es: 'Suspendido' },
+    color: 'text-orange-600 dark:text-orange-400',
+    bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+    borderColor: 'border-orange-300 dark:border-orange-700',
+    icon: Ban,
+  },
+  3: {
+    label: { pt: 'Suspensão Permanente', en: 'Permanent Suspension', es: 'Suspensión Permanente' },
+    shortLabel: { pt: 'Permanente', en: 'Permanent', es: 'Permanente' },
+    color: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-50 dark:bg-red-900/20',
+    borderColor: 'border-red-300 dark:border-red-700',
+    icon: ShieldAlert,
+  },
+};
+
 export function AdminSellersStoresManager() {
   const { user } = useAuth();
   const { language } = useLanguage();
   const [sellers, setSellers] = useState<SellerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'suspended'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'suspended' | 'penalized'>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [suspendModal, setSuspendModal] = useState<SellerProfile | null>(null);
-  const [suspendReason, setSuspendReason] = useState('');
+  const [penaltyModal, setPenaltyModal] = useState<SellerProfile | null>(null);
+  const [penaltyLevel, setPenaltyLevel] = useState<1 | 2 | 3>(1);
+  const [penaltyReason, setPenaltyReason] = useState('');
+  const [revertModal, setRevertModal] = useState<SellerProfile | null>(null);
+  const [revertReason, setRevertReason] = useState('');
+  const [historyModal, setHistoryModal] = useState<SellerProfile | null>(null);
+  const [penaltyHistory, setPenaltyHistory] = useState<PenaltyRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [statsMap, setStatsMap] = useState<Record<string, SellerStats>>({});
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -60,7 +115,7 @@ export function AdminSellersStoresManager() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, username, email, avatar_url, role, store_suspended, seller_slug, seller_level, created_at')
+        .select('id, full_name, username, email, avatar_url, role, store_suspended, store_permanently_suspended, penalty_count, seller_slug, seller_level, created_at')
         .eq('role', 'seller')
         .order('created_at', { ascending: false });
 
@@ -103,42 +158,89 @@ export function AdminSellersStoresManager() {
     }
   }
 
-  async function handleSuspend() {
-    if (!suspendModal || !user) return;
-    setActionLoading(suspendModal.id);
+  async function loadPenaltyHistory(sellerId: string) {
+    setHistoryLoading(true);
     try {
-      const result = await AdminAPI.suspendStore(suspendModal.id, suspendReason || undefined);
+      const result = await AdminAPI.getPenalties(sellerId);
+      if (result.success) {
+        setPenaltyHistory(result.data?.penalties || []);
+      }
+    } catch (error) {
+      console.error('Error loading penalty history:', error);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function handleApplyPenalty() {
+    if (!penaltyModal || !user) return;
+    setActionLoading(penaltyModal.id);
+    try {
+      const result = await AdminAPI.applyPenalty(penaltyModal.id, penaltyLevel, penaltyReason || undefined);
       if (!result.success) throw new Error(result.error || 'Failed');
 
-      setSellers(prev => prev.map(s =>
-        s.id === suspendModal.id ? { ...s, store_suspended: true } : s
-      ));
-      setToast({ type: 'success', message: lbl('Loja suspensa com sucesso', 'Store suspended successfully', 'Tienda suspendida con éxito') });
-      setSuspendModal(null);
-      setSuspendReason('');
+      setSellers(prev => prev.map(s => {
+        if (s.id !== penaltyModal.id) return s;
+        const newCount = (s.penalty_count || 0) + 1;
+        return {
+          ...s,
+          penalty_count: newCount,
+          store_suspended: penaltyLevel >= 2 ? true : s.store_suspended,
+          store_permanently_suspended: penaltyLevel === 3 ? true : s.store_permanently_suspended,
+        };
+      }));
+
+      const config = PENALTY_CONFIG[penaltyLevel];
+      setToast({
+        type: 'success',
+        message: lbl(
+          `Punição Nível ${penaltyLevel} (${config.label.pt}) aplicada com sucesso`,
+          `Level ${penaltyLevel} penalty (${config.label.en}) applied successfully`,
+          `Penalización Nivel ${penaltyLevel} (${config.label.es}) aplicada con éxito`
+        )
+      });
+      setPenaltyModal(null);
+      setPenaltyReason('');
+      setPenaltyLevel(1);
     } catch (error) {
-      console.error('Error suspending store:', error);
-      setToast({ type: 'error', message: lbl('Erro ao suspender loja', 'Error suspending store', 'Error al suspender tienda') });
+      console.error('Error applying penalty:', error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      setToast({ type: 'error', message: `${lbl('Erro ao aplicar punição', 'Error applying penalty', 'Error al aplicar penalización')}: ${errMsg}` });
     } finally {
       setActionLoading(null);
     }
   }
 
-  async function handleUnsuspend(seller: SellerProfile) {
-    if (!user) return;
-    if (!confirm(lbl('Reativar a loja deste vendedor?', 'Reactivate this seller\'s store?', '¿Reactivar la tienda de este vendedor?'))) return;
-    setActionLoading(seller.id);
+  async function handleRevertPenalty() {
+    if (!revertModal || !user) return;
+    setActionLoading(revertModal.id);
     try {
-      const result = await AdminAPI.unsuspendStore(seller.id);
+      const result = await AdminAPI.revertPenalty(revertModal.id, revertReason || undefined);
       if (!result.success) throw new Error(result.error || 'Failed');
 
-      setSellers(prev => prev.map(s =>
-        s.id === seller.id ? { ...s, store_suspended: false } : s
-      ));
-      setToast({ type: 'success', message: lbl('Loja reativada com sucesso', 'Store reactivated successfully', 'Tienda reactivada con éxito') });
+      setSellers(prev => prev.map(s => {
+        if (s.id !== revertModal.id) return s;
+        const newCount = Math.max(0, (s.penalty_count || 0) - 1);
+        const wasPermanent = s.store_permanently_suspended;
+        const wasSuspended = s.store_suspended;
+        return {
+          ...s,
+          penalty_count: newCount,
+          store_suspended: newCount >= 2 ? wasSuspended : false,
+          store_permanently_suspended: newCount >= 3 ? wasPermanent : false,
+        };
+      }));
+
+      setToast({
+        type: 'success',
+        message: lbl('Punição revertida com sucesso', 'Penalty reverted successfully', 'Penalización revertida con éxito')
+      });
+      setRevertModal(null);
+      setRevertReason('');
     } catch (error) {
-      console.error('Error reactivating store:', error);
-      setToast({ type: 'error', message: lbl('Erro ao reativar loja', 'Error reactivating store', 'Error al reactivar tienda') });
+      console.error('Error reverting penalty:', error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      setToast({ type: 'error', message: `${lbl('Erro ao reverter punição', 'Error reverting penalty', 'Error al revertir penalización')}: ${errMsg}` });
     } finally {
       setActionLoading(null);
     }
@@ -151,12 +253,28 @@ export function AdminSellersStoresManager() {
       (s.email?.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesFilter =
       filter === 'all' ? true :
-      filter === 'active' ? !s.store_suspended :
-      filter === 'suspended' ? !!s.store_suspended : true;
+      filter === 'active' ? !s.store_suspended && !(s.penalty_count && s.penalty_count > 0) :
+      filter === 'suspended' ? !!s.store_suspended :
+      filter === 'penalized' ? !!(s.penalty_count && s.penalty_count > 0) : true;
     return matchesSearch && matchesFilter;
   });
 
   const suspendedCount = sellers.filter(s => s.store_suspended).length;
+  const penalizedCount = sellers.filter(s => s.penalty_count && s.penalty_count > 0).length;
+
+  function getPenaltyStatus(seller: SellerProfile): { level: number; label: string; color: string; bgColor: string; icon: typeof AlertTriangle } | null {
+    const count = seller.penalty_count || 0;
+    if (count === 0) return null;
+    const level = seller.store_permanently_suspended ? 3 : seller.store_suspended ? 2 : 1;
+    const config = PENALTY_CONFIG[level];
+    return {
+      level,
+      label: lbl(config.label.pt, config.label.en, config.label.es),
+      color: config.color,
+      bgColor: config.bgColor,
+      icon: config.icon,
+    };
+  }
 
   if (loading) {
     return (
@@ -176,7 +294,7 @@ export function AdminSellersStoresManager() {
             {lbl('Vendedores e Lojas', 'Sellers & Stores', 'Vendedores y Tiendas')}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {lbl('Suspenda ou reative lojas de vendedores', 'Suspend or reactivate seller stores', 'Suspende o reactiva tiendas de vendedores')}
+            {lbl('Gerencie punições e suspensões de lojas', 'Manage store penalties and suspensions', 'Gestiona penalizaciones y suspensiones de tiendas')}
           </p>
         </div>
         <div className="flex gap-2">
@@ -185,8 +303,27 @@ export function AdminSellersStoresManager() {
             <p className="text-xs text-gray-500">{lbl('Total', 'Total', 'Total')}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-center">
+            <p className="text-2xl font-bold text-amber-500">{penalizedCount}</p>
+            <p className="text-xs text-gray-500">{lbl('Punidos', 'Penalized', 'Penalizados')}</p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-2 text-center">
             <p className="text-2xl font-bold text-red-500">{suspendedCount}</p>
             <p className="text-xs text-gray-500">{lbl('Suspensos', 'Suspended', 'Suspendidos')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Banner */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-800 dark:text-blue-300">
+            <p className="font-semibold mb-1">{lbl('Sistema de Punições - 3 Níveis', 'Penalty System - 3 Levels', 'Sistema de Penalizaciones - 3 Niveles')}</p>
+            <ul className="space-y-0.5 text-xs">
+              <li><b>{lbl('Nível 1', 'Level 1', 'Nivel 1')}</b> — {lbl('Advertência: o vendedor recebe um aviso visível no painel de reputação', 'Warning: seller receives a visible warning in reputation panel', 'Advertencia: el vendedor recibe un aviso visible en el panel de reputación')}</li>
+              <li><b>{lbl('Nível 2', 'Level 2', 'Nivel 2')}</b> — {lbl('Suspensão: anúncios ocultados automaticamente e vendas suspensas', 'Suspension: listings auto-hidden and sales suspended', 'Suspensión: anuncios ocultados automáticamente y ventas suspendidas')}</li>
+              <li><b>{lbl('Nível 3', 'Level 3', 'Nivel 3')}</b> — {lbl('Suspensão permanente: saldo congelado, saques bloqueados', 'Permanent suspension: balance frozen, withdrawals blocked', 'Suspensión permanente: saldo congelado, retiros bloqueados')}</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -205,10 +342,11 @@ export function AdminSellersStoresManager() {
             className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 flex-wrap">
           {([
             { id: 'all', label: lbl('Todos', 'All', 'Todos') },
             { id: 'active', label: lbl('Ativos', 'Active', 'Activos') },
+            { id: 'penalized', label: lbl('Punidos', 'Penalized', 'Penalizados') },
             { id: 'suspended', label: lbl('Suspensos', 'Suspended', 'Suspendidos') },
           ] as const).map(f => (
             <button
@@ -242,6 +380,9 @@ export function AdminSellersStoresManager() {
                   {lbl('Vendas', 'Sales', 'Ventas')}
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {lbl('Punições', 'Penalties', 'Penalizaciones')}
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   {lbl('Status', 'Status', 'Estado')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -252,11 +393,19 @@ export function AdminSellersStoresManager() {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {filteredSellers.map((seller) => {
                 const stats = statsMap[seller.id];
+                const penaltyStatus = getPenaltyStatus(seller);
                 const isSuspended = !!seller.store_suspended;
+                const isPermanent = !!seller.store_permanently_suspended;
                 const isExpanded = expandedRow === seller.id;
+                const penaltyCount = seller.penalty_count || 0;
+                const PenaltyIcon = penaltyStatus?.icon || CheckCircle;
                 return (
                   <React.Fragment key={seller.id}>
-                    <tr className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isSuspended ? 'bg-red-50/50 dark:bg-red-900/10' : ''}`}>
+                    <tr className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${
+                      isPermanent ? 'bg-red-50/50 dark:bg-red-900/10' :
+                      isSuspended ? 'bg-orange-50/50 dark:bg-orange-900/10' :
+                      penaltyCount > 0 ? 'bg-amber-50/30 dark:bg-amber-900/5' : ''
+                    }`}>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => setExpandedRow(isExpanded ? null : seller.id)}
@@ -289,10 +438,29 @@ export function AdminSellersStoresManager() {
                         {stats?.totalSales ?? '...'}
                       </td>
                       <td className="px-4 py-3">
-                        {isSuspended ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-                            <Ban className="h-3 w-3" />
-                            {lbl('Suspenso', 'Suspended', 'Suspendido')}
+                        {penaltyCount > 0 ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3].map(n => (
+                                <div
+                                  key={n}
+                                  className={`w-2 h-5 rounded-sm ${n <= penaltyCount ? 'bg-red-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                                />
+                              ))}
+                            </div>
+                            <span className={`text-xs font-medium ${penaltyStatus?.color}`}>
+                              {penaltyCount}/3
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">0/3</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {penaltyStatus ? (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${penaltyStatus.bgColor} ${penaltyStatus.color}`}>
+                            <PenaltyIcon className="h-3 w-3" />
+                            {penaltyStatus.label}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
@@ -302,24 +470,43 @@ export function AdminSellersStoresManager() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {isSuspended ? (
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => { setHistoryModal(seller); loadPenaltyHistory(seller.id); }}
+                            disabled={actionLoading === seller.id}
+                            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 transition-colors"
+                            title={lbl('Histórico', 'History', 'Historial')}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                          </button>
+                          {penaltyCount > 0 && !isPermanent && (
                             <button
-                              onClick={() => handleUnsuspend(seller)}
+                              onClick={() => { setRevertModal(seller); setRevertReason(''); }}
                               disabled={actionLoading === seller.id}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                              title={lbl('Reverter Punição', 'Revert Penalty', 'Revertir Penalización')}
                             >
-                              {actionLoading === seller.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5" />}
-                              {lbl('Reativar', 'Reactivate', 'Reactivar')}
+                              <RotateCcw className="h-3.5 w-3.5" />
                             </button>
-                          ) : (
+                          )}
+                          {penaltyCount > 0 && isPermanent && (
                             <button
-                              onClick={() => { setSuspendModal(seller); setSuspendReason(''); }}
+                              onClick={() => { setRevertModal(seller); setRevertReason(''); }}
                               disabled={actionLoading === seller.id}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                              title={lbl('Reverter Punição', 'Revert Penalty', 'Revertir Penalización')}
                             >
-                              <Ban className="h-3.5 w-3.5" />
-                              {lbl('Suspender', 'Suspend', 'Suspender')}
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                          {penaltyCount < 3 && (
+                            <button
+                              onClick={() => { setPenaltyModal(seller); setPenaltyReason(''); setPenaltyLevel(1); }}
+                              disabled={actionLoading === seller.id}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                              title={lbl('Aplicar Punição', 'Apply Penalty', 'Aplicar Penalización')}
+                            >
+                              <Gavel className="h-3.5 w-3.5" />
                             </button>
                           )}
                         </div>
@@ -327,7 +514,7 @@ export function AdminSellersStoresManager() {
                     </tr>
                     {isExpanded && (
                       <tr className="bg-gray-50 dark:bg-gray-700/20">
-                        <td colSpan={5} className="px-4 py-4">
+                        <td colSpan={6} className="px-4 py-4">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                             <div>
                               <p className="text-xs text-gray-500">{lbl('Email', 'Email', 'Email')}</p>
@@ -366,67 +553,279 @@ export function AdminSellersStoresManager() {
         )}
       </div>
 
-      {/* Suspend modal */}
-      {suspendModal && (
+      {/* Apply Penalty Modal */}
+      {penaltyModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSuspendModal(null)} />
-          <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPenaltyModal(null)} />
+          <div className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-red-50 dark:bg-red-900/20">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
-                  <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  <Gavel className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-base font-bold text-gray-900 dark:text-white">
-                    {lbl('Suspender Loja', 'Suspend Store', 'Suspender Tienda')}
+                    {lbl('Aplicar Punição', 'Apply Penalty', 'Aplicar Penalización')}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
-                    {suspendModal.full_name || suspendModal.username}
+                    {penaltyModal.full_name || penaltyModal.username}
                   </p>
                 </div>
-                <button onClick={() => setSuspendModal(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <button onClick={() => setPenaltyModal(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {lbl('Selecione o nível da punição. Você pode pular diretamente para qualquer nível.', 'Select the penalty level. You can skip directly to any level.', 'Selecciona el nivel de penalización. Puedes saltar directamente a cualquier nivel.')}
+              </p>
+
+              {/* Penalty Level Selector */}
+              <div className="space-y-2">
+                {([1, 2, 3] as const).map(level => {
+                  const config = PENALTY_CONFIG[level];
+                  const Icon = config.icon;
+                  const isSelected = penaltyLevel === level;
+                  const descriptions: Record<number, { pt: string; en: string; es: string }> = {
+                    1: {
+                      pt: 'Apenas um aviso. O vendedor vê a advertência no painel de reputação.',
+                      en: 'Just a warning. The seller sees the warning in their reputation panel.',
+                      es: 'Solo una advertencia. El vendedor ve el aviso en su panel de reputación.',
+                    },
+                    2: {
+                      pt: 'Anúncios ocultados automaticamente. Vendas suspensas. A loja pode ser reativada.',
+                      en: 'Listings auto-hidden. Sales suspended. The store can be reactivated.',
+                      es: 'Anuncios ocultados automáticamente. Ventas suspendidas. La tienda puede reactivarse.',
+                    },
+                    3: {
+                      pt: 'Suspensão permanente. Saldo congelado. Saques bloqueados. Irreversível parcialmente.',
+                      en: 'Permanent suspension. Balance frozen. Withdrawals blocked.',
+                      es: 'Suspensión permanente. Saldo congelado. Retiros bloqueados.',
+                    },
+                  };
+                  return (
+                    <button
+                      key={level}
+                      onClick={() => setPenaltyLevel(level)}
+                      className={`w-full text-left p-3 rounded-xl border-2 transition-all ${
+                        isSelected
+                          ? `${config.borderColor} ${config.bgColor}`
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${config.bgColor}`}>
+                          <Icon className={`h-4.5 w-4.5 ${config.color}`} />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400">NÍVEL {level}</span>
+                            <span className={`text-sm font-bold ${config.color}`}>
+                              {lbl(config.label.pt, config.label.en, config.label.es)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+                            {lbl(descriptions[level].pt, descriptions[level].en, descriptions[level].es)}
+                          </p>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? `${config.borderColor} ${config.bgColor}` : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {isSelected && <div className={`w-2.5 h-2.5 rounded-full ${config.color.replace('text-', 'bg-')}`} />}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  {lbl('Motivo', 'Reason', 'Motivo')}
+                </label>
+                <textarea
+                  value={penaltyReason}
+                  onChange={(e) => setPenaltyReason(e.target.value)}
+                  rows={3}
+                  placeholder={lbl('Descreva o motivo da punição...', 'Describe the reason for the penalty...', 'Describe el motivo de la penalización...')}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                />
+              </div>
+            </div>
+            <div className="p-5 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setPenaltyModal(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                {lbl('Cancelar', 'Cancel', 'Cancelar')}
+              </button>
+              <button
+                onClick={handleApplyPenalty}
+                disabled={actionLoading === penaltyModal.id}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {actionLoading === penaltyModal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gavel className="h-4 w-4" />}
+                {lbl('Confirmar Punição', 'Confirm Penalty', 'Confirmar Penalización')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revert Penalty Modal */}
+      {revertModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setRevertModal(null)} />
+          <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 bg-emerald-50 dark:bg-emerald-900/20">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center flex-shrink-0">
+                  <RotateCcw className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                    {lbl('Reverter Punição', 'Revert Penalty', 'Revertir Penalización')}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                    {revertModal.full_name || revertModal.username}
+                  </p>
+                </div>
+                <button onClick={() => setRevertModal(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                   <X className="h-5 w-5" />
                 </button>
               </div>
             </div>
             <div className="p-5 space-y-4">
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
                   {lbl(
-                    'O vendedor não poderá criar, editar ou excluir produtos, nem receber novas vendas. Ele continua podendo comprar de outros vendedores e acessar a conta. A loja pode ser reativada a qualquer momento.',
-                    'The seller won\'t be able to create, edit, or delete products, or receive new sales. They can still buy from other sellers and access their account. The store can be reactivated at any time.',
-                    'El vendedor no podrá crear, editar ni eliminar productos, ni recibir nuevas ventas. Todavía podrá comprar de otros vendedores y acceder a su cuenta. La tienda puede reactivarse en cualquier momento.'
+                    'A punição mais recente será revertida. Se a loja estava suspensa, os anúncios serão reativados. Se o saldo estava congelado, será liberado.',
+                    'The most recent penalty will be reverted. If the store was suspended, listings will be reactivated. If the balance was frozen, it will be released.',
+                    'La penalización más reciente será revertida. Si la tienda estaba suspendida, los anuncios serán reactivados. Si el saldo estaba congelado, será liberado.'
                   )}
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  {lbl('Motivo (opcional)', 'Reason (optional)', 'Motivo (opcional)')}
+                  {lbl('Motivo da reversão (opcional)', 'Revert reason (optional)', 'Motivo de reversión (opcional)')}
                 </label>
                 <textarea
-                  value={suspendReason}
-                  onChange={(e) => setSuspendReason(e.target.value)}
+                  value={revertReason}
+                  onChange={(e) => setRevertReason(e.target.value)}
                   rows={3}
-                  placeholder={lbl('Descreva o motivo da suspensão...', 'Describe the reason for suspension...', 'Describe el motivo de la suspensión...')}
-                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none"
+                  placeholder={lbl('Descreva o motivo da reversão...', 'Describe the reason for reverting...', 'Describe el motivo de la reversión...')}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none"
                 />
               </div>
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
-                  onClick={() => setSuspendModal(null)}
+                  onClick={() => setRevertModal(null)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   {lbl('Cancelar', 'Cancel', 'Cancelar')}
                 </button>
                 <button
-                  onClick={handleSuspend}
-                  disabled={actionLoading === suspendModal.id}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  onClick={handleRevertPenalty}
+                  disabled={actionLoading === revertModal.id}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                 >
-                  {actionLoading === suspendModal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-                  {lbl('Confirmar Suspensão', 'Confirm Suspension', 'Confirmar Suspensión')}
+                  {actionLoading === revertModal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                  {lbl('Confirmar Reversão', 'Confirm Revert', 'Confirmar Reversión')}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Penalty History Modal */}
+      {historyModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setHistoryModal(null)} />
+          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                    {lbl('Histórico de Punições', 'Penalty History', 'Historial de Penalizaciones')}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
+                    {historyModal.full_name || historyModal.username}
+                  </p>
+                </div>
+                <button onClick={() => setHistoryModal(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
+                </div>
+              ) : penaltyHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="mx-auto h-10 w-10 text-green-400" />
+                  <p className="mt-2 text-sm text-gray-500">
+                    {lbl('Nenhuma punição registrada', 'No penalties recorded', 'Ninguna penalización registrada')}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {penaltyHistory.map((penalty) => {
+                    const config = PENALTY_CONFIG[penalty.penalty_level];
+                    const Icon = config.icon;
+                    return (
+                      <div key={penalty.id} className={`rounded-xl border ${config.borderColor} ${config.bgColor} p-4`}>
+                        <div className="flex items-start gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${config.bgColor}`}>
+                            <Icon className={`h-4 w-4 ${config.color}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-sm font-bold ${config.color}`}>
+                                {lbl(config.label.pt, config.label.en, config.label.es)}
+                              </span>
+                              <span className="text-xs text-gray-400">Nível {penalty.penalty_level}</span>
+                              {penalty.is_active ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                  {lbl('Ativa', 'Active', 'Activa')}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                                  {lbl('Revertida', 'Reverted', 'Revertida')}
+                                </span>
+                              )}
+                            </div>
+                            {penalty.reason && (
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{penalty.reason}</p>
+                            )}
+                            <div className="flex items-center gap-1 mt-1.5 text-[10px] text-gray-400">
+                              <Clock className="h-3 w-3" />
+                              {new Date(penalty.applied_at).toLocaleString(language === 'pt' ? 'pt-BR' : language === 'en' ? 'en-US' : 'es-ES')}
+                            </div>
+                            {penalty.reverted_at && (
+                              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                                <p className="text-[10px] text-green-600 dark:text-green-400">
+                                  {lbl('Revertida em', 'Reverted on', 'Revertida el')} {new Date(penalty.reverted_at).toLocaleString(language === 'pt' ? 'pt-BR' : language === 'en' ? 'en-US' : 'es-ES')}
+                                </p>
+                                {penalty.revert_reason && (
+                                  <p className="text-xs text-gray-500 mt-0.5">{penalty.revert_reason}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

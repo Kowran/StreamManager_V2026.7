@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 const ADMIN_API_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 interface AdminUserAction {
-  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions' | 'freeze_balance' | 'unfreeze_balance' | 'update_name' | 'cancel_order' | 'review_appeal';
+  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions' | 'freeze_balance' | 'unfreeze_balance' | 'update_name' | 'cancel_order' | 'review_appeal' | 'suspend_store' | 'unsuspend_store' | 'apply_penalty' | 'revert_penalty' | 'get_penalties';
   user_id: string;
   data?: any;
 }
@@ -168,6 +168,29 @@ export class AdminAPI {
       action: 'unsuspend_store',
       user_id: userId,
       data: { reason }
+    });
+  }
+
+  static async applyPenalty(userId: string, penaltyLevel: 1 | 2 | 3, reason?: string) {
+    return this.performUserAction({
+      action: 'apply_penalty',
+      user_id: userId,
+      data: { penalty_level: penaltyLevel, reason }
+    });
+  }
+
+  static async revertPenalty(userId: string, reason?: string) {
+    return this.performUserAction({
+      action: 'revert_penalty',
+      user_id: userId,
+      data: { reason }
+    });
+  }
+
+  static async getPenalties(userId: string) {
+    return this.performUserAction({
+      action: 'get_penalties',
+      user_id: userId
     });
   }
 

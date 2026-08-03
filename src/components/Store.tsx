@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, SlidersHorizontal, ChevronDown, Shuffle, Info, Wallet, Quote, Plus, Sparkles, Flame, Clock, type LucideIcon } from 'lucide-react';
+import { ShoppingCart, Package, Star, DollarSign, Search, Check, AlertCircle, CreditCard, Loader, X, Truck, ArrowRight, ChevronLeft, ChevronRight, Eye, Image as ImageIcon, Store as StoreIcon, LayoutGrid, Clapperboard, Code, KeyRound, Music, Gamepad2, Shield, BookOpen, UserCheck, MessageCircle, Zap, TrendingUp, SlidersHorizontal, ChevronDown, Shuffle, Info, Wallet, Quote, Plus, Sparkles, Flame, Clock, HelpCircle, type LucideIcon } from 'lucide-react';
 import { supabase, StoreProduct } from '../lib/supabase';
 import { useAuth } from './AuthProvider';
 import { useCart } from './CartProvider';
@@ -113,6 +113,7 @@ export function Store({ onNavigate }: StoreProps = {}) {
   const [sectionSpacing, setSectionSpacing] = useState(40);
   const [recentRatings, setRecentRatings] = useState<any[]>([]);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [openFaqItem, setOpenFaqItem] = useState<number | null>(null);
   const [forceShowGrid, setForceShowGrid] = useState(false);
   const categoriesScrollRef = useRef<HTMLDivElement>(null);
   const ratingsScrollRef = useRef<HTMLDivElement>(null);
@@ -1575,6 +1576,54 @@ export function Store({ onNavigate }: StoreProps = {}) {
       {/* Blog & News Preview */}
       <div style={{ marginTop: `${sectionSpacing}px` }}>
         <BlogPreview onSeeAll={() => onNavigate?.('blog')} />
+      </div>
+
+      {/* FAQ Section - Full Width */}
+      <div style={{ marginTop: `${sectionSpacing}px` }}>
+        <div className="text-center mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+            {t.language === 'pt' ? 'Perguntas Frequentes' : t.language === 'en' ? 'FAQ' : 'Preguntas Frecuentes'}
+          </h2>
+        </div>
+        <div className="space-y-2">
+          {[
+            {
+              q: t.language === 'pt' ? 'Como faço uma compra?' : t.language === 'en' ? 'How do I make a purchase?' : '¿Cómo hago una compra?',
+              a: t.language === 'pt' ? 'Navegue pela loja, selecione o produto e clique em "Comprar".' : t.language === 'en' ? 'Browse the store, select a product and click "Buy".' : 'Navega por la tienda, selecciona un producto y haz clic en "Comprar".'
+            },
+            {
+              q: t.language === 'pt' ? 'Quais formas de pagamento são aceitas?' : t.language === 'en' ? 'What payment methods are accepted?' : '¿Qué métodos de pago se aceptan?',
+              a: t.language === 'pt' ? 'Cartão, Pix, boleto, PayPal e criptomoedas.' : t.language === 'en' ? 'Credit card, Pix, bank slip, PayPal and crypto.' : 'Tarjeta, Pix, boleto, PayPal y criptomonedas.'
+            },
+            {
+              q: t.language === 'pt' ? 'Como recebo meu produto?' : t.language === 'en' ? 'How do I receive my product?' : '¿Cómo recibo mi producto?',
+              a: t.language === 'pt' ? 'Entrega automática em "Minhas Compras" após pagamento.' : t.language === 'en' ? 'Automatic delivery in "My Purchases" after payment.' : 'Entrega automática en "Mis Compras" tras el pago.'
+            },
+            {
+              q: t.language === 'pt' ? 'Como me torno um vendedor?' : t.language === 'en' ? 'How do I become a seller?' : '¿Cómo me convierto en vendedor?',
+              a: t.language === 'pt' ? 'Acesse "Tornar-se Vendedor" no seu painel.' : t.language === 'en' ? 'Go to "Become a Seller" in your dashboard.' : 'Ve a "Convertirse en Vendedor" en tu panel.'
+            }
+          ].map((item, i) => (
+            <div key={i} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800/40">
+              <button
+                onClick={() => setOpenFaqItem(openFaqItem === i ? null : i)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+              >
+                <span className="text-sm font-medium text-gray-800 dark:text-gray-200 pr-3">{item.q}</span>
+                {openFaqItem === i ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                )}
+              </button>
+              {openFaqItem === i && (
+                <div className="px-4 pb-3 pt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{item.a}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* How It Works Modal */}

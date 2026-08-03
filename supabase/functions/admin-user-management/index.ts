@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface AdminUserRequest {
-  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions' | 'freeze_balance' | 'unfreeze_balance' | 'update_name' | 'cancel_order' | 'review_appeal' | 'suspend_store' | 'unsuspend_store';
+  action: 'ban' | 'unban' | 'delete' | 'reset_password' | 'update_role' | 'get_user_details' | 'update_permissions' | 'get_permissions' | 'freeze_balance' | 'unfreeze_balance' | 'update_name' | 'cancel_order' | 'review_appeal' | 'suspend_store' | 'unsuspend_store' | 'apply_penalty' | 'revert_penalty' | 'get_penalties';
   user_id: string;
   data?: any;
 }
@@ -585,6 +585,68 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      case 'apply_penalty': {
+        const penaltyLevel = data?.penalty_level;
+        const reason = data?.reason;
+
+        if (![1, 2, 3].includes(penaltyLevel)) {
+          return new Response(
+            JSON.stringify({ error: 'penalty_level must be 1, 2, or 3' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const { error: penaltyError } = await supabaseAdmin.rpc('apply_seller_penalty', {
+          p_seller_id: user_id,
+          p_penalty_level: penaltyLevel,
+          p_reason: reason || null,
+          p_applied_by: user.id,
+        });
+
+        if (penaltyError) throw new Error(`Failed to apply penalty: ${penaltyError.message}`);
+
+        await logAdminAction(supabaseAdmin, user.id, user_id, 'apply_penalty', { penalty_level: penaltyLevel, reason: reason || 'No reason provided' });
+
+        return new Response(
+          JSON.stringify({ success: true, message: `Penalty level ${penaltyLevel} applied successfully` }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'revert_penalty': {
+        const revertReason = data?.reason;
+
+        const { error: revertError } = await supabaseAdmin.rpc('revert_seller_penalty', {
+          p_seller_id: user_id,
+          p_reverted_by: user.id,
+          p_revert_reason: revertReason || null,
+        });
+
+        if (revertError) throw new Error(`Failed to revert penalty: ${revertError.message}`);
+
+        await logAdminAction(supabaseAdmin, user.id, user_id, 'revert_penalty', { reason: revertReason || 'No reason provided' });
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Penalty reverted successfully' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'get_penalties': {
+        const { data: penalties, error: penaltiesError } = await supabaseAdmin
+          .from('seller_penalties')
+          .select('id, penalty_level, reason, applied_by, applied_at, reverted_by, reverted_at, revert_reason, is_active')
+          .eq('seller_id', user_id)
+          .order('applied_at', { ascending: false });
+
+        if (penaltiesError) throw new Error(`Failed to fetch penalties: ${penaltiesError.message}`);
+
+        return new Response(
+          JSON.stringify({ success: true, penalties: penalties || [] }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Invalid action' }),
@@ -594,8 +656,9 @@ Deno.serve(async (req: Request) => {
 
   } catch (error) {
     console.error('Error in admin user management:', error);
+    const errMsg = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: errMsg || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
