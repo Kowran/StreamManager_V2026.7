@@ -13,6 +13,7 @@ interface UnifiedRating {
   rating: number;
   comment: string | null;
   created_at: string;
+  rated_name?: string | null;
 }
 
 interface PenaltyInfo {
@@ -48,9 +49,11 @@ function getTierFromRating(avg: number): ReputationTier {
 export function SellerReputation({ sellerId, sellerName }: SellerReputationProps) {
   const { language } = useLanguage();
   const [ratings, setRatings] = useState<UnifiedRating[]>([]);
+  const [givenRatings, setGivenRatings] = useState<UnifiedRating[]>([]);
   const [avgRating, setAvgRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showAllComments, setShowAllComments] = useState(false);
+  const [showAllGiven, setShowAllGiven] = useState(false);
   const [penaltyInfo, setPenaltyInfo] = useState<PenaltyInfo | null>(null);
   const [penalties, setPenalties] = useState<any[]>([]);
 
@@ -93,6 +96,42 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
       );
 
       setRatings(combined);
+
+      // Load ratings this seller gave to customers
+      const { data: givenData } = await supabase
+        .from('user_ratings')
+        .select(`
+          id, rating, comment, created_at,
+          rated_user_id
+        `)
+        .eq('rater_id', sellerId)
+        .eq('rater_role', 'seller')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const givenRaw = (givenData || []) as any[];
+      let given: UnifiedRating[] = givenRaw.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        created_at: r.created_at,
+        rated_name: null,
+      }));
+
+      if (given.length > 0) {
+        const ratedIds = [...new Set(givenRaw.map((r) => r.rated_user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, username')
+          .in('id', ratedIds);
+        const profileMap = new Map((profiles || []).map((p: any) => [p.id, p.username || p.name || '']));
+        given = given.map((r, idx) => ({
+          ...r,
+          rated_name: profileMap.get(givenRaw[idx].rated_user_id) || null,
+        }));
+      }
+
+      setGivenRatings(given);
       if (combined.length > 0) {
         const sum = combined.reduce((acc, r) => acc + r.rating, 0);
         setAvgRating(sum / combined.length);
@@ -301,15 +340,15 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
 
         <div className="mb-5">
           <div className="flex gap-1.5 h-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
-            {segments.map((seg, idx) => {
+            {segments.map((seg) => {
               const segConfig = TIER_CONFIG[seg];
-              const isFilled = idx < filledSegments;
+              const isCurrent = hasRatings && seg === tier;
               return (
                 <div
                   key={seg}
                   className="flex-1 rounded-sm transition-all duration-500"
                   style={{
-                    backgroundColor: isFilled ? segConfig.color : 'transparent',
+                    backgroundColor: isCurrent ? segConfig.color : 'transparent',
                   }}
                   title={tr(segConfig.label.pt, segConfig.label.en, segConfig.label.es)}
                 />
@@ -317,16 +356,16 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
             })}
           </div>
           <div className="flex justify-between mt-2 px-0.5">
-            {segments.map((seg, idx) => {
+            {segments.map((seg) => {
               const segConfig = TIER_CONFIG[seg];
-              const isFilled = idx < filledSegments;
+              const isCurrent = hasRatings && seg === tier;
               return (
                 <span
                   key={seg}
-                  className={`text-[10px] font-medium transition-opacity ${isFilled ? 'opacity-100' : 'opacity-40'}`}
-                  style={{ color: isFilled ? segConfig.color : undefined }}
+                  className={`text-[10px] font-medium transition-opacity ${isCurrent ? 'opacity-100' : 'opacity-40'}`}
+                  style={{ color: isCurrent ? segConfig.color : undefined }}
                 >
-                  {idx + 1}
+                  {tr(segConfig.label.pt, segConfig.label.en, segConfig.label.es)}
                 </span>
               );
             })}
@@ -348,9 +387,9 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
         </div>
 
         {hasRatings && ratings.some((r) => r.comment) && (
-          <div className="space-y-2">
+          <div className="space-y-2 mb-5">
             <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-              {tr('Avaliações Recentes', 'Recent Reviews', 'Reseñas Recientes')}
+              {tr('Avaliações Recebidas', 'Received Reviews', 'Reseñas Recibidas')}
             </h4>
             {displayRatings.filter((r) => r.comment).map((rating) => (
               <div key={rating.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900/40">
@@ -373,6 +412,47 @@ export function SellerReputation({ sellerId, sellerName }: SellerReputationProps
                 {showAllComments
                   ? tr('Ver menos', 'Show less', 'Ver menos')
                   : tr(`Ver todos os ${ratings.filter((r) => r.comment).length} comentários`, `Show all ${ratings.filter((r) => r.comment).length} reviews`, `Ver las ${ratings.filter((r) => r.comment).length} reseñas`)}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Ratings given by seller to customers */}
+        {givenRatings.length > 0 && (
+          <div className="space-y-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              {tr('Avaliações a Clientes', 'Reviews Given to Customers', 'Reseñas a Clientes')}
+            </h4>
+            {(showAllGiven ? givenRatings : givenRatings.slice(0, 3)).map((rating) => (
+              <div key={rating.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-900/40">
+                <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <Star
+                      key={idx}
+                      className={`h-3 w-3 ${idx < rating.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-300 dark:text-gray-600'}`}
+                    />
+                  ))}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {rating.rated_name && (
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                      {tr('Cliente:', 'Customer:', 'Cliente:')} {rating.rated_name}
+                    </p>
+                  )}
+                  {rating.comment && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{rating.comment}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+            {givenRatings.length > 3 && (
+              <button
+                onClick={() => setShowAllGiven(!showAllGiven)}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              >
+                {showAllGiven
+                  ? tr('Ver menos', 'Show less', 'Ver menos')
+                  : tr(`Ver todos os ${givenRatings.length}`, `Show all ${givenRatings.length}`, `Ver los ${givenRatings.length}`)}
               </button>
             )}
           </div>

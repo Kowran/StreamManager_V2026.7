@@ -17,6 +17,8 @@ import { BinancePaymentModal } from './BinancePaymentModal';
 import { TripleAPaymentModal } from './TripleAPaymentModal';
 import { AsaasPaymentModal } from './AsaasPaymentModal';
 import { InfinitePayPaymentModal } from './InfinitePayPaymentModal';
+import { PagBankPaymentModal } from './PagBankPaymentModal';
+import { EfiPaymentModal } from './EfiPaymentModal';
 
 interface UserCredit {
   balance: number;
@@ -55,6 +57,8 @@ const PAYMENT_METHOD_META: Record<string, { icon: string; description: string; f
   triplea: { icon: 'https://i.imgur.com/nXhq7ph.png', description: 'Bitcoin, Ethereum, USDC, USDT', fees: 'Sem taxas', processing_time: '5-15 minutos', min_amount: 1, max_amount: 5000 },
   asaas: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, Boleto (Brasil)', fees: 'Sem taxas (PIX)', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
   infinitepay: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, Cartão (Brasil)', fees: 'Taxa zero no PIX', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
+  pagbank: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, Boleto (Brasil)', fees: 'Sem taxas (PIX)', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
+  efi: { icon: 'https://i.imgur.com/3oeBwGn.jpeg', description: 'PIX, Boleto (Brasil)', fees: 'Sem taxas (PIX)', processing_time: 'Instantâneo', min_amount: 1, max_amount: 1000 },
 };
 
 export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { presetRechargeAmount?: number; onRechargeComplete?: () => void } = {}) {
@@ -595,6 +599,22 @@ export function CreditsManager({ presetRechargeAmount, onRechargeComplete }: { p
       )}
       {showPaymentModal && selectedPaymentMethod === 'infinitepay' && (
         <InfinitePayPaymentModal
+          isOpen={showPaymentModal}
+          amount={rechargeAmount}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+      {showPaymentModal && selectedPaymentMethod === 'pagbank' && (
+        <PagBankPaymentModal
+          isOpen={showPaymentModal}
+          amount={rechargeAmount}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+      {showPaymentModal && selectedPaymentMethod === 'efi' && (
+        <EfiPaymentModal
           isOpen={showPaymentModal}
           amount={rechargeAmount}
           onClose={() => setShowPaymentModal(false)}

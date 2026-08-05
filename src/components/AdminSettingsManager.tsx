@@ -9,6 +9,8 @@ import { BinanceConfigModal } from './BinanceConfigModal';
 import { TripleAConfigModal } from './TripleAConfigModal';
 import { AsaasConfigModal } from './AsaasConfigModal';
 import { InfinitePayConfigModal } from './InfinitePayConfigModal';
+import { PagBankConfigModal } from './PagBankConfigModal';
+import { EfiConfigModal } from './EfiConfigModal';
 import { ImapConfigModal } from './ImapConfigModal';
 import { SmtpConfigModal } from './SmtpConfigModal';
 
@@ -96,6 +98,18 @@ export default function AdminSettingsManager() {
         .eq('key', 'infinitepay_config')
         .maybeSingle();
 
+      const { data: pagbankData } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'pagbank_config')
+        .maybeSingle();
+
+      const { data: efiData } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'efi_config')
+        .maybeSingle();
+
       const gatewayList: PaymentGateway[] = [
         {
           id: 'stripe',
@@ -176,6 +190,26 @@ export default function AdminSettingsManager() {
           color: 'border-indigo-500',
           hoverColor: 'hover:bg-indigo-50 dark:hover:bg-indigo-900/20',
           iconColor: 'text-indigo-600 dark:text-indigo-400'
+        },
+        {
+          id: 'pagbank',
+          name: 'PagBank',
+          icon: <CreditCard className="w-8 h-8" />,
+          description: 'PIX, Boleto Bancario (Brasil)',
+          configured: !!pagbankData?.value?.configured,
+          color: 'border-green-500',
+          hoverColor: 'hover:bg-green-50 dark:hover:bg-green-900/20',
+          iconColor: 'text-green-600 dark:text-green-400'
+        },
+        {
+          id: 'efi',
+          name: 'EFI Bank',
+          icon: <CreditCard className="w-8 h-8" />,
+          description: 'PIX, Boleto Bancario (Brasil)',
+          configured: !!efiData?.value?.configured,
+          color: 'border-orange-500',
+          hoverColor: 'hover:bg-orange-50 dark:hover:bg-orange-900/20',
+          iconColor: 'text-orange-600 dark:text-orange-400'
         }
       ];
 
@@ -529,6 +563,24 @@ export default function AdminSettingsManager() {
         onClose={handleModalClose}
         onSave={() => {
           showSuccessMessage('InfinitePay');
+          handleModalClose();
+        }}
+      />
+
+      <PagBankConfigModal
+        isOpen={activeModal === 'pagbank'}
+        onClose={handleModalClose}
+        onSave={() => {
+          showSuccessMessage('PagBank');
+          handleModalClose();
+        }}
+      />
+
+      <EfiConfigModal
+        isOpen={activeModal === 'efi'}
+        onClose={handleModalClose}
+        onSave={() => {
+          showSuccessMessage('EFI Bank');
           handleModalClose();
         }}
       />

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   User, Save, X, Mail, Globe, Shield, Check, AlertCircle, Camera, Store,
   Palette, Sparkles, ImagePlus, Trash2, Star, ZoomIn, ZoomOut, Move, RotateCcw,
-  LogIn, CalendarDays, Clock, ChevronRight, BadgeCheck, TrendingUp,
+  CalendarDays, Clock, ChevronRight, BadgeCheck, TrendingUp,
   ShoppingBag, Lock, MessageSquare, Zap, BarChart3, Wallet, Bell, BellOff,
   Heart, Award, Crown, Target, Gift, Activity, Settings,
 } from 'lucide-react';
@@ -680,7 +680,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
               <StatCard icon={ShoppingBag} label={tr.myPurchases} value={stats.purchases} color="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" onClick={() => onNavigate?.('purchases')} />
               <StatCard icon={Wallet} label={tr.myCredits} value={stats.credits} color="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" onClick={() => onNavigate?.('credits')} />
               <StatCard icon={MessageSquare} label={tr.support} value={stats.tickets} color="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" onClick={() => onNavigate?.('support')} />
-              <StatCard icon={LogIn} label={tr.logins} value={profile.login_count || 0} color="bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
 
@@ -805,7 +804,6 @@ export function UserProfile({ onNavigate }: UserProfileProps = {}) {
                       <BigStat icon={ShoppingBag} label={tr.myPurchases} value={stats.purchases} color="from-blue-500 to-blue-600" onClick={() => onNavigate?.('purchases')} />
                       <BigStat icon={Wallet} label={tr.myCredits} value={stats.credits} color="from-emerald-500 to-emerald-600" onClick={() => onNavigate?.('credits')} />
                       <BigStat icon={MessageSquare} label={tr.support} value={stats.tickets} color="from-amber-500 to-amber-600" onClick={() => onNavigate?.('support')} />
-                      <BigStat icon={LogIn} label={tr.logins} value={profile.login_count || 0} color="from-purple-500 to-purple-600" />
                     </div>
                   </div>
 

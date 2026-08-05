@@ -443,7 +443,10 @@ export function ProductDetailPage({ productId, onBack, onGetStarted, onNavigate 
 
   const navigateToSeller = useCallback(() => {
     if (product?.seller_info?.seller_slug) {
-      window.history.pushState(null, '', `/seller/${product.seller_info.seller_slug}`);
+      window.history.pushState(null, '', `/user/${product.seller_info.seller_slug}`);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } else if (product?.seller_info?.seller_id) {
+      window.history.pushState(null, '', `/user/${product.seller_info.seller_id}`);
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
   }, [product]);

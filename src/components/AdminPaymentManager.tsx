@@ -45,6 +45,8 @@ const METHOD_ICONS: Record<string, string> = {
   triplea: 'https://i.imgur.com/nXhq7ph.png',
   asaas: 'https://i.imgur.com/3oeBwGn.jpeg',
   infinitepay: 'https://i.imgur.com/3oeBwGn.jpeg',
+  pagbank: 'https://i.imgur.com/3oeBwGn.jpeg',
+  efi: 'https://i.imgur.com/3oeBwGn.jpeg',
 };
 
 export default function AdminPaymentManager() {

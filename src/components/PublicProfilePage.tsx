@@ -16,6 +16,8 @@ import { SellerRequestForm } from './SellerRequestForm';
 import { ChatModal } from './ChatModal';
 import { FollowButton, FollowersModal, FollowersStats, ReportButton } from './ProfileSocialActions';
 import { UserProfile } from './UserProfile';
+import { PublicProfileTabs } from './PublicProfileTabs';
+import type { SellerProduct } from './PublicProfileTabs';
 
 interface ProfileData {
   id: string;
@@ -146,7 +148,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
     setLoading(true);
     setError(null);
     try {
-      // Try by username first, then by ID
+      // Try by username first, then by ID, then by seller_slug
       let query = supabase.from('profiles').select('*');
 
       // Check if identifier looks like a UUID
@@ -154,7 +156,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
       if (isUuid) {
         query = query.eq('id', identifier);
       } else {
-        query = query.eq('username', identifier);
+        query = query.or(`username.eq.${identifier},seller_slug.eq.${identifier}`);
       }
 
       const { data, error: queryError } = await query.maybeSingle();
@@ -730,11 +732,7 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
               onOpen={(mode) => setFollowersModal(mode)}
             />
           </div>
-          <div className="grid grid-cols-3 gap-2">
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center">
-            <div className="text-sm font-bold text-gray-900 dark:text-white">{profile.login_count || 0}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">{lbl('Logins', 'Logins', 'Logins')}</div>
-          </div>
+          <div className="grid grid-cols-2 gap-2">
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 text-center">
             <div className="text-[10px] font-semibold text-gray-900 dark:text-white">
               {formatDate(profile.created_at)}
@@ -807,24 +805,24 @@ export function PublicProfilePage({ identifier, onBack, onNavigate }: PublicProf
             )}
           </div>
         )}
-
-        {/* Visit store link for sellers */}
-        {!isSelf && (profile.role === 'seller' || profile.role === 'admin') && profile.seller_slug && (
-          <div className="px-6 pb-5">
-            <button
-              onClick={() => {
-                window.history.pushState(null, '', `/seller/${profile.seller_slug}`);
-                window.dispatchEvent(new PopStateEvent('popstate'));
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-white text-sm transition-all hover:opacity-90"
-              style={{ backgroundColor: themeColor }}
-            >
-              <Store className="h-4 w-4" />
-              {lbl('Ver Loja', 'View Store', 'Ver Tienda')}
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Unified tabs for public viewers */}
+      {!isSelf && (
+        <PublicProfileTabs
+          profileId={profile.id}
+          profileCreatedAt={profile.created_at}
+          isSeller={profile.role === 'seller' || profile.role === 'admin'}
+          themeColor={themeColor}
+          onProductClick={(product: SellerProduct) => {
+            const productUrl = product.slug
+              ? `/product/${product.slug}`
+              : `/product/${product.id}`;
+            window.history.pushState(null, '', productUrl);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+        />
+      )}
 
       {/* Feedback messages */}
       {success && (

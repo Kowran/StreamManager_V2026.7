@@ -71,7 +71,6 @@ import AdminPopupManager from './components/AdminPopupManager';
 import AdminFlyingBalloonManager from './components/AdminFlyingBalloonManager';
 import { NotificationsPage } from './components/NotificationsPage';
 import { SellerStore } from './components/SellerStore';
-import { PublicSellerProfilePage } from './components/PublicSellerProfilePage';
 import { PublicProfilePage } from './components/PublicProfilePage';
 import { AdminGuard } from './components/AdminGuard';
 import { PopupDisplay } from './components/PopupDisplay';
@@ -366,8 +365,11 @@ function AppContent() {
         setActiveTab('user-profile');
       } else if (path.startsWith('seller/')) {
         const slug = path.replace('seller/', '');
-        setSellerSlug(slug);
-        setActiveTab('seller-profile');
+        if (slug) {
+          setProfileIdentifier(slug);
+          setSellerSlug(null);
+          setActiveTab('user-profile');
+        }
       } else if (path.startsWith('product/')) {
         const productId = parseProductIdFromUrl(path);
         if (productId) {
@@ -1346,24 +1348,7 @@ function AppContent() {
         </div>
       )}
 
-      {activeTab === 'seller-profile' && sellerSlug ? (
-        <div className="flex-1 w-full min-w-0">
-          <PublicSellerProfilePage
-            sellerSlug={sellerSlug}
-            onBack={() => {
-              setActiveTab('store');
-              setSellerSlug(null);
-              window.history.pushState(null, '', '/');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            onProductClick={(product: any) => {
-              setProductDetailId(product.id);
-              setActiveTab('product-detail');
-              window.history.pushState(null, '', `/product/${product.id}`);
-            }}
-          />
-        </div>
-      ) : activeTab === 'seller-store' ? (
+      {activeTab === 'seller-store' ? (
         <div className="flex-1 w-full min-w-0 flex flex-col">
           <SellerStore />
         </div>
